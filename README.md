@@ -1,85 +1,69 @@
 # Unemployment Burndown
 
-A personal finance application that helps users visualize and manage their runway during periods of unemployment. Track your savings burndown, model different scenarios, and make informed financial decisions.
+> Financial burndown tracker for unemployment — helps users track savings depletion during job transitions.
+
+[![Built with React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-7-purple?logo=vite)](https://vite.dev)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-4-cyan?logo=tailwindcss)](https://tailwindcss.com)
 
 ## Features
 
-- **Burndown Visualization** — Interactive charts showing how long your savings will last
-- **Scenario Modeling** — Create what-if scenarios with different income/expense assumptions
-- **Bank Account Integration** — Connect accounts via Plaid for automatic balance tracking
-- **Job Tracking** — Model potential job offers and their impact on your runway
-- **Notifications** — Get alerts at key milestones (50% remaining, 30 days to zero, etc.)
-- **Household Management** — Support for multiple users per household with roles/permissions
-- **MFA Security** — Two-factor authentication for account protection
+- 📊 **Burndown Projections** — Visual charts showing savings depletion over time
+- 🏦 **Bank Account Linking** — Connect accounts via Plaid for real-time data
+- 🎯 **Scenario Modeling** — Plan for different job transition outcomes
+- 👥 **Multi-User Households** — Support for families with organization membership
+- 🔔 **Milestone Notifications** — Alerts when burndown hits key thresholds (50%, 30 days to zero, etc.)
+- 📑 **Statement Categorization** — Import and categorize transactions for accurate projections
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 19, Vite 7.3, TailwindCSS 4.2, Recharts 3.7, Lucide React |
-| Backend | Express 5, Node.js |
-| Auth | JWT, bcrypt, OTP (otplib) |
-| Banking | Plaid API |
-| Infrastructure | AWS SAM, Amplify |
+| **Frontend** | React 19, Vite 7, TailwindCSS 4, Recharts, React Router 7 |
+| **Backend** | Express 5 (dev), AWS Lambda (prod) |
+| **Banking** | Plaid API |
+| **Auth** | JWT + MFA (TOTP with QR codes) |
+| **Infrastructure** | AWS Amplify, S3, SAM |
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- npm 9+
-- Plaid API credentials (for bank integration)
-- AWS CLI configured (for deployment)
+- Node.js 20+
+- npm 10+
+- AWS CLI (for deployment)
+- Plaid sandbox credentials ([sign up free](https://plaid.com))
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/RAG-Consulting-LLC/unemployment-burndown.git
 cd unemployment-burndown
-
-# Install dependencies
 npm install
+cp .env.example .env
+# Edit .env with your credentials
 ```
 
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-# Plaid API (required for bank integration)
-PLAID_CLIENT_ID=your_client_id
-PLAID_SECRET=your_secret
-PLAID_ENV=sandbox
-
-# JWT Secret (required for auth)
-JWT_SECRET=your_jwt_secret
-
-# AWS (required for deployment)
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=your_bucket_name
-```
-
-### Running Locally
+### Development
 
 ```bash
-# Start the frontend dev server (Vite)
-npm run dev
-
-# Start the backend Express server (separate terminal)
-npm run server
-
-# Or run both concurrently
-npm run dev:all
+npm run dev:all  # Runs frontend + backend concurrently
 ```
 
-The frontend will be available at `http://localhost:5173` and the backend API at `http://localhost:3000`.
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:3000 |
 
-### Building for Production
+### Available Scripts
 
-```bash
-npm run build
-```
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Vite dev server (frontend only) |
+| `npm run server` | Start Express server (backend only) |
+| `npm run dev:all` | Start both frontend and backend |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
 
 ## Project Structure
 
@@ -87,55 +71,63 @@ npm run build
 unemployment-burndown/
 ├── src/                    # React frontend
 │   ├── components/         # Reusable UI components
-│   │   ├── auth/           # Login, signup, 2FA
-│   │   ├── chart/          # Burndown chart components
-│   │   ├── dashboard/      # Dashboard widgets
-│   │   ├── finances/       # Income/expense management
-│   │   ├── layout/         # App shell, nav, sidebar
-│   │   ├── scenarios/      # What-if scenario modeling
-│   │   └── statements/     # Bank statement upload/parse
-│   ├── context/            # React context providers
+│   ├── pages/              # Route pages (Burndown, CreditCardHub, etc.)
 │   ├── hooks/              # Custom React hooks
-│   ├── pages/              # Route-level page components
-│   └── utils/              # Utility functions
-├── server/                 # Express dev server
-├── backend/                # AWS SAM backend API
-│   ├── src/                # Lambda function source
+│   ├── context/            # React context providers
+│   ├── utils/              # Utility functions
+│   └── constants/          # App constants
+├── server/                 # Express development server
+│   └── index.mjs
+├── backend/                # AWS Lambda functions
+│   ├── src/
 │   └── template.yaml       # SAM template
 ├── infrastructure/         # AWS infrastructure
-│   ├── lambda/             # Lambda functions (statement parser)
 │   └── template.yaml       # SAM template
-├── docs/                   # Policy documents
-└── scripts/                # Setup and utility scripts
+├── docs/                   # Documentation
+│   ├── data-retention-policy.md
+│   └── information-security-policy.md
+└── scripts/                # Setup utilities
 ```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+| Variable | Description |
+|----------|-------------|
+| `AWS_REGION` | AWS region (e.g., `us-west-1`) |
+| `AWS_ACCESS_KEY_ID` | AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key |
+| `PLAID_CLIENT_ID` | Plaid API client ID |
+| `PLAID_SANDBOX_SECRET` | Plaid sandbox secret |
+| `SENDGRID_API_KEY` | SendGrid API key for emails |
+| `JWT_SECRET` | Secret for JWT tokens (min 32 chars) |
+| `VITE_APP_USERNAME` | Basic auth username (dev only) |
+| `VITE_APP_PASSWORD` | Basic auth password (dev only) |
+
+## Deployment
+
+The app deploys to **AWS Amplify**. Build configuration is in `amplify.yml`.
+
+```bash
+# Build for production
+npm run build
+
+# Deploy via Amplify Console or CLI
+```
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feat/your-feature`)
+3. Commit changes following conventional commits (`feat:`, `fix:`, `chore:`)
+4. Push and open a PR against `main`
 
 ## Documentation
 
 - [Data Retention Policy](docs/data-retention-policy.md)
 - [Information Security Policy](docs/information-security-policy.md)
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feat/amazing-feature`)
-5. Open a Pull Request
-
-### Commit Convention
-
-This project uses conventional commits:
-
-- `feat:` — New features
-- `fix:` — Bug fixes
-- `chore:` — Maintenance tasks
-- `docs:` — Documentation updates
-- `refactor:` — Code refactoring
-
 ## License
 
-Private — All rights reserved.
-
----
-
-Built by [RAG Consulting LLC](https://github.com/RAG-Consulting-LLC)
+Private — © 2026 RAG Consulting LLC. All rights reserved.
