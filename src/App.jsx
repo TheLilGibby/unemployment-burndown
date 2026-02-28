@@ -952,9 +952,7 @@ function AuthenticatedApp({ logout, user }) {
         } />
 
         <Route path="/credit-cards" element={
-          <ErrorBoundary level="section">
-            <CreditCardHubPage creditCards={creditCards} people={people} />
-          </ErrorBoundary>
+          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} />
         } />
 
         <Route path="/job-scenarios" element={
