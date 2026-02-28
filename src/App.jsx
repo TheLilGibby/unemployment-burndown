@@ -938,7 +938,7 @@ function AuthenticatedApp({ logout, user }) {
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} />
+          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} />
         } />
 
         <Route path="/job-scenarios" element={

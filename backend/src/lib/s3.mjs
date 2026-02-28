@@ -65,3 +65,36 @@ export async function readStatement(orgId, statementId) {
   const key = statementId ? statementKey(orgId, statementId) : statementsIndexKey(orgId)
   return s3Get(key)
 }
+
+/**
+ * Read the statements index from S3, scoped to org.
+ * Returns a default empty index if the file doesn't exist.
+ */
+export async function readStatementIndex(orgId) {
+  const data = await s3Get(statementsIndexKey(orgId))
+  return data || { version: 1, lastUpdated: null, statements: [] }
+}
+
+/**
+ * Write a single statement to S3, scoped to org.
+ */
+export async function writeStatement(orgId, statementId, data) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: statementKey(orgId, statementId),
+    Body: JSON.stringify(data, null, 2),
+    ContentType: 'application/json',
+  }))
+}
+
+/**
+ * Write the statements index to S3, scoped to org.
+ */
+export async function writeStatementIndex(orgId, index) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: statementsIndexKey(orgId),
+    Body: JSON.stringify(index, null, 2),
+    ContentType: 'application/json',
+  }))
+}
