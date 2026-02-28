@@ -88,10 +88,13 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
   function jobIncomeForDate(d) {
     let total = 0
     for (const job of jobs) {
-      if (job.status !== 'active') continue
       if (!job.monthlySalary) continue
       if (job.startDate && dayjs(job.startDate).isAfter(d)) continue
-      if (job.endDate && dayjs(job.endDate).isBefore(d)) continue
+      if (job.endDate) {
+        if (dayjs(job.endDate).isBefore(d)) continue
+      } else {
+        if (job.status !== 'active') continue
+      }
       total += Number(job.monthlySalary) || 0
     }
     return total
@@ -547,8 +550,14 @@ function AuthenticatedApp({ logout, user }) {
   const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeMonthlyInc   = (v) => _allSum(v, 'monthlyAmount') + '/mo'
   const summarizeJobs         = (v) => {
-    const active = v.filter(j => j.status === 'active').length
-    const totalSalary = v.filter(j => j.status === 'active').reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
+    const now = dayjs()
+    const isActive = (j) => {
+      if (j.endDate && dayjs(j.endDate).isBefore(now)) return false
+      if (!j.endDate && j.status !== 'active') return false
+      return true
+    }
+    const active = v.filter(isActive).length
+    const totalSalary = v.filter(isActive).reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
     return `${active} active · ${_fmtM(totalSalary)}/mo`
   }
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
