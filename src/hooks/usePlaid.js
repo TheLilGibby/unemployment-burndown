@@ -46,7 +46,7 @@ export function usePlaid({ onSyncComplete } = {}) {
   const createLinkToken = useCallback(async () => {
     setError(null)
     try {
-      const data = await apiCall('/plaid/link-token', {
+      const data = await apiCall('/api/plaid/link-token', {
         method: 'POST',
         body: JSON.stringify({}),
       })
@@ -63,7 +63,7 @@ export function usePlaid({ onSyncComplete } = {}) {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/plaid/exchange', {
+      const data = await apiCall('/api/plaid/exchange', {
         method: 'POST',
         body: JSON.stringify({ public_token: publicToken, metadata }),
       })
@@ -95,7 +95,7 @@ export function usePlaid({ onSyncComplete } = {}) {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/plaid/accounts')
+      const data = await apiCall('/api/plaid/accounts')
       setLinkedItems(data.items || [])
       setLoading(false)
       fetchedRef.current = true
@@ -117,7 +117,7 @@ export function usePlaid({ onSyncComplete } = {}) {
       const body = {}
       if (itemId) body.itemId = itemId
 
-      const data = await apiCall('/plaid/sync', {
+      const data = await apiCall('/api/plaid/sync', {
         method: 'POST',
         body: JSON.stringify(body),
       })
@@ -148,7 +148,7 @@ export function usePlaid({ onSyncComplete } = {}) {
   const disconnect = useCallback(async (itemId) => {
     setError(null)
     try {
-      await apiCall('/plaid/disconnect', {
+      await apiCall('/api/plaid/disconnect', {
         method: 'POST',
         body: JSON.stringify({ itemId }),
       })
