@@ -36,6 +36,7 @@ import { NotificationsProvider } from './context/NotificationsContext'
 import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -862,96 +863,104 @@ function AuthenticatedApp({ logout, user }) {
                 <PersonFilter people={people} value={filterPersonId} onChange={setFilterPersonId} />
               </div>
             )}
-            <FinancialSidebar
-              totalSavings={totalSavings}
-              assetProceeds={assetProceeds}
-              effectiveExpenses={current.effectiveExpenses}
-              monthlyBenefits={current.monthlyBenefits}
-              monthlyInvestments={current.monthlyInvestments}
-              currentNetBurn={current.currentNetBurn}
-              totalRunwayMonths={current.totalRunwayMonths}
-              benefitEnd={current.benefitEnd}
-              savingsAccounts={savingsAccounts}
-              expenses={expenses}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              investments={investments}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              unemployment={unemployment}
-              jobs={jobs}
-              people={people}
-              filterPersonId={filterPersonId}
-            />
-            <BurndownPage
-              current={current}
-              base={base}
-              hasWhatIf={hasWhatIf}
-              totalSavings={totalSavings}
-              viewSettings={viewSettings}
-              people={people}
-              savingsAccounts={savingsAccounts}
-              unemployment={unemployment}
-              expenses={expenses}
-              whatIf={whatIf}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              assets={assets}
-              investments={investments}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              jobs={jobs}
-              jobScenarios={jobScenarios}
-              onJobsChange={onJobsChange}
-              onSavingsChange={onSavingsChange}
-              onUnemploymentChange={onUnemploymentChange}
-              onFurloughChange={onFurloughChange}
-              onExpensesChange={onExpensesChange}
-              onWhatIfChange={onWhatIfChange}
-              onOneTimeExpChange={onOneTimeExpChange}
-              onOneTimeIncChange={onOneTimeIncChange}
-              onMonthlyIncChange={onMonthlyIncChange}
-              onAssetsChange={onAssetsChange}
-              onInvestmentsChange={onInvestmentsChange}
-              onSubsChange={onSubsChange}
-              onCreditCardsChange={onCreditCardsChange}
-              onJobScenariosChange={onJobScenariosChange}
-              furloughDate={furloughDate}
-              derivedStartDate={derivedStartDate}
-              assetProceeds={assetProceeds}
-              onWhatIfReset={() => {
-                const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
-                setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
-              }}
-              templates={templates}
-              templateResults={templateResults}
-              jobScenarioResults={jobScenarioResults}
-              plaid={plaid}
-              filterPersonId={filterPersonId}
-              onFilterPersonChange={setFilterPersonId}
-              retirement={retirement}
-              onRetirementChange={onRetirementChange}
-            />
+            <ErrorBoundary level="component">
+              <FinancialSidebar
+                totalSavings={totalSavings}
+                assetProceeds={assetProceeds}
+                effectiveExpenses={current.effectiveExpenses}
+                monthlyBenefits={current.monthlyBenefits}
+                monthlyInvestments={current.monthlyInvestments}
+                currentNetBurn={current.currentNetBurn}
+                totalRunwayMonths={current.totalRunwayMonths}
+                benefitEnd={current.benefitEnd}
+                savingsAccounts={savingsAccounts}
+                expenses={expenses}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                investments={investments}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                unemployment={unemployment}
+                jobs={jobs}
+                people={people}
+                filterPersonId={filterPersonId}
+              />
+            </ErrorBoundary>
+            <ErrorBoundary level="section">
+              <BurndownPage
+                current={current}
+                base={base}
+                hasWhatIf={hasWhatIf}
+                totalSavings={totalSavings}
+                viewSettings={viewSettings}
+                people={people}
+                savingsAccounts={savingsAccounts}
+                unemployment={unemployment}
+                expenses={expenses}
+                whatIf={whatIf}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                assets={assets}
+                investments={investments}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                jobs={jobs}
+                jobScenarios={jobScenarios}
+                onJobsChange={onJobsChange}
+                onSavingsChange={onSavingsChange}
+                onUnemploymentChange={onUnemploymentChange}
+                onFurloughChange={onFurloughChange}
+                onExpensesChange={onExpensesChange}
+                onWhatIfChange={onWhatIfChange}
+                onOneTimeExpChange={onOneTimeExpChange}
+                onOneTimeIncChange={onOneTimeIncChange}
+                onMonthlyIncChange={onMonthlyIncChange}
+                onAssetsChange={onAssetsChange}
+                onInvestmentsChange={onInvestmentsChange}
+                onSubsChange={onSubsChange}
+                onCreditCardsChange={onCreditCardsChange}
+                onJobScenariosChange={onJobScenariosChange}
+                furloughDate={furloughDate}
+                derivedStartDate={derivedStartDate}
+                assetProceeds={assetProceeds}
+                onWhatIfReset={() => {
+                  const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
+                  setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
+                }}
+                templates={templates}
+                templateResults={templateResults}
+                jobScenarioResults={jobScenarioResults}
+                plaid={plaid}
+                filterPersonId={filterPersonId}
+                onFilterPersonChange={setFilterPersonId}
+                retirement={retirement}
+                onRetirementChange={onRetirementChange}
+              />
+            </ErrorBoundary>
           </>
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} />
+          <ErrorBoundary level="section">
+            <CreditCardHubPage creditCards={creditCards} people={people} />
+          </ErrorBoundary>
         } />
 
         <Route path="/job-scenarios" element={
-          <JobScenariosPage
-            jobScenarios={jobScenarios}
-            onJobScenariosChange={onJobScenariosChange}
-            jobScenarioResults={jobScenarioResults}
-            totalSavings={totalSavings}
-            effectiveExpenses={current.effectiveExpenses}
-            monthlyBenefits={current.monthlyBenefits}
-            monthlyInvestments={current.monthlyInvestments}
-            currentNetBurn={current.currentNetBurn}
-          />
+          <ErrorBoundary level="section">
+            <JobScenariosPage
+              jobScenarios={jobScenarios}
+              onJobScenariosChange={onJobScenariosChange}
+              jobScenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              effectiveExpenses={current.effectiveExpenses}
+              monthlyBenefits={current.monthlyBenefits}
+              monthlyInvestments={current.monthlyInvestments}
+              currentNetBurn={current.currentNetBurn}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="*" element={<Navigate to="/" replace />} />
