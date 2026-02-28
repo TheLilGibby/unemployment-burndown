@@ -33,4 +33,27 @@ export default [
       'no-empty': ['warn', { allowEmptyCatch: true }],
     },
   },
+  // Test files - add Vitest globals
+  {
+    files: ['**/*.test.{js,jsx}', '**/*.spec.{js,jsx}', 'src/test/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        // Vitest globals
+        vi: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        test: 'readonly',
+      },
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ];
