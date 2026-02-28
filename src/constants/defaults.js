@@ -39,6 +39,7 @@ export const DEFAULTS = {
     partnerStartDate: '',
   },
   oneTimeExpenses: [],
+  oneTimePurchases: [],
   oneTimeIncome: [],
   monthlyIncome: [],
   jobs: [],
