@@ -149,6 +149,33 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
               </div>
             </div>
 
+            {/* Retirement contribution */}
+            <div>
+              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>
+                Retirement Contribution %
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="25"
+                step="0.5"
+                value={s.retirementContributionPct || 0}
+                onChange={e => {
+                  const val = Math.max(0, Math.min(25, Number(e.target.value) || 0))
+                  updateScenario(s.id, 'retirementContributionPct', val)
+                }}
+                className="w-32 text-sm rounded px-2 py-1.5 focus:outline-none"
+                style={{
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                {formatCurrency((s.monthlyTakeHome * (s.retirementContributionPct || 0)) / 100)}/mo to 401(k)/IRA
+              </p>
+            </div>
+
             {/* Quick metrics */}
             {result && (
               <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -158,9 +185,18 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
                   </strong>
                 </span>
                 <span>
-                  Surplus after start: <strong style={{ color: s.monthlyTakeHome > result.effectiveExpenses ? 'var(--accent-emerald)' : 'var(--accent-red)' }}>
-                    {formatCurrency(s.monthlyTakeHome - result.effectiveExpenses)}/mo
-                  </strong>
+                  {(() => {
+                    const retirementAmount = (s.monthlyTakeHome * (s.retirementContributionPct || 0)) / 100
+                    const effectiveTakeHome = s.monthlyTakeHome - retirementAmount
+                    const surplus = effectiveTakeHome - result.effectiveExpenses
+                    return (
+                      <>
+                        Surplus after start: <strong style={{ color: effectiveTakeHome > result.effectiveExpenses ? 'var(--accent-emerald)' : 'var(--accent-red)' }}>
+                          {formatCurrency(surplus)}/mo
+                        </strong>
+                      </>
+                    )
+                  })()}
                 </span>
               </div>
             )}
