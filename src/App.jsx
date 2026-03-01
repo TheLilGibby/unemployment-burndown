@@ -38,7 +38,14 @@ import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
 import ErrorBoundary from './components/common/ErrorBoundary'
-import ExportMenu from './components/export/ExportMenu'
+import {
+  exportBurndownCSV,
+  exportExpensesCSV,
+  exportSavingsCSV,
+  exportScenariosCSV,
+  exportAllData,
+  exportSummaryJSON,
+} from './utils/export'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -228,8 +235,9 @@ const DEFAULT_VIEW = {
   },
 }
 
-function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold }) {
+function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData }) {
   const [open, setOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -239,6 +247,49 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Reset export submenu when main menu closes
+  useEffect(() => {
+    if (!open) setExportOpen(false)
+  }, [open])
+
+  const handleExport = (exportFn, ...args) => {
+    try {
+      exportFn(...args)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportAll = () => {
+    try {
+      exportAllData(exportData)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportJSON = () => {
+    try {
+      exportSummaryJSON({
+        ...exportData,
+        monthlyExpenses: exportData.burndown?.current?.effectiveExpenses,
+        monthlyIncome: exportData.burndown?.current?.monthlyBenefits,
+        runwayMonths: exportData.burndown?.current?.totalRunwayMonths,
+        runoutDate: exportData.burndown?.current?.runoutDate,
+      })
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const menuItemClass = "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
+  const menuItemStyle = { color: 'var(--text-secondary)' }
+  const hoverOn = e => e.currentTarget.style.background = 'var(--bg-input)'
+  const hoverOff = e => e.currentTarget.style.background = 'transparent'
 
   return (
     <div className="relative" ref={ref}>
@@ -262,10 +313,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
         >
           <button
             onClick={() => { onLogOpen(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -282,12 +333,98 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             )}
           </button>
 
+          {/* Export submenu */}
+          <button
+            onClick={() => setExportOpen(o => !o)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span className="flex-1 text-left">Export</span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: exportOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {exportOpen && (
+            <div className="py-0.5" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+              <button
+                onClick={() => handleExport(exportBurndownCSV, exportData.burndown)}
+                disabled={!exportData.burndown?.timeline?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Burndown CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportExpensesCSV, exportData.expenses)}
+                disabled={!exportData.expenses?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Expenses CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportSavingsCSV, exportData.savingsAccounts)}
+                disabled={!exportData.savingsAccounts?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Savings CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportScenariosCSV, exportData.scenarios, exportData.scenarioResults)}
+                disabled={!exportData.scenarios?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Scenarios CSV
+              </button>
+              <div className="my-0.5 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+              <button
+                onClick={handleExportAll}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                All Data (CSV Bundle)
+              </button>
+              <button
+                onClick={handleExportJSON}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                Summary JSON
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => { onPresent(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -299,10 +436,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 
           <button
             onClick={() => { onSecurity(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -313,10 +450,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 
           <button
             onClick={() => { onHousehold(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -330,10 +467,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
           <Link
             to="/profile"
             onClick={() => setOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -857,15 +994,6 @@ function AuthenticatedApp({ logout, user }) {
                 </span>
               )}
             </button>
-            <ExportMenu
-              burndown={current}
-              expenses={expenses}
-              savingsAccounts={savingsAccounts}
-              scenarios={jobScenarios}
-              scenarioResults={jobScenarioResults}
-              totalSavings={totalSavings}
-              unemployment={unemployment}
-            />
             <NotificationBell />
             <PeopleMenu people={people} onChange={onPeopleChange} />
             <ThemeToggle />
@@ -888,6 +1016,15 @@ function AuthenticatedApp({ logout, user }) {
               onSignOut={logout}
               onSecurity={() => setSecurityOpen(true)}
               onHousehold={() => setOrgOpen(true)}
+              exportData={{
+                burndown: current,
+                expenses,
+                savingsAccounts,
+                scenarios: jobScenarios,
+                scenarioResults: jobScenarioResults,
+                totalSavings,
+                unemployment,
+              }}
             />
           </div>
         }
