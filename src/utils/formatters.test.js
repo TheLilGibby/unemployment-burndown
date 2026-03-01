@@ -33,12 +33,12 @@ describe('formatCurrency', () => {
 
 describe('formatDate', () => {
   it('formats Date objects', () => {
-    const date = new Date('2026-03-15')
+    const date = new Date(2026, 2, 15) // months are 0-indexed
     expect(formatDate(date)).toBe('March 15, 2026')
   })
 
   it('formats date strings', () => {
-    expect(formatDate('2026-12-25')).toBe('December 25, 2026')
+    expect(formatDate('2026-12-25T00:00:00')).toBe('December 25, 2026')
   })
 
   it('handles null and undefined', () => {

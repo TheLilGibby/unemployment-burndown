@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
-import { X, AlertTriangle, AlertCircle, Info, Settings } from 'lucide-react'
+import { useEffect } from 'react'
+import { X, AlertTriangle, AlertCircle, Info } from 'lucide-react'
 import { useNotificationsContext } from '../../context/NotificationsContext'
-import NotificationSettings from './NotificationSettings'
 
 const SEVERITY_ORDER = { critical: 0, warning: 1, info: 2 }
 const SEVERITY_COLORS = {
@@ -24,7 +23,6 @@ function SeverityLabel({ severity }) {
 
 export default function NotificationPanel() {
   const { notifications, panelOpen, closePanel, dismiss, dismissAll } = useNotificationsContext()
-  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     if (!panelOpen) return
@@ -69,14 +67,6 @@ export default function NotificationPanel() {
             </p>
           </div>
           <div className="flex items-center gap-2 pt-0.5">
-            <button
-              onClick={() => setShowSettings(v => !v)}
-              className="p-1 rounded hover:opacity-60 transition-opacity"
-              style={{ color: 'var(--text-muted)' }}
-              title="Notification settings"
-            >
-              <Settings size={13} />
-            </button>
             {notifications.length > 0 && (
               <button
                 onClick={dismissAll}
@@ -100,12 +90,6 @@ export default function NotificationPanel() {
             </button>
           </div>
         </div>
-
-        {showSettings && (
-          <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <NotificationSettings />
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto">
           {sorted.length === 0 ? (
