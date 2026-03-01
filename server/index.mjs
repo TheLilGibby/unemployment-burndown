@@ -241,6 +241,7 @@ app.post('/api/org/create', authMiddleware, async (req, res) => {
           }
         }
         initialData.savedAt = now
+        console.log(`[org-create] Seeded org ${orgId} from examples/data.json (${(initialData.templates || []).length} templates)`)
       }
     }
     if (!initialData) {
@@ -1068,12 +1069,42 @@ async function mergeStatementsFromPlaid(orgId, added, modified, removed, account
 // GET /api/data — read data.json
 app.get('/api/data', orgMiddleware, async (req, res) => {
   try {
-    const data = await s3Get(dataKey(req.user.orgId))
+    let data
+    try {
+      data = await s3Get(dataKey(req.user.orgId))
+    } catch (err) {
+      if (err.name !== 'NoSuchKey' && err.$metadata?.httpStatusCode !== 404) throw err
+      // Org data file doesn't exist yet
+      data = null
+    }
+
+    // In local mode, ensure example templates are available
+    if (USE_LOCAL_DATA) {
+      const examplePath = resolve(LOCAL_DATA_DIR, 'data.json')
+      if (existsSync(examplePath)) {
+        const exampleData = JSON.parse(readFileSync(examplePath, 'utf-8'))
+
+        if (!data) {
+          // No org data at all — use the full example as starting point
+          console.log(`[data] No data for org ${req.user.orgId}, seeding from examples/data.json`)
+          data = exampleData
+          await s3Put(dataKey(req.user.orgId), data)
+        } else if (!Array.isArray(data.templates) || data.templates.length === 0) {
+          // Org data exists but has no templates — merge in example templates
+          if (Array.isArray(exampleData.templates) && exampleData.templates.length > 0) {
+            console.log(`[data] Merging ${exampleData.templates.length} example templates into org ${req.user.orgId}`)
+            data.templates = exampleData.templates
+            if (exampleData.activeTemplateId != null && data.activeTemplateId == null) {
+              data.activeTemplateId = exampleData.activeTemplateId
+            }
+            await s3Put(dataKey(req.user.orgId), data)
+          }
+        }
+      }
+    }
+
     res.json(data)
   } catch (err) {
-    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
-      return res.json(null)
-    }
     console.error('GET /api/data error:', err.message)
     res.status(500).json({ error: err.message })
   }
