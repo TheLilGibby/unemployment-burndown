@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { DEFAULTS } from './constants/defaults'
 import { useBurndown } from './hooks/useBurndown'
@@ -21,6 +21,7 @@ import FinancialSidebar from './components/layout/FinancialSidebar'
 import BurndownPage from './pages/BurndownPage'
 import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
+import UserProfilePage from './pages/UserProfilePage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
@@ -34,6 +35,19 @@ import OrgSetup from './components/auth/OrgSetup'
 import OrgSettings from './components/org/OrgSettings'
 import ProfileBubble from './components/profile/ProfileBubble'
 import ProfileSettings from './components/profile/ProfileSettings'
+import { NotificationsProvider } from './context/NotificationsContext'
+import NotificationBell from './components/notifications/NotificationBell'
+import NotificationPanel from './components/notifications/NotificationPanel'
+import ToastContainer from './components/notifications/ToastContainer'
+import ErrorBoundary from './components/common/ErrorBoundary'
+import {
+  exportBurndownCSV,
+  exportExpensesCSV,
+  exportSavingsCSV,
+  exportScenariosCSV,
+  exportAllData,
+  exportSummaryJSON,
+} from './utils/export'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -54,7 +68,7 @@ function migrateJobScenario(s) {
 // Pure burndown computation (mirrors useBurndown logic without React hooks).
 // Used inside useMemo to compute template results for the Compare tab.
 // ---------------------------------------------------------------------------
-function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = []) {
+function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
   const today = dayjs(startDate || new Date())
 
   const rawBenefitStart = dayjs(unemployment.startDate)
@@ -85,10 +99,13 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
   function jobIncomeForDate(d) {
     let total = 0
     for (const job of jobs) {
-      if (job.status !== 'active') continue
       if (!job.monthlySalary) continue
       if (job.startDate && dayjs(job.startDate).isAfter(d)) continue
-      if (job.endDate && dayjs(job.endDate).isBefore(d)) continue
+      if (job.endDate) {
+        if (dayjs(job.endDate).isBefore(d)) continue
+      } else {
+        if (job.status !== 'active') continue
+      }
       total += Number(job.monthlySalary) || 0
     }
     return total
@@ -101,6 +118,14 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     if (oteDate.isBefore(today)) continue
     const slot = Math.max(1, oteDate.diff(today, 'month') + 1)
     oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(ote.amount) || 0)
+  }
+  // Merge one-time purchases into the same expense map (they are also losses)
+  for (const otp of (oneTimePurchases || [])) {
+    if (!otp.date || !otp.amount) continue
+    const otpDate = dayjs(otp.date)
+    if (otpDate.isBefore(today)) continue
+    const slot = Math.max(1, otpDate.diff(today, 'month') + 1)
+    oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(otp.amount) || 0)
   }
 
   const oneTimeIncomeByMonth = {}
@@ -212,6 +237,7 @@ const DEFAULT_VIEW = {
     creditCards:   true,
     investments:   true,
     onetimes:      true,
+    onetimePurchases: true,
     onetimeIncome:   true,
     monthlyIncome:   true,
     assets:          true,
@@ -220,8 +246,9 @@ const DEFAULT_VIEW = {
   },
 }
 
-function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold }) {
+function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData }) {
   const [open, setOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -231,6 +258,49 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Reset export submenu when main menu closes
+  useEffect(() => {
+    if (!open) setExportOpen(false)
+  }, [open])
+
+  const handleExport = (exportFn, ...args) => {
+    try {
+      exportFn(...args)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportAll = () => {
+    try {
+      exportAllData(exportData)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportJSON = () => {
+    try {
+      exportSummaryJSON({
+        ...exportData,
+        monthlyExpenses: exportData.burndown?.current?.effectiveExpenses,
+        monthlyIncome: exportData.burndown?.current?.monthlyBenefits,
+        runwayMonths: exportData.burndown?.current?.totalRunwayMonths,
+        runoutDate: exportData.burndown?.current?.runoutDate,
+      })
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const menuItemClass = "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
+  const menuItemStyle = { color: 'var(--text-secondary)' }
+  const hoverOn = e => e.currentTarget.style.background = 'var(--bg-input)'
+  const hoverOff = e => e.currentTarget.style.background = 'transparent'
 
   return (
     <div className="relative" ref={ref}>
@@ -254,10 +324,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
         >
           <button
             onClick={() => { onLogOpen(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -274,12 +344,98 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             )}
           </button>
 
+          {/* Export submenu */}
+          <button
+            onClick={() => setExportOpen(o => !o)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span className="flex-1 text-left">Export</span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: exportOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {exportOpen && (
+            <div className="py-0.5" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+              <button
+                onClick={() => handleExport(exportBurndownCSV, exportData.burndown)}
+                disabled={!exportData.burndown?.timeline?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Burndown CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportExpensesCSV, exportData.expenses)}
+                disabled={!exportData.expenses?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Expenses CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportSavingsCSV, exportData.savingsAccounts)}
+                disabled={!exportData.savingsAccounts?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Savings CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportScenariosCSV, exportData.scenarios, exportData.scenarioResults)}
+                disabled={!exportData.scenarios?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Scenarios CSV
+              </button>
+              <div className="my-0.5 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+              <button
+                onClick={handleExportAll}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                All Data (CSV Bundle)
+              </button>
+              <button
+                onClick={handleExportJSON}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                Summary JSON
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => { onPresent(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -291,10 +447,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 
           <button
             onClick={() => { onSecurity(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -305,10 +461,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 
           <button
             onClick={() => { onHousehold(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -318,6 +474,21 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             </svg>
             <span className="flex-1 text-left">Household</span>
           </button>
+
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="flex-1 text-left">Profile</span>
+          </Link>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
 
@@ -394,6 +565,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
   const [expenses, setExpenses] = useState(DEFAULTS.expenses)
   const [whatIf, setWhatIf] = useState(DEFAULTS.whatIf)
   const [oneTimeExpenses, setOneTimeExpenses] = useState(DEFAULTS.oneTimeExpenses)
+  const [oneTimePurchases, setOneTimePurchases] = useState(DEFAULTS.oneTimePurchases)
   const [assets, setAssets] = useState(DEFAULTS.assets)
   const [investments, setInvestments] = useState(DEFAULTS.investments)
   const [subscriptions, setSubscriptions] = useState(DEFAULTS.subscriptions)
@@ -406,6 +578,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
   const [comments, setComments] = useState({})
   const [defaultPersonId, setDefaultPersonId] = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
+  const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
 
   const {
     templates,
@@ -436,7 +609,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
   }
 
   function applySnapshot(snapshot) {
@@ -449,6 +622,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     // Merge snapshot whatIf with DEFAULTS so new fields always exist
     if (snapshot.whatIf) setWhatIf({ ...DEFAULTS.whatIf, ...snapshot.whatIf })
     if (snapshot.oneTimeExpenses) setOneTimeExpenses(snapshot.oneTimeExpenses)
+    if (snapshot.oneTimePurchases) setOneTimePurchases(snapshot.oneTimePurchases)
     if (snapshot.oneTimeIncome) setOneTimeIncome(snapshot.oneTimeIncome)
     if (snapshot.monthlyIncome) setMonthlyIncome(snapshot.monthlyIncome)
     if (snapshot.jobs) setJobs(snapshot.jobs)
@@ -471,6 +645,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
       comments,
       defaultPersonId,
       activityLog: logEntries,
+      notificationPreferences,
     }
   }
 
@@ -482,6 +657,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     if (data.comments && typeof data.comments === 'object') setComments(data.comments)
     if (data.defaultPersonId != null) setDefaultPersonId(data.defaultPersonId)
     if (Array.isArray(data.activityLog)) loadEntries(data.activityLog)
+    if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
   }
 
   // When S3 storage loads data on mount, apply it
@@ -506,7 +682,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, defaultPersonId]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, defaultPersonId]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -539,11 +715,18 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     return parts.length ? parts.join(', ') : 'baseline'
   }
   const summarizeOneTimeExp   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
+  const summarizeOneTimePurch = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeMonthlyInc   = (v) => _allSum(v, 'monthlyAmount') + '/mo'
   const summarizeJobs         = (v) => {
-    const active = v.filter(j => j.status === 'active').length
-    const totalSalary = v.filter(j => j.status === 'active').reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
+    const now = dayjs()
+    const isActive = (j) => {
+      if (j.endDate && dayjs(j.endDate).isBefore(now)) return false
+      if (!j.endDate && j.status !== 'active') return false
+      return true
+    }
+    const active = v.filter(isActive).length
+    const totalSalary = v.filter(isActive).reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
     return `${active} active · ${_fmtM(totalSalary)}/mo`
   }
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
@@ -581,6 +764,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
   const onPeopleChange       = track(() => people,          setPeople,          'People',             summarizePeople,       diffArray)
   const onWhatIfChange       = track(() => whatIf,          setWhatIf,          'What-if scenarios',  summarizeWhatIf,       diffObject)
   const onOneTimeExpChange   = track(() => oneTimeExpenses, setOneTimeExpenses, 'One-time expenses',  summarizeOneTimeExp,   diffArray)
+  const onOneTimePurchChange = track(() => oneTimePurchases, setOneTimePurchases, 'One-time purchases', summarizeOneTimePurch, diffArray)
   const onOneTimeIncChange   = track(() => oneTimeIncome,   setOneTimeIncome,   'One-time income',    summarizeOneTimeInc,   diffArray)
   const onMonthlyIncChange   = track(() => monthlyIncome,   setMonthlyIncome,   'Monthly income',     summarizeMonthlyInc,   diffArray)
   const onJobsChange         = track(() => jobs,            setJobs,            'Jobs',               summarizeJobs,         diffArray)
@@ -625,10 +809,10 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
 
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs)
+  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs)
+  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -659,7 +843,8 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
       const tMonthlyIncome = s.monthlyIncome || []
       const tFurloughDate = s.furloughDate || DEFAULTS.furloughDate
       const tJobs = s.jobs || []
-      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs)
+      const tOneTimePurchases = s.oneTimePurchases || []
+      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases)
     }
     return results
   }, [templates])
@@ -669,26 +854,30 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     const baseWhatIfForScenarios = { ...whatIf, jobOfferSalary: 0, jobOfferStartDate: '' }
     const results = {}
     for (const scenario of jobScenarios) {
+      const retirementPct = scenario.retirementContributionPct || 0
+      const retirementAmount = (scenario.monthlyTakeHome * retirementPct) / 100
+      const effectiveTakeHome = scenario.monthlyTakeHome - retirementAmount
+      
       const scenarioWhatIf = {
         ...baseWhatIfForScenarios,
-        jobOfferSalary: scenario.monthlyTakeHome,
+        jobOfferSalary: effectiveTakeHome,
         jobOfferStartDate: scenario.startDate,
         jobOfferAnnualRaisePct: scenario.annualRaisePct || 0,
       }
       results[scenario.id] = computeBurndown(
         totalSavings, unemployment, expensesWithSubs, scenarioWhatIf,
         oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-        monthlyIncome, furloughDate
+        monthlyIncome, furloughDate, [], oneTimePurchases
       )
     }
     // Baseline (no job) result
     results['__baseline__'] = computeBurndown(
       totalSavings, unemployment, expensesWithSubs, baseWhatIfForScenarios,
       oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-      monthlyIncome, furloughDate
+      monthlyIncome, furloughDate, [], oneTimePurchases
     )
     return results
-  }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
+  }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, oneTimePurchases, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
 
   const hasWhatIf =
     whatIf.expenseReductionPct > 0 ||
@@ -703,6 +892,12 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     ((Number(whatIf.partnerIncomeMonthly) || 0) > 0 && !!whatIf.partnerStartDate)
 
   return (
+    <NotificationsProvider
+      burndown={current}
+      preferences={notificationPreferences}
+      onPreferencesChange={setNotificationPreferences}
+      initialBalance={totalSavings}
+    >
     <CommentsProvider
       comments={comments}
       onCommentsChange={setComments}
@@ -711,6 +906,8 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
       onDefaultPersonChange={setDefaultPersonId}
     >
     <CommentsPanel />
+    <NotificationPanel />
+    <ToastContainer />
     <div className="min-h-screen theme-page" style={{ color: 'var(--text-primary)' }}>
       {/* Presentation overlay — rendered outside main layout so it fills the viewport */}
       {presentationMode && (
@@ -823,6 +1020,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
                 </span>
               )}
             </button>
+            <NotificationBell />
             <PeopleMenu people={people} onChange={onPeopleChange} />
             <ThemeToggle />
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
@@ -845,6 +1043,15 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               onSignOut={logout}
               onSecurity={() => setSecurityOpen(true)}
               onHousehold={() => setOrgOpen(true)}
+              exportData={{
+                burndown: current,
+                expenses,
+                savingsAccounts,
+                scenarios: jobScenarios,
+                scenarioResults: jobScenarioResults,
+                totalSavings,
+                unemployment,
+              }}
             />
           </div>
         }
@@ -874,6 +1081,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               creditCards={creditCards}
               investments={investments}
               oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
               oneTimeIncome={oneTimeIncome}
               monthlyIncome={monthlyIncome}
               unemployment={unemployment}
@@ -893,6 +1101,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               expenses={expenses}
               whatIf={whatIf}
               oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
               oneTimeIncome={oneTimeIncome}
               monthlyIncome={monthlyIncome}
               assets={assets}
@@ -908,6 +1117,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               onExpensesChange={onExpensesChange}
               onWhatIfChange={onWhatIfChange}
               onOneTimeExpChange={onOneTimeExpChange}
+              onOneTimePurchChange={onOneTimePurchChange}
               onOneTimeIncChange={onOneTimeIncChange}
               onMonthlyIncChange={onMonthlyIncChange}
               onAssetsChange={onAssetsChange}
@@ -931,29 +1141,110 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               retirement={retirement}
               onRetirementChange={onRetirementChange}
             />
+            <ErrorBoundary level="component">
+              <FinancialSidebar
+                totalSavings={totalSavings}
+                assetProceeds={assetProceeds}
+                effectiveExpenses={current.effectiveExpenses}
+                monthlyBenefits={current.monthlyBenefits}
+                monthlyInvestments={current.monthlyInvestments}
+                currentNetBurn={current.currentNetBurn}
+                totalRunwayMonths={current.totalRunwayMonths}
+                benefitEnd={current.benefitEnd}
+                savingsAccounts={savingsAccounts}
+                expenses={expenses}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                investments={investments}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                unemployment={unemployment}
+                jobs={jobs}
+                people={people}
+                filterPersonId={filterPersonId}
+              />
+            </ErrorBoundary>
+            <ErrorBoundary level="section">
+              <BurndownPage
+                current={current}
+                base={base}
+                hasWhatIf={hasWhatIf}
+                totalSavings={totalSavings}
+                viewSettings={viewSettings}
+                people={people}
+                savingsAccounts={savingsAccounts}
+                unemployment={unemployment}
+                expenses={expenses}
+                whatIf={whatIf}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                assets={assets}
+                investments={investments}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                jobs={jobs}
+                jobScenarios={jobScenarios}
+                onJobsChange={onJobsChange}
+                onSavingsChange={onSavingsChange}
+                onUnemploymentChange={onUnemploymentChange}
+                onFurloughChange={onFurloughChange}
+                onExpensesChange={onExpensesChange}
+                onWhatIfChange={onWhatIfChange}
+                onOneTimeExpChange={onOneTimeExpChange}
+                onOneTimeIncChange={onOneTimeIncChange}
+                onMonthlyIncChange={onMonthlyIncChange}
+                onAssetsChange={onAssetsChange}
+                onInvestmentsChange={onInvestmentsChange}
+                onSubsChange={onSubsChange}
+                onCreditCardsChange={onCreditCardsChange}
+                onJobScenariosChange={onJobScenariosChange}
+                furloughDate={furloughDate}
+                derivedStartDate={derivedStartDate}
+                assetProceeds={assetProceeds}
+                onWhatIfReset={() => {
+                  const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
+                  setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
+                }}
+                templates={templates}
+                templateResults={templateResults}
+                jobScenarioResults={jobScenarioResults}
+                plaid={plaid}
+                filterPersonId={filterPersonId}
+                onFilterPersonChange={setFilterPersonId}
+                retirement={retirement}
+                onRetirementChange={onRetirementChange}
+              />
+            </ErrorBoundary>
           </>
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} />
+          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} />
         } />
 
         <Route path="/job-scenarios" element={
-          <JobScenariosPage
-            jobScenarios={jobScenarios}
-            onJobScenariosChange={onJobScenariosChange}
-            jobScenarioResults={jobScenarioResults}
-            totalSavings={totalSavings}
-            effectiveExpenses={current.effectiveExpenses}
-            monthlyBenefits={current.monthlyBenefits}
-            monthlyInvestments={current.monthlyInvestments}
-            currentNetBurn={current.currentNetBurn}
-          />
+          <ErrorBoundary level="section">
+            <JobScenariosPage
+              jobScenarios={jobScenarios}
+              onJobScenariosChange={onJobScenariosChange}
+              jobScenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              effectiveExpenses={current.effectiveExpenses}
+              monthlyBenefits={current.monthlyBenefits}
+              monthlyInvestments={current.monthlyInvestments}
+              currentNetBurn={current.currentNetBurn}
+            />
+          </ErrorBoundary>
         } />
+
+        <Route path="/profile" element={<UserProfilePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
     </CommentsProvider>
+    </NotificationsProvider>
   )
 }

@@ -214,8 +214,8 @@ export default function ActivityLogPanel({ entries, onClose, onClear, userName, 
   const [expanded, setExpanded]       = useState(new Set())   // Set of expanded entry IDs
 
   // ── Filters ──────────────────────────────────────────────────────────────────
-  const [showSaves,   setShowSaves]   = useState(true)
-  const [showLoads,   setShowLoads]   = useState(true)
+  const [showSaves,   setShowSaves]   = useState(false)
+  const [showLoads,   setShowLoads]   = useState(false)
   const [showEdits,   setShowEdits]   = useState(true)
   const [hideAutoSave, setHideAutoSave] = useState(true)      // default: hide noisy auto-saves
 

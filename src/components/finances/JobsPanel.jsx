@@ -36,8 +36,9 @@ export default function JobsPanel({ jobs, onChange, people = [] }) {
       if (job.id !== id) return job
       const updated = { ...job, [field]: val }
       // Auto-populate statusDate when status changes away from active
-      if (field === 'status' && val !== 'active' && !job.statusDate) {
-        updated.statusDate = dayjs().format('YYYY-MM-DD')
+      if (field === 'status' && val !== 'active') {
+        if (!job.statusDate) updated.statusDate = dayjs().format('YYYY-MM-DD')
+        if (!job.endDate) updated.endDate = dayjs().format('YYYY-MM-DD')
       }
       return updated
     }))
@@ -54,7 +55,12 @@ export default function JobsPanel({ jobs, onChange, people = [] }) {
     ])
   }
 
-  const activeJobs = jobs.filter(j => j.status === 'active')
+  const today = dayjs()
+  const activeJobs = jobs.filter(j => {
+    if (j.endDate && dayjs(j.endDate).isBefore(today)) return false
+    if (!j.endDate && j.status !== 'active') return false
+    return true
+  })
   const activeIncome = activeJobs.reduce((sum, j) => sum + (Number(j.monthlySalary) || 0), 0)
   const inactiveCount = jobs.length - activeJobs.length
 

@@ -11,6 +11,7 @@ import {
   PlaidBudgetExceededError,
   PlaidSyncCooldownError,
 } from '../lib/plaidBudget.mjs'
+import { mergeTransactionsIntoStatements } from '../lib/plaidStatements.mjs'
 
 /**
  * POST /plaid/sync
@@ -74,6 +75,8 @@ export async function handler(event) {
     if (!data.plaidMeta)        data.plaidMeta = {}
 
     const allAccountUpdates = []
+    // Collect per-item transaction data for statement generation
+    const itemSyncData = []
 
     for (const item of items) {
       const { accessToken, itemId: iid } = item
@@ -82,6 +85,8 @@ export async function handler(event) {
       let cursor = item.cursor || null
       let hasMore = true
       let addedTxns = []
+      let modifiedTxns = []
+      let removedTxns = []
       let pageCount = 0
 
       while (hasMore && pageCount < MAX_SYNC_PAGES) {
@@ -93,8 +98,9 @@ export async function handler(event) {
         })
         const syncData = syncRes.data
 
-        addedTxns = addedTxns.concat(syncData.added || [])
-        // We track added txns; modified/removed could be handled later
+        addedTxns    = addedTxns.concat(syncData.added || [])
+        modifiedTxns = modifiedTxns.concat(syncData.modified || [])
+        removedTxns  = removedTxns.concat(syncData.removed || [])
 
         hasMore = syncData.has_more
         cursor  = syncData.next_cursor
@@ -131,13 +137,20 @@ export async function handler(event) {
 
         // ── Map to existing data model ──
         if (acct.type === 'depository') {
-          // Checking / Savings → savingsAccounts
           mapToSavingsAccount(state, data.plaidMeta, acct)
         } else if (acct.type === 'credit') {
-          // Credit card → creditCards
           mapToCreditCard(state, data.plaidMeta, acct)
         }
       }
+
+      // Stash per-item data for statement generation
+      itemSyncData.push({
+        item,
+        addedTxns,
+        modifiedTxns,
+        removedTxns,
+        plaidAccounts,
+      })
     }
 
     // Record sync timestamp
@@ -147,6 +160,40 @@ export async function handler(event) {
     // Write updated data back to S3 (scoped to org)
     await writeDataJson(data, user.orgId)
 
+    // ── Persist transactions as hub statements ──
+    let totalTxnsSynced = 0
+    let totalTxnsRemoved = 0
+
+    // Build cardId map once (state is now fully updated with plaidAccountIds)
+    const cardIdMap = {}
+    for (const card of state.creditCards) {
+      if (card.plaidAccountId) cardIdMap[card.plaidAccountId] = card.id
+    }
+    for (const acct of state.savingsAccounts) {
+      if (acct.plaidAccountId) cardIdMap[acct.plaidAccountId] = acct.id
+    }
+
+    for (const { item, addedTxns, modifiedTxns, removedTxns, plaidAccounts } of itemSyncData) {
+      const accountInfoMap = {}
+      for (const acct of plaidAccounts) {
+        accountInfoMap[acct.account_id] = {
+          name:            acct.name,
+          mask:            acct.mask,
+          type:            acct.type,
+          subtype:         acct.subtype,
+          institutionName: item.institutionName,
+        }
+      }
+
+      if (addedTxns.length > 0 || modifiedTxns.length > 0 || removedTxns.length > 0) {
+        await mergeTransactionsIntoStatements(
+          user.orgId, addedTxns, modifiedTxns, removedTxns, accountInfoMap, cardIdMap
+        )
+        totalTxnsSynced  += addedTxns.length + modifiedTxns.length
+        totalTxnsRemoved += removedTxns.length
+      }
+    }
+
     // Record cooldown for each synced item
     for (const item of items) {
       await recordSyncTime(item.itemId)
@@ -155,6 +202,8 @@ export async function handler(event) {
     return ok({
       updated: true,
       accountsUpdated: allAccountUpdates.length,
+      transactionsSynced: totalTxnsSynced,
+      transactionsRemoved: totalTxnsRemoved,
       accounts: allAccountUpdates,
       data,  // return full updated data so frontend can apply it
     })

@@ -106,8 +106,9 @@ button, a {
   .row-expense-sm    { grid-template-columns: 20px 1fr 110px 80px 32px 32px 32px; }
   .row-creditcard-sm { grid-template-columns: 20px 1fr 130px 130px 32px 32px 32px; }
   .row-invest-sm     { grid-template-columns: 20px 1fr 120px 72px 32px 32px 32px; }
-  .row-onetimeexp-sm { grid-template-columns: 20px 1fr 130px 110px 32px 32px 32px; }
-  .row-assets-sm     { grid-template-columns: 20px 1fr 130px 90px 32px 32px 32px; }
+  .row-onetimeexp-sm   { grid-template-columns: 20px 1fr 130px 110px 32px 32px 32px; }
+  .row-onetimepurch-sm { grid-template-columns: 20px 1fr 110px 120px 110px 32px 32px 32px; }
+  .row-assets-sm       { grid-template-columns: 20px 1fr 130px 90px 32px 32px 32px; }
 }
 
 /* Mobile drawer safe-area bottom padding */
@@ -128,6 +129,7 @@ button, a {
   .row-creditcard-sm,
   .row-invest-sm,
   .row-onetimeexp-sm,
+  .row-onetimepurch-sm,
   .row-assets-sm {
     background-color: var(--bg-hover);
     border-radius: 8px;

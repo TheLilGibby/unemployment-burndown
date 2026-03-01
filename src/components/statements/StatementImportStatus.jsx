@@ -1,6 +1,8 @@
 export default function StatementImportStatus({ statementIndex, loading, error, onRefresh }) {
   const stmtCount = statementIndex?.statements?.length || 0
   const lastUpdated = statementIndex?.lastUpdated
+  const plaidCount = (statementIndex?.statements || []).filter(s => s.source === 'plaid').length
+  const emailCount = stmtCount - plaidCount
 
   return (
     <div
@@ -22,7 +24,12 @@ export default function StatementImportStatus({ statementIndex, loading, error, 
 
       {/* Stats */}
       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {stmtCount} statement{stmtCount !== 1 ? 's' : ''} imported
+        {stmtCount} statement{stmtCount !== 1 ? 's' : ''}
+        {stmtCount > 0 && (plaidCount > 0 || emailCount > 0) && (
+          <span style={{ color: 'var(--text-faint)' }}>
+            {' '}({emailCount > 0 && `${emailCount} email`}{emailCount > 0 && plaidCount > 0 && ', '}{plaidCount > 0 && `${plaidCount} bank-synced`})
+          </span>
+        )}
       </span>
 
       {lastUpdated && (
@@ -56,8 +63,8 @@ export default function StatementImportStatus({ statementIndex, loading, error, 
       {stmtCount === 0 && !loading && (
         <div className="w-full mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Forward your credit card statement emails to the configured SES address.
-            Statements are automatically parsed and will appear here within 60 seconds.
+            Connect a bank account above to sync transactions, or forward credit card
+            statement emails to the configured SES address.
           </p>
         </div>
       )}

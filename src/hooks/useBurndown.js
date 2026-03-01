@@ -17,7 +17,7 @@ import dayjs from 'dayjs'
  *   partnerIncomeMonthly   number  second household income
  *   partnerStartDate       string  ISO date partner income begins
  */
-export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses = [], extraCash = 0, investments = [], oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = []) {
+export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses = [], extraCash = 0, investments = [], oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
   return useMemo(() => {
     const today = dayjs(startDate || new Date())
 
@@ -60,6 +60,15 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       const slot = Math.max(1, monthsAhead + 1)
       oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(ote.amount) || 0)
     }
+    // Merge one-time purchases into same expense map (they are also losses)
+    for (const otp of oneTimePurchases) {
+      if (!otp.date || !otp.amount) continue
+      const otpDate = dayjs(otp.date)
+      if (otpDate.isBefore(today)) continue
+      const monthsAhead = otpDate.diff(today, 'month')
+      const slot = Math.max(1, monthsAhead + 1)
+      oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(otp.amount) || 0)
+    }
 
     // --- One-time income injections by month slot ---
     const oneTimeIncomeByMonth = {}
@@ -92,13 +101,18 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
     const emergencyFloor = Number(whatIf.emergencyFloor) || 0
 
     // --- Helper: compute job income for a given date ---
+    // endDate is the primary cutoff: if set, salary stops after endDate regardless of status.
+    // If no endDate, fall back to status check (only 'active' jobs count).
     function jobIncomeForDate(d) {
       let total = 0
       for (const job of jobs) {
-        if (job.status !== 'active') continue
         if (!job.monthlySalary) continue
         if (job.startDate && dayjs(job.startDate).isAfter(d)) continue
-        if (job.endDate && dayjs(job.endDate).isBefore(d)) continue
+        if (job.endDate) {
+          if (dayjs(job.endDate).isBefore(d)) continue
+        } else {
+          if (job.status !== 'active') continue
+        }
         total += Number(job.monthlySalary) || 0
       }
       return total
@@ -276,5 +290,5 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       benefitStart: benefitStart.toDate(),
       emergencyFloor,
     }
-  }, [savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome, monthlyIncome, startDate, jobs])
+  }, [savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome, monthlyIncome, startDate, jobs, oneTimePurchases])
 }
