@@ -683,9 +683,13 @@ function AuthenticatedApp({ logout, user }) {
     const baseWhatIfForScenarios = { ...whatIf, jobOfferSalary: 0, jobOfferStartDate: '' }
     const results = {}
     for (const scenario of jobScenarios) {
+      const retirementPct = scenario.retirementContributionPct || 0
+      const retirementAmount = (scenario.monthlyTakeHome * retirementPct) / 100
+      const effectiveTakeHome = scenario.monthlyTakeHome - retirementAmount
+      
       const scenarioWhatIf = {
         ...baseWhatIfForScenarios,
-        jobOfferSalary: scenario.monthlyTakeHome,
+        jobOfferSalary: effectiveTakeHome,
         jobOfferStartDate: scenario.startDate,
         jobOfferAnnualRaisePct: scenario.annualRaisePct || 0,
       }
