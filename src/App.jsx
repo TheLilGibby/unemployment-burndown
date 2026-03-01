@@ -38,6 +38,7 @@ import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import ExportMenu from './components/export/ExportMenu'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -856,6 +857,15 @@ function AuthenticatedApp({ logout, user }) {
                 </span>
               )}
             </button>
+            <ExportMenu
+              burndown={current}
+              expenses={expenses}
+              savingsAccounts={savingsAccounts}
+              scenarios={jobScenarios}
+              scenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              unemployment={unemployment}
+            />
             <NotificationBell />
             <PeopleMenu people={people} onChange={onPeopleChange} />
             <ThemeToggle />
