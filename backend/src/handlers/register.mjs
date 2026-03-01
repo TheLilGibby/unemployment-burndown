@@ -38,7 +38,8 @@ export async function handler(event) {
     audit.info({ userId }, 'new user registered')
 
     // Return JWT (no MFA yet, no org yet for new accounts)
-    const token = signToken(userId, { mfaVerified: false, orgId: null, orgRole: null })
+    // mfaVerified: true because this user has no MFA — consistent with the login flow
+    const token = signToken(userId, { mfaVerified: true, orgId: null, orgRole: null })
 
     return ok({
       token,
