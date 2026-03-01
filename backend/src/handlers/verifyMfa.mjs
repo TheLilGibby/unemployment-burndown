@@ -33,14 +33,20 @@ export async function handler(event) {
       return err(401, 'Invalid MFA code')
     }
 
-    // Issue a full-access token
-    const token = signToken(user.userId, { mfaVerified: true })
+    // Issue a full-access token with org info
+    const token = signToken(user.userId, {
+      mfaVerified: true,
+      orgId: user.orgId || null,
+      orgRole: user.orgRole || null,
+    })
     return ok({
       token,
       user: {
         userId: user.userId,
         email: user.email,
         mfaEnabled: user.mfaEnabled,
+        orgId: user.orgId || null,
+        orgRole: user.orgRole || null,
       },
     })
   } catch (error) {

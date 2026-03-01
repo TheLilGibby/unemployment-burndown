@@ -1,16 +1,20 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItemsByUser } from '../lib/dynamo.mjs'
+import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 
 /**
- * GET /plaid/accounts?userId=default
+ * GET /plaid/accounts
  *
  * Lists all connected Plaid items and their accounts with current balances.
- * Used by the frontend to display linked banks in the ConnectedAccountsPanel.
+ * Scoped to the user's org.
  */
 export async function handler(event) {
   try {
-    const userId = event.queryStringParameters?.userId || 'default'
+    const { user, error: authErr } = requireOrg(event)
+    if (authErr) return err(authErr.statusCode, authErr.message)
+
+    const userId = user.orgId
     const client = getPlaidClient()
 
     const items = await getPlaidItemsByUser(userId)

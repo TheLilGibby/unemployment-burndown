@@ -142,6 +142,11 @@ export default function TransactionTable({ transactions = [] }) {
                   </td>
                   <td className="px-3 py-2 truncate max-w-[200px]" style={{ color: 'var(--text-primary)' }}>
                     {txn.merchantName || txn.description || '—'}
+                    {txn.pending && (
+                      <span className="ml-1 text-[10px] italic" style={{ color: 'var(--text-muted)' }}>
+                        pending
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {cat && (

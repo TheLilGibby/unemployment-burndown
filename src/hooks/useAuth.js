@@ -143,17 +143,74 @@ export function useAuth() {
     return sessionStorage.getItem(TOKEN_KEY)
   }, [])
 
+  const hasOrg = !!(user && user.orgId)
+
+  const createOrg = useCallback(async (name) => {
+    setError(null)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/org/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to create organization')
+        return false
+      }
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
+      return data.org
+    } catch (e) {
+      setError('Network error. Please try again.')
+      return false
+    }
+  }, [])
+
+  const joinOrg = useCallback(async (joinCode) => {
+    setError(null)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/org/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ joinCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to join organization')
+        return false
+      }
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
+      return data.org
+    } catch (e) {
+      setError('Network error. Please try again.')
+      return false
+    }
+  }, [])
+
   return {
     authed,
     user,
     error,
     loading,
     mfaPending,
+    hasOrg,
     login,
     verifyMfa,
     register,
     logout,
     cancelMfa,
     getToken,
+    createOrg,
+    joinOrg,
   }
 }

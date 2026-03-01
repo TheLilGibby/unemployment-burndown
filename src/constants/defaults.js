@@ -51,6 +51,18 @@ export const DEFAULTS = {
     { id: 103, name: 'Internet', monthlyAmount: 60,  active: true, assignedTo: null },
   ],
   creditCards: [],
+  notificationPreferences: {
+    enabled: true,
+    thresholds: {
+      runwayCritical: 3,
+      runwayWarning: 6,
+      runwaySafe: 12,
+      benefitEndDays: 30,
+      balanceMilestones: [0.5, 0.25, 0.10],
+    },
+    dismissedIds: [],
+    mutedUntil: null,
+  },
   plaidMeta: {},
   jobScenarios: [],
   retirement: {

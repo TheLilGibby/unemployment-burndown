@@ -1,19 +1,24 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItem, deletePlaidItem } from '../lib/dynamo.mjs'
+import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 
 /**
  * POST /plaid/disconnect
  *
  * Removes a connected Plaid item. Revokes the access_token with Plaid
- * and deletes the record from DynamoDB.
+ * and deletes the record from DynamoDB. Scoped to the user's org.
  *
- * Body: { userId?, itemId }
+ * Body: { itemId }
  */
 export async function handler(event) {
   try {
+    const { user, error: authErr } = requireOrg(event)
+    if (authErr) return err(authErr.statusCode, authErr.message)
+
     const body = JSON.parse(event.body || '{}')
-    const { userId = 'default', itemId } = body
+    const { itemId } = body
+    const userId = user.orgId
 
     if (!itemId) {
       return err(400, 'itemId is required')

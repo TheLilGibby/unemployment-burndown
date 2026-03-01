@@ -1,4 +1,4 @@
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Landmark } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 
 const COLOR_MAP = {
@@ -19,19 +19,42 @@ function getInitials(name) {
     .slice(0, 2)
 }
 
-export default function CardOverviewBanner({ creditCards, statementIndex, selectedCardId, onSelectCard, people = [] }) {
+export default function CardOverviewBanner({ creditCards, savingsAccounts = [], statementIndex, selectedCardId, onSelectCard, people = [] }) {
+  // Build unified list: credit cards + Plaid bank accounts that have statements
+  const plaidBankAccountIds = new Set(
+    (statementIndex?.statements || [])
+      .filter(s => s.source === 'plaid' && s.accountType === 'depository')
+      .map(s => s.plaidAccountId)
+  )
+
+  const bankAccounts = savingsAccounts
+    .filter(sa => sa.plaidAccountId && plaidBankAccountIds.has(sa.plaidAccountId))
+    .map(sa => ({
+      ...sa,
+      balance: sa.amount,
+      isDepository: true,
+    }))
+
   const cards = creditCards.map(card => {
     const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
     const latestStmt = stmts.sort((a, b) => b.closingDate?.localeCompare(a.closingDate))[0]
     const person = card.assignedTo ? (people.find(p => p.id === card.assignedTo) ?? null) : null
-    return { ...card, statementCount: stmts.length, latestStmt, person }
+    return { ...card, statementCount: stmts.length, latestStmt, person, isDepository: false }
   })
+
+  const banks = bankAccounts.map(acct => {
+    const stmts = (statementIndex?.statements || []).filter(s => s.cardId === acct.id)
+    return { ...acct, statementCount: stmts.length, person: null }
+  })
+
+  const allPills = [...cards, ...banks]
+  const totalStmts = (statementIndex?.statements || []).length
 
   return (
     <div className="space-y-3">
-      {/* Card pills */}
+      {/* Account pills */}
       <div className="flex flex-wrap gap-2">
-        {/* "All Cards" pill */}
+        {/* "All" pill */}
         <button
           onClick={() => onSelectCard(null)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all"
@@ -42,20 +65,20 @@ export default function CardOverviewBanner({ creditCards, statementIndex, select
           }}
         >
           <CreditCard size={16} strokeWidth={1.75} />
-          <span>All Cards</span>
+          <span>All Accounts</span>
         </button>
 
-        {cards.map(card => {
-          const isSelected = selectedCardId === card.id
-          const utilPct = card.creditLimit > 0
-            ? Math.round((card.balance / card.creditLimit) * 100)
+        {allPills.map(item => {
+          const isSelected = selectedCardId === item.id
+          const utilPct = !item.isDepository && item.creditLimit > 0
+            ? Math.round((item.balance / item.creditLimit) * 100)
             : null
-          const personBg = card.person ? (COLOR_MAP[card.person.color] ?? '#6b7280') : null
+          const personBg = item.person ? (COLOR_MAP[item.person.color] ?? '#6b7280') : null
 
           return (
             <button
-              key={card.id}
-              onClick={() => onSelectCard(card.id)}
+              key={item.id}
+              onClick={() => onSelectCard(item.id)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all"
               style={{
                 borderColor: isSelected ? 'var(--accent-blue)' : 'var(--border-input)',
@@ -63,28 +86,32 @@ export default function CardOverviewBanner({ creditCards, statementIndex, select
                 color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
               }}
             >
-              {card.person ? (
+              {item.person ? (
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
                   style={{ background: personBg }}
-                  title={card.person.name}
+                  title={item.person.name}
                 >
-                  {getInitials(card.person.name)}
+                  {getInitials(item.person.name)}
                 </div>
+              ) : item.isDepository ? (
+                <Landmark size={16} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
               ) : (
                 <CreditCard size={16} strokeWidth={1.75} />
               )}
               <div className="text-left">
                 <div>
-                  {card.name}
-                  {card.last4 && (
+                  {item.name}
+                  {item.last4 && (
                     <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      ••••{card.last4}
+                      ••••{item.last4}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <span>{formatCurrency(card.balance)}</span>
+                  <span style={{ color: item.isDepository ? 'var(--accent-emerald)' : undefined }}>
+                    {formatCurrency(item.balance || 0)}
+                  </span>
                   {utilPct !== null && (
                     <span style={{
                       color: utilPct >= 90 ? '#f87171' : utilPct >= 60 ? '#fb923c' : utilPct >= 30 ? '#facc15' : '#34d399'
@@ -92,8 +119,8 @@ export default function CardOverviewBanner({ creditCards, statementIndex, select
                       {utilPct}%
                     </span>
                   )}
-                  {card.statementCount > 0 && (
-                    <span>{card.statementCount} stmt{card.statementCount !== 1 ? 's' : ''}</span>
+                  {item.statementCount > 0 && (
+                    <span>{item.statementCount} stmt{item.statementCount !== 1 ? 's' : ''}</span>
                   )}
                 </div>
               </div>
@@ -103,27 +130,37 @@ export default function CardOverviewBanner({ creditCards, statementIndex, select
       </div>
 
       {/* Summary stats row */}
-      {creditCards.length > 0 && (
+      {(creditCards.length > 0 || bankAccounts.length > 0) && (
         <div
           className="rounded-lg px-4 py-3 flex flex-wrap gap-x-5 gap-y-2 text-sm"
           style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
         >
+          {creditCards.length > 0 && (
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Credit balance: </span>
+              <span className="font-semibold" style={{ color: '#f87171' }}>
+                {formatCurrency(creditCards.reduce((s, c) => s + (Number(c.balance) || 0), 0))}
+              </span>
+            </div>
+          )}
+          {bankAccounts.length > 0 && (
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Bank balance: </span>
+              <span className="font-semibold" style={{ color: 'var(--accent-emerald)' }}>
+                {formatCurrency(bankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0))}
+              </span>
+            </div>
+          )}
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Total balance: </span>
-            <span className="font-semibold" style={{ color: '#f87171' }}>
-              {formatCurrency(creditCards.reduce((s, c) => s + (Number(c.balance) || 0), 0))}
-            </span>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Cards: </span>
+            <span style={{ color: 'var(--text-muted)' }}>Accounts: </span>
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {creditCards.length}
+              {allPills.length}
             </span>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Statements: </span>
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {(statementIndex?.statements || []).length}
+              {totalStmts}
             </span>
           </div>
         </div>

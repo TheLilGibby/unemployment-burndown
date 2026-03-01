@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import dayjs from 'dayjs'
 import { matchesPersonFilter } from '../../utils/personFilter'
 
 const COLOR_HEX = {
@@ -373,7 +374,13 @@ export default function FinancialSidebar({
   const burnColor = displayNetBurn > 0 ? 'var(--accent-red)' : 'var(--accent-emerald)'
 
   const filteredJobs = pf ? jobs.filter(fp) : jobs
-  const activeJobs = filteredJobs.filter(j => j.status === 'active' && (Number(j.monthlySalary) || 0) > 0)
+  const today = dayjs()
+  const activeJobs = filteredJobs.filter(j => {
+    if ((Number(j.monthlySalary) || 0) <= 0) return false
+    if (j.endDate && dayjs(j.endDate).isBefore(today)) return false
+    if (!j.endDate && j.status !== 'active') return false
+    return true
+  })
   const totalJobIncome = activeJobs.reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
 
   return (

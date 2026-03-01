@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+const TOKEN_KEY = 'burndown_token'
+
+function authHeaders() {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 /**
  * Cloud storage backed by the backend API (which proxies to S3).
@@ -22,7 +28,9 @@ export function useS3Storage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/api/data`)
+        const res = await fetch(`${API_BASE}/api/data`, {
+          headers: { ...authHeaders() },
+        })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (data) {
@@ -44,7 +52,7 @@ export function useS3Storage() {
       setStatus('saving')
       const res = await fetch(`${API_BASE}/api/data`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(data, null, 2),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

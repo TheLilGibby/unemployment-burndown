@@ -1,20 +1,25 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { putPlaidItem } from '../lib/dynamo.mjs'
+import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 
 /**
  * POST /plaid/exchange
  *
  * Receives the temporary public_token from Plaid Link and exchanges it
- * for a permanent access_token. Stores the token in DynamoDB and returns
- * the initial account list to the frontend.
+ * for a permanent access_token. Stores the token in DynamoDB keyed by
+ * orgId and returns the initial account list to the frontend.
  *
- * Body: { public_token, userId?, metadata? }
+ * Body: { public_token, metadata? }
  */
 export async function handler(event) {
   try {
+    const { user, error: authErr } = requireOrg(event)
+    if (authErr) return err(authErr.statusCode, authErr.message)
+
     const body = JSON.parse(event.body || '{}')
-    const { public_token, userId = 'default', metadata = {} } = body
+    const { public_token, metadata = {} }  = body
+    const userId = user.orgId
 
     if (!public_token) {
       return err(400, 'public_token is required')

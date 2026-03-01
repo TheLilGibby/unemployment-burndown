@@ -1,6 +1,12 @@
 import { useState, useCallback, useRef } from 'react'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+const TOKEN_KEY = 'burndown_token'
+
+function authHeaders() {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 /**
  * Hook that manages the Plaid integration lifecycle:
@@ -11,8 +17,10 @@ const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
  *   - Disconnecting items
  *
  * All server calls go through the SAM-deployed Lambda backend.
+ * Authentication is handled via JWT in the Authorization header.
+ * Plaid items are scoped to the user's organization.
  */
-export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
+export function usePlaid({ onSyncComplete } = {}) {
   const [linkedItems, setLinkedItems]   = useState([])     // connected institutions
   const [syncing, setSyncing]           = useState(false)
   const [lastSync, setLastSync]         = useState(null)
@@ -25,7 +33,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
   async function apiCall(path, options = {}) {
     const url = `${API_BASE}${path}`
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       ...options,
     })
     const data = await res.json()
@@ -40,14 +48,14 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
     try {
       const data = await apiCall('/plaid/link-token', {
         method: 'POST',
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({}),
       })
       return data.link_token
     } catch (e) {
       setError(e.message)
       throw e
     }
-  }, [userId])
+  }, [])
 
   // ── Exchange public token ──
 
@@ -57,7 +65,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
     try {
       const data = await apiCall('/plaid/exchange', {
         method: 'POST',
-        body: JSON.stringify({ public_token: publicToken, userId, metadata }),
+        body: JSON.stringify({ public_token: publicToken, metadata }),
       })
 
       // Add to linked items
@@ -79,7 +87,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
       setLoading(false)
       throw e
     }
-  }, [userId])
+  }, [])
 
   // ── Fetch connected accounts ──
 
@@ -87,7 +95,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall(`/plaid/accounts?userId=${encodeURIComponent(userId)}`)
+      const data = await apiCall('/plaid/accounts')
       setLinkedItems(data.items || [])
       setLoading(false)
       fetchedRef.current = true
@@ -98,7 +106,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
       // Don't throw — no linked accounts is fine
       return []
     }
-  }, [userId])
+  }, [])
 
   // ── Sync transactions + balances ──
 
@@ -106,7 +114,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
     setError(null)
     setSyncing(true)
     try {
-      const body = { userId }
+      const body = {}
       if (itemId) body.itemId = itemId
 
       const data = await apiCall('/plaid/sync', {
@@ -133,7 +141,7 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
       setSyncing(false)
       throw e
     }
-  }, [userId, onSyncComplete, fetchAccounts])
+  }, [onSyncComplete, fetchAccounts])
 
   // ── Disconnect an item ──
 
@@ -142,14 +150,14 @@ export function usePlaid({ userId = 'default', onSyncComplete } = {}) {
     try {
       await apiCall('/plaid/disconnect', {
         method: 'POST',
-        body: JSON.stringify({ userId, itemId }),
+        body: JSON.stringify({ itemId }),
       })
       setLinkedItems(prev => prev.filter(i => i.itemId !== itemId))
     } catch (e) {
       setError(e.message)
       throw e
     }
-  }, [userId])
+  }, [])
 
   return {
     // State

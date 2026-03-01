@@ -30,9 +30,11 @@ export async function handler(event) {
       return err(401, 'Invalid email or password')
     }
 
+    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null }
+
     // If MFA is enabled, return a temporary token that requires MFA verification
     if (user.mfaEnabled) {
-      const tempToken = signToken(user.userId, { mfaVerified: false })
+      const tempToken = signToken(user.userId, { mfaVerified: false, ...orgOpts })
       return ok({
         mfaRequired: true,
         tempToken,
@@ -40,13 +42,15 @@ export async function handler(event) {
     }
 
     // No MFA — return full access token
-    const token = signToken(user.userId, { mfaVerified: true })
+    const token = signToken(user.userId, { mfaVerified: true, ...orgOpts })
     return ok({
       token,
       user: {
         userId: user.userId,
         email: user.email,
         mfaEnabled: user.mfaEnabled,
+        orgId: user.orgId || null,
+        orgRole: user.orgRole || null,
       },
     })
   } catch (error) {

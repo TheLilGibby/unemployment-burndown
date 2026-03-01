@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+const TOKEN_KEY = 'burndown_token'
+
+function authHeaders() {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 /**
  * Fetches parsed credit card statement data via the backend API.
@@ -16,7 +22,9 @@ export function useStatementStorage() {
   useEffect(() => {
     async function loadIndex() {
       try {
-        const res = await fetch(`${API_BASE}/api/statements`)
+        const res = await fetch(`${API_BASE}/api/statements`, {
+          headers: { ...authHeaders() },
+        })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         setIndex(data)
@@ -34,7 +42,9 @@ export function useStatementStorage() {
   const loadStatement = useCallback(async (statementId) => {
     if (statements[statementId]) return statements[statementId]
     try {
-      const res = await fetch(`${API_BASE}/api/statements/${statementId}`)
+      const res = await fetch(`${API_BASE}/api/statements/${statementId}`, {
+        headers: { ...authHeaders() },
+      })
       if (!res.ok) throw new Error(`Failed to load statement ${statementId}`)
       const data = await res.json()
       setStatements(prev => ({ ...prev, [statementId]: data }))
@@ -48,7 +58,9 @@ export function useStatementStorage() {
   // Re-fetch the index (after a new statement is parsed)
   const refreshIndex = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/statements`)
+      const res = await fetch(`${API_BASE}/api/statements`, {
+        headers: { ...authHeaders() },
+      })
       if (res.ok) {
         const data = await res.json()
         setIndex(data)

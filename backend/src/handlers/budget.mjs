@@ -1,14 +1,17 @@
 import { checkBudget } from '../lib/plaidBudget.mjs'
+import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 
 /**
  * GET /plaid/budget
  *
  * Returns current Plaid API usage and budget status for the month.
- * Useful for the frontend to display usage warnings or disable sync buttons.
  */
-export async function handler() {
+export async function handler(event) {
   try {
+    const { error: authErr } = requireAuth(event)
+    if (authErr) return err(authErr.statusCode, authErr.message)
+
     const budget = await checkBudget()
     return ok(budget)
   } catch (error) {

@@ -33,12 +33,12 @@ export async function handler(event) {
 
     await createUser({ userId, email, passwordHash })
 
-    // Return JWT (no MFA yet for new accounts)
-    const token = signToken(userId, { mfaVerified: false })
+    // Return JWT (no MFA yet, no org yet for new accounts)
+    const token = signToken(userId, { mfaVerified: false, orgId: null, orgRole: null })
 
     return ok({
       token,
-      user: { userId, email: email.toLowerCase(), mfaEnabled: false },
+      user: { userId, email: email.toLowerCase(), mfaEnabled: false, orgId: null, orgRole: null },
     })
   } catch (error) {
     if (error.name === 'ConditionalCheckFailedException') {

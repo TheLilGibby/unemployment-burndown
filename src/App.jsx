@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { DEFAULTS } from './constants/defaults'
 import { useBurndown } from './hooks/useBurndown'
@@ -21,6 +21,7 @@ import FinancialSidebar from './components/layout/FinancialSidebar'
 import BurndownPage from './pages/BurndownPage'
 import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
+import UserProfilePage from './pages/UserProfilePage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
@@ -30,6 +31,21 @@ import PlaidLinkButton from './components/plaid/PlaidLinkButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import MfaSetup from './components/auth/MfaSetup'
+import OrgSetup from './components/auth/OrgSetup'
+import OrgSettings from './components/org/OrgSettings'
+import { NotificationsProvider } from './context/NotificationsContext'
+import NotificationBell from './components/notifications/NotificationBell'
+import NotificationPanel from './components/notifications/NotificationPanel'
+import ToastContainer from './components/notifications/ToastContainer'
+import ErrorBoundary from './components/common/ErrorBoundary'
+import {
+  exportBurndownCSV,
+  exportExpensesCSV,
+  exportSavingsCSV,
+  exportScenariosCSV,
+  exportAllData,
+  exportSummaryJSON,
+} from './utils/export'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -81,10 +97,13 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
   function jobIncomeForDate(d) {
     let total = 0
     for (const job of jobs) {
-      if (job.status !== 'active') continue
       if (!job.monthlySalary) continue
       if (job.startDate && dayjs(job.startDate).isAfter(d)) continue
-      if (job.endDate && dayjs(job.endDate).isBefore(d)) continue
+      if (job.endDate) {
+        if (dayjs(job.endDate).isBefore(d)) continue
+      } else {
+        if (job.status !== 'active') continue
+      }
       total += Number(job.monthlySalary) || 0
     }
     return total
@@ -225,8 +244,9 @@ const DEFAULT_VIEW = {
   },
 }
 
-function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity }) {
+function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData }) {
   const [open, setOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -236,6 +256,49 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Reset export submenu when main menu closes
+  useEffect(() => {
+    if (!open) setExportOpen(false)
+  }, [open])
+
+  const handleExport = (exportFn, ...args) => {
+    try {
+      exportFn(...args)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportAll = () => {
+    try {
+      exportAllData(exportData)
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportJSON = () => {
+    try {
+      exportSummaryJSON({
+        ...exportData,
+        monthlyExpenses: exportData.burndown?.current?.effectiveExpenses,
+        monthlyIncome: exportData.burndown?.current?.monthlyBenefits,
+        runwayMonths: exportData.burndown?.current?.totalRunwayMonths,
+        runoutDate: exportData.burndown?.current?.runoutDate,
+      })
+      setOpen(false)
+    } catch (error) {
+      alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const menuItemClass = "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
+  const menuItemStyle = { color: 'var(--text-secondary)' }
+  const hoverOn = e => e.currentTarget.style.background = 'var(--bg-input)'
+  const hoverOff = e => e.currentTarget.style.background = 'transparent'
 
   return (
     <div className="relative" ref={ref}>
@@ -259,10 +322,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
         >
           <button
             onClick={() => { onLogOpen(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -279,12 +342,98 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
             )}
           </button>
 
+          {/* Export submenu */}
+          <button
+            onClick={() => setExportOpen(o => !o)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span className="flex-1 text-left">Export</span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: exportOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {exportOpen && (
+            <div className="py-0.5" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+              <button
+                onClick={() => handleExport(exportBurndownCSV, exportData.burndown)}
+                disabled={!exportData.burndown?.timeline?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Burndown CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportExpensesCSV, exportData.expenses)}
+                disabled={!exportData.expenses?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Expenses CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportSavingsCSV, exportData.savingsAccounts)}
+                disabled={!exportData.savingsAccounts?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Savings CSV
+              </button>
+              <button
+                onClick={() => handleExport(exportScenariosCSV, exportData.scenarios, exportData.scenarioResults)}
+                disabled={!exportData.scenarios?.length}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Scenarios CSV
+              </button>
+              <div className="my-0.5 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+              <button
+                onClick={handleExportAll}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                All Data (CSV Bundle)
+              </button>
+              <button
+                onClick={handleExportJSON}
+                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                Summary JSON
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => { onPresent(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -296,10 +445,10 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
 
           <button
             onClick={() => { onSecurity(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -307,6 +456,37 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
             </svg>
             <span className="flex-1 text-left">Security</span>
           </button>
+
+          <button
+            onClick={() => { onHousehold(); setOpen(false) }}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span className="flex-1 text-left">Household</span>
+          </button>
+
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="flex-1 text-left">Profile</span>
+          </Link>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
 
@@ -331,7 +511,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity 
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, login, verifyMfa, register, logout, cancelMfa } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg } = useAuth()
   const location = useLocation()
 
   // Privacy policy is accessible without authentication
@@ -354,6 +534,17 @@ export default function App() {
       error={authError}
     />
   )
+
+  // User is authenticated but hasn't joined/created an org yet
+  if (!hasOrg) return (
+    <OrgSetup
+      onCreateOrg={createOrg}
+      onJoinOrg={joinOrg}
+      onLogout={logout}
+      error={authError}
+    />
+  )
+
   return <AuthenticatedApp logout={logout} user={user} />
 }
 
@@ -361,6 +552,7 @@ function AuthenticatedApp({ logout, user }) {
   const [presentationMode, setPresentationMode] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [securityOpen, setSecurityOpen] = useState(false)
+  const [orgOpen, setOrgOpen] = useState(false)
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const [viewSettings, setViewSettings] = useState(DEFAULT_VIEW)
   const [furloughDate, setFurloughDate] = useState(DEFAULTS.furloughDate)
@@ -383,6 +575,7 @@ function AuthenticatedApp({ logout, user }) {
   const [comments, setComments] = useState({})
   const [defaultPersonId, setDefaultPersonId] = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
+  const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
 
   const {
     templates,
@@ -449,6 +642,7 @@ function AuthenticatedApp({ logout, user }) {
       comments,
       defaultPersonId,
       activityLog: logEntries,
+      notificationPreferences,
     }
   }
 
@@ -460,6 +654,7 @@ function AuthenticatedApp({ logout, user }) {
     if (data.comments && typeof data.comments === 'object') setComments(data.comments)
     if (data.defaultPersonId != null) setDefaultPersonId(data.defaultPersonId)
     if (Array.isArray(data.activityLog)) loadEntries(data.activityLog)
+    if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
   }
 
   // When S3 storage loads data on mount, apply it
@@ -521,8 +716,14 @@ function AuthenticatedApp({ logout, user }) {
   const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeMonthlyInc   = (v) => _allSum(v, 'monthlyAmount') + '/mo'
   const summarizeJobs         = (v) => {
-    const active = v.filter(j => j.status === 'active').length
-    const totalSalary = v.filter(j => j.status === 'active').reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
+    const now = dayjs()
+    const isActive = (j) => {
+      if (j.endDate && dayjs(j.endDate).isBefore(now)) return false
+      if (!j.endDate && j.status !== 'active') return false
+      return true
+    }
+    const active = v.filter(isActive).length
+    const totalSalary = v.filter(isActive).reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
     return `${active} active · ${_fmtM(totalSalary)}/mo`
   }
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
@@ -650,9 +851,13 @@ function AuthenticatedApp({ logout, user }) {
     const baseWhatIfForScenarios = { ...whatIf, jobOfferSalary: 0, jobOfferStartDate: '' }
     const results = {}
     for (const scenario of jobScenarios) {
+      const retirementPct = scenario.retirementContributionPct || 0
+      const retirementAmount = (scenario.monthlyTakeHome * retirementPct) / 100
+      const effectiveTakeHome = scenario.monthlyTakeHome - retirementAmount
+      
       const scenarioWhatIf = {
         ...baseWhatIfForScenarios,
-        jobOfferSalary: scenario.monthlyTakeHome,
+        jobOfferSalary: effectiveTakeHome,
         jobOfferStartDate: scenario.startDate,
         jobOfferAnnualRaisePct: scenario.annualRaisePct || 0,
       }
@@ -684,6 +889,12 @@ function AuthenticatedApp({ logout, user }) {
     ((Number(whatIf.partnerIncomeMonthly) || 0) > 0 && !!whatIf.partnerStartDate)
 
   return (
+    <NotificationsProvider
+      burndown={current}
+      preferences={notificationPreferences}
+      onPreferencesChange={setNotificationPreferences}
+      initialBalance={totalSavings}
+    >
     <CommentsProvider
       comments={comments}
       onCommentsChange={setComments}
@@ -692,6 +903,8 @@ function AuthenticatedApp({ logout, user }) {
       onDefaultPersonChange={setDefaultPersonId}
     >
     <CommentsPanel />
+    <NotificationPanel />
+    <ToastContainer />
     <div className="min-h-screen theme-page" style={{ color: 'var(--text-primary)' }}>
       {/* Presentation overlay — rendered outside main layout so it fills the viewport */}
       {presentationMode && (
@@ -752,6 +965,11 @@ function AuthenticatedApp({ logout, user }) {
         </div>
       )}
 
+      {/* Household settings panel */}
+      {orgOpen && (
+        <OrgSettings user={user} onClose={() => setOrgOpen(false)} />
+      )}
+
       <Header
         rightSlot={
           <div className="flex items-center gap-0.5">
@@ -790,6 +1008,7 @@ function AuthenticatedApp({ logout, user }) {
                 </span>
               )}
             </button>
+            <NotificationBell />
             <PeopleMenu people={people} onChange={onPeopleChange} />
             <ThemeToggle />
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
@@ -810,6 +1029,16 @@ function AuthenticatedApp({ logout, user }) {
               onPresent={() => setPresentationMode(true)}
               onSignOut={logout}
               onSecurity={() => setSecurityOpen(true)}
+              onHousehold={() => setOrgOpen(true)}
+              exportData={{
+                burndown: current,
+                expenses,
+                savingsAccounts,
+                scenarios: jobScenarios,
+                scenarioResults: jobScenarioResults,
+                totalSavings,
+                unemployment,
+              }}
             />
           </div>
         }
@@ -899,29 +1128,110 @@ function AuthenticatedApp({ logout, user }) {
               retirement={retirement}
               onRetirementChange={onRetirementChange}
             />
+            <ErrorBoundary level="component">
+              <FinancialSidebar
+                totalSavings={totalSavings}
+                assetProceeds={assetProceeds}
+                effectiveExpenses={current.effectiveExpenses}
+                monthlyBenefits={current.monthlyBenefits}
+                monthlyInvestments={current.monthlyInvestments}
+                currentNetBurn={current.currentNetBurn}
+                totalRunwayMonths={current.totalRunwayMonths}
+                benefitEnd={current.benefitEnd}
+                savingsAccounts={savingsAccounts}
+                expenses={expenses}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                investments={investments}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                unemployment={unemployment}
+                jobs={jobs}
+                people={people}
+                filterPersonId={filterPersonId}
+              />
+            </ErrorBoundary>
+            <ErrorBoundary level="section">
+              <BurndownPage
+                current={current}
+                base={base}
+                hasWhatIf={hasWhatIf}
+                totalSavings={totalSavings}
+                viewSettings={viewSettings}
+                people={people}
+                savingsAccounts={savingsAccounts}
+                unemployment={unemployment}
+                expenses={expenses}
+                whatIf={whatIf}
+                oneTimeExpenses={oneTimeExpenses}
+                oneTimeIncome={oneTimeIncome}
+                monthlyIncome={monthlyIncome}
+                assets={assets}
+                investments={investments}
+                subscriptions={subscriptions}
+                creditCards={creditCards}
+                jobs={jobs}
+                jobScenarios={jobScenarios}
+                onJobsChange={onJobsChange}
+                onSavingsChange={onSavingsChange}
+                onUnemploymentChange={onUnemploymentChange}
+                onFurloughChange={onFurloughChange}
+                onExpensesChange={onExpensesChange}
+                onWhatIfChange={onWhatIfChange}
+                onOneTimeExpChange={onOneTimeExpChange}
+                onOneTimeIncChange={onOneTimeIncChange}
+                onMonthlyIncChange={onMonthlyIncChange}
+                onAssetsChange={onAssetsChange}
+                onInvestmentsChange={onInvestmentsChange}
+                onSubsChange={onSubsChange}
+                onCreditCardsChange={onCreditCardsChange}
+                onJobScenariosChange={onJobScenariosChange}
+                furloughDate={furloughDate}
+                derivedStartDate={derivedStartDate}
+                assetProceeds={assetProceeds}
+                onWhatIfReset={() => {
+                  const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
+                  setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
+                }}
+                templates={templates}
+                templateResults={templateResults}
+                jobScenarioResults={jobScenarioResults}
+                plaid={plaid}
+                filterPersonId={filterPersonId}
+                onFilterPersonChange={setFilterPersonId}
+                retirement={retirement}
+                onRetirementChange={onRetirementChange}
+              />
+            </ErrorBoundary>
           </>
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} />
+          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} />
         } />
 
         <Route path="/job-scenarios" element={
-          <JobScenariosPage
-            jobScenarios={jobScenarios}
-            onJobScenariosChange={onJobScenariosChange}
-            jobScenarioResults={jobScenarioResults}
-            totalSavings={totalSavings}
-            effectiveExpenses={current.effectiveExpenses}
-            monthlyBenefits={current.monthlyBenefits}
-            monthlyInvestments={current.monthlyInvestments}
-            currentNetBurn={current.currentNetBurn}
-          />
+          <ErrorBoundary level="section">
+            <JobScenariosPage
+              jobScenarios={jobScenarios}
+              onJobScenariosChange={onJobScenariosChange}
+              jobScenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              effectiveExpenses={current.effectiveExpenses}
+              monthlyBenefits={current.monthlyBenefits}
+              monthlyInvestments={current.monthlyInvestments}
+              currentNetBurn={current.currentNetBurn}
+            />
+          </ErrorBoundary>
         } />
+
+        <Route path="/profile" element={<UserProfilePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
     </CommentsProvider>
+    </NotificationsProvider>
   )
 }

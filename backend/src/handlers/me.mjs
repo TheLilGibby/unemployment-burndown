@@ -20,6 +20,8 @@ export async function handler(event) {
       userId: user.userId,
       email: user.email,
       mfaEnabled: user.mfaEnabled,
+      orgId: user.orgId || null,
+      orgRole: user.orgRole || null,
       createdAt: user.createdAt,
     })
   } catch (error) {

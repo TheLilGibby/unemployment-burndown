@@ -70,6 +70,8 @@ Globals:
         ALLOWED_ORIGIN: !Ref AllowedOrigin
         JWT_SECRET: !Ref JwtSecret
         USERS_TABLE: !Ref UsersTable
+        ORGS_TABLE: !Ref OrganizationsTable
+        ORG_MEMBERS_TABLE: !Ref OrgMembersTable
         PLAID_MONTHLY_BUDGET: !Ref PlaidMonthlyBudget
         PLAID_EST_COST_PER_CALL: !Ref PlaidEstCostPerCall
         PLAID_MAX_SYNC_PAGES: !Ref PlaidMaxSyncPages
@@ -110,6 +112,127 @@ Resources:
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
+
+  OrganizationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Organizations
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orgId
+          AttributeType: S
+        - AttributeName: joinCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orgId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: joinCode-index
+          KeySchema:
+            - AttributeName: joinCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  OrgMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: OrgMembers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orgId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orgId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ---------- Org Lambda Functions ----------
+  OrgCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/orgCreate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/create
+            Method: post
+
+  OrgJoinFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/orgJoin.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/join
+            Method: post
+
+  OrgGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/orgGet.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org
+            Method: get
+
+  OrgRegenerateCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/orgRegenerateCode.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/regenerate-code
+            Method: post
 
   # ---------- Auth Lambda Functions ----------
   RegisterFunction:

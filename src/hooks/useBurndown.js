@@ -101,13 +101,18 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
     const emergencyFloor = Number(whatIf.emergencyFloor) || 0
 
     // --- Helper: compute job income for a given date ---
+    // endDate is the primary cutoff: if set, salary stops after endDate regardless of status.
+    // If no endDate, fall back to status check (only 'active' jobs count).
     function jobIncomeForDate(d) {
       let total = 0
       for (const job of jobs) {
-        if (job.status !== 'active') continue
         if (!job.monthlySalary) continue
         if (job.startDate && dayjs(job.startDate).isAfter(d)) continue
-        if (job.endDate && dayjs(job.endDate).isBefore(d)) continue
+        if (job.endDate) {
+          if (dayjs(job.endDate).isBefore(d)) continue
+        } else {
+          if (job.status !== 'active') continue
+        }
         total += Number(job.monthlySalary) || 0
       }
       return total
