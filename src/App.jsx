@@ -10,7 +10,6 @@ import LoginScreen from './components/auth/LoginScreen'
 import Header from './components/layout/Header'
 import TemplateManager from './components/templates/TemplateManager'
 import PersonFilter from './components/people/PersonFilter'
-import PeopleMenu from './components/people/PeopleMenu'
 import PresentationMode from './components/presentation/PresentationMode'
 
 import TableOfContents from './components/layout/TableOfContents'
@@ -1131,8 +1130,6 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
               )}
             </button>
             <NotificationBell />
-            <PeopleMenu people={people} onChange={onPeopleChange} />
-
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
             <TemplateManager
               templates={templates}
