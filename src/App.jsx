@@ -40,6 +40,7 @@ import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import { useTheme } from './context/ThemeContext'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
@@ -289,6 +290,8 @@ const DEFAULT_VIEW = {
 function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData }) {
   const [open, setOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
   const ref = useRef(null)
 
   useEffect(() => {
@@ -299,9 +302,9 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Reset export submenu when main menu closes
+  // Reset submenus when main menu closes
   useEffect(() => {
-    if (!open) setExportOpen(false)
+    if (!open) { setExportOpen(false); setThemeOpen(false) }
   }, [open])
 
   const handleExport = (exportFn, ...args) => {
@@ -529,6 +532,66 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             </svg>
             <span className="flex-1 text-left">Settings</span>
           </Link>
+
+          {/* Theme submenu */}
+          <button
+            onClick={() => setThemeOpen(o => !o)}
+            className={menuItemClass}
+            style={menuItemStyle}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5" />
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+            <span className="flex-1 text-left">Theme</span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: themeOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {themeOpen && (
+            <div className="py-0.5" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+              {[
+                { value: 'light', label: 'Light', icon: (
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zM10 15a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 15zM10 7a3 3 0 100 6 3 3 0 000-6zM15.657 5.404a.75.75 0 10-1.06-1.06l-1.061 1.06a.75.75 0 001.06 1.06l1.06-1.06zM6.464 14.596a.75.75 0 10-1.06-1.06l-1.06 1.06a.75.75 0 001.06 1.06l1.06-1.06zM18 10a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0118 10zM5 10a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 015 10zM14.596 15.657a.75.75 0 001.06-1.06l-1.06-1.061a.75.75 0 10-1.06 1.06l1.06 1.06zM5.404 6.464a.75.75 0 001.06-1.06L5.404 4.343a.75.75 0 10-1.06 1.06l1.06 1.061z" />
+                  </svg>
+                )},
+                { value: 'dark', label: 'Dark', icon: (
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.455 2.004a.75.75 0 01.26.77 7 7 0 009.958 7.967.75.75 0 011.067.853A8.5 8.5 0 116.647 1.921a.75.75 0 01.808.083z" clipRule="evenodd" />
+                  </svg>
+                )},
+                { value: 'system', label: 'System', icon: (
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M2 4.25A2.25 2.25 0 014.25 2h11.5A2.25 2.25 0 0118 4.25v8.5A2.25 2.25 0 0115.75 15h-3.105a3.501 3.501 0 001.1 1.677A.75.75 0 0113.26 18H6.74a.75.75 0 01-.484-1.323A3.501 3.501 0 007.355 15H4.25A2.25 2.25 0 012 12.75v-8.5zm1.5 0a.75.75 0 01.75-.75h11.5a.75.75 0 01.75.75v7.5a.75.75 0 01-.75.75H4.25a.75.75 0 01-.75-.75v-7.5z" clipRule="evenodd" />
+                  </svg>
+                )},
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setTheme(opt.value); setThemeOpen(false) }}
+                  className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
+                  style={{ color: theme === opt.value ? 'var(--accent-blue)' : 'var(--text-secondary)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  {opt.icon}
+                  <span className="flex-1 text-left">{opt.label}</span>
+                  {theme === opt.value && (
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
 
