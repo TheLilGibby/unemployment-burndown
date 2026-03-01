@@ -22,6 +22,16 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
   const [newInvestment, setNewInvestment] = useState(0)
   const [newInvestmentType, setNewInvestmentType] = useState('dollar')
   const [newAnnualRaise, setNewAnnualRaise] = useState(3)
+  // Compensation package state for new scenario form
+  const [newSigningBonus, setNewSigningBonus] = useState(0)
+  const [newAnnualBonusPct, setNewAnnualBonusPct] = useState(0)
+  const [newBenefitsMonthly, setNewBenefitsMonthly] = useState(0)
+  const [newEmployerMatch, setNewEmployerMatch] = useState(0)
+  const [newEquityAnnual, setNewEquityAnnual] = useState(0)
+  const [newCommuteMonthly, setNewCommuteMonthly] = useState(0)
+  const [showNewCompPkg, setShowNewCompPkg] = useState(false)
+  // Track which existing scenario cards have compensation package expanded
+  const [showCompPkg, setShowCompPkg] = useState({})
 
   function updateScenario(id, updates) {
     onChange(scenarios.map(s => s.id === id ? { ...s, ...updates } : s))
@@ -61,6 +71,12 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
       investmentAllocation: newInvestment,
       investmentAllocationType: newInvestmentType,
       annualRaisePct: newAnnualRaise,
+      signingBonus: newSigningBonus,
+      annualBonusPct: newAnnualBonusPct,
+      employerBenefitsMonthly: newBenefitsMonthly,
+      employer401kMatchPct: newEmployerMatch,
+      equityAnnual: newEquityAnnual,
+      commuteMonthly: newCommuteMonthly,
     }
     onChange([...scenarios, newScenario])
     setNewName('')
@@ -73,6 +89,13 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
     setNewInvestment(0)
     setNewInvestmentType('dollar')
     setNewAnnualRaise(3)
+    setNewSigningBonus(0)
+    setNewAnnualBonusPct(0)
+    setNewBenefitsMonthly(0)
+    setNewEmployerMatch(0)
+    setNewEquityAnnual(0)
+    setNewCommuteMonthly(0)
+    setShowNewCompPkg(false)
   }
 
   function removeScenario(id) {
@@ -282,6 +305,114 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
               </div>
             </div>
 
+            {/* Row 5: Compensation Package (collapsible) */}
+            <div>
+              <button
+                onClick={() => setShowCompPkg(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                className="flex items-center gap-1.5 text-xs font-medium w-full"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <span style={{ display: 'inline-block', transform: showCompPkg[s.id] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+                Compensation Package
+                {(s.signingBonus > 0 || s.annualBonusPct > 0 || s.employerBenefitsMonthly > 0 ||
+                  s.employer401kMatchPct > 0 || s.equityAnnual > 0 || s.commuteMonthly > 0) && (
+                  <span className="w-1.5 h-1.5 rounded-full ml-1" style={{ background: '#10b981', display: 'inline-block' }} />
+                )}
+              </button>
+              {showCompPkg[s.id] && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Signing Bonus</label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                      <CurrencyInput
+                        value={s.signingBonus ?? 0}
+                        onChange={v => updateScenario(s.id, { signingBonus: v })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                      net: {formatCurrency((s.signingBonus || 0) * (1 - s.taxRatePct / 100))}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Annual Bonus %</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number" min="0" max="100" step="1"
+                        value={s.annualBonusPct ?? 0}
+                        onChange={e => updateScenario(s.id, { annualBonusPct: Number(e.target.value) })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>%</span>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                      = ~{formatCurrency(s.grossAnnualSalary * (s.annualBonusPct || 0) / 100 * (1 - s.taxRatePct / 100))}/yr net
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Benefits Value/mo</label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                      <CurrencyInput
+                        value={s.employerBenefitsMonthly ?? 0}
+                        onChange={v => updateScenario(s.id, { employerBenefitsMonthly: v })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>offsets insurance costs</p>
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>401k Match %</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number" min="0" max="100" step="0.5"
+                        value={s.employer401kMatchPct ?? 0}
+                        onChange={e => updateScenario(s.id, { employer401kMatchPct: Number(e.target.value) })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>%</span>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                      = ~{formatCurrency(s.grossAnnualSalary * (s.employer401kMatchPct || 0) / 100 / 12)}/mo to retirement
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Equity/RSU Annual</label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                      <CurrencyInput
+                        value={s.equityAnnual ?? 0}
+                        onChange={v => updateScenario(s.id, { equityAnnual: v })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                      = {formatCurrency((s.equityAnnual || 0) / 12)}/mo vesting
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Commute Cost/mo</label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                      <CurrencyInput
+                        value={s.commuteMonthly ?? 0}
+                        onChange={v => updateScenario(s.id, { commuteMonthly: v })}
+                        className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>added to monthly expenses</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Net amount & minimum salary highlight */}
             {result && (() => {
               const netMonthly = s.monthlyTakeHome - effectiveExpenses
@@ -329,6 +460,18 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                 <span>
                   Spending: <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(spending)}/mo</strong>
                 </span>
+                {((s.signingBonus || 0) > 0 || (s.annualBonusPct || 0) > 0 || (s.equityAnnual || 0) > 0) && (
+                  <span>
+                    Total Comp (yr 1): <strong style={{ color: 'var(--accent-blue)' }}>
+                      {formatCurrency(
+                        s.grossAnnualSalary +
+                        (s.signingBonus || 0) +
+                        s.grossAnnualSalary * (s.annualBonusPct || 0) / 100 +
+                        (s.equityAnnual || 0)
+                      )}
+                    </strong>
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -438,6 +581,96 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                 + Add Scenario
               </button>
             </div>
+          </div>
+
+          {/* Compensation Package (collapsible) for new scenario */}
+          <div>
+            <button
+              onClick={() => setShowNewCompPkg(prev => !prev)}
+              className="flex items-center gap-1.5 text-xs font-medium w-full"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <span style={{ display: 'inline-block', transform: showNewCompPkg ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+              Compensation Package
+              {(newSigningBonus > 0 || newAnnualBonusPct > 0 || newBenefitsMonthly > 0 ||
+                newEmployerMatch > 0 || newEquityAnnual > 0 || newCommuteMonthly > 0) && (
+                <span className="w-1.5 h-1.5 rounded-full ml-1" style={{ background: '#10b981', display: 'inline-block' }} />
+              )}
+            </button>
+            {showNewCompPkg && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Signing Bonus</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                    <CurrencyInput
+                      value={newSigningBonus}
+                      onChange={setNewSigningBonus}
+                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>one-time at start</p>
+                </div>
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Annual Bonus %</label>
+                  <input
+                    type="number" min="0" max="100" step="1"
+                    value={newAnnualBonusPct}
+                    onChange={e => setNewAnnualBonusPct(Number(e.target.value))}
+                    className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Benefits Value/mo</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                    <CurrencyInput
+                      value={newBenefitsMonthly}
+                      onChange={setNewBenefitsMonthly}
+                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>offsets insurance costs</p>
+                </div>
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>401k Match %</label>
+                  <input
+                    type="number" min="0" max="100" step="0.5"
+                    value={newEmployerMatch}
+                    onChange={e => setNewEmployerMatch(Number(e.target.value))}
+                    className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Equity/RSU Annual</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                    <CurrencyInput
+                      value={newEquityAnnual}
+                      onChange={setNewEquityAnnual}
+                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Commute Cost/mo</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
+                    <CurrencyInput
+                      value={newCommuteMonthly}
+                      onChange={setNewCommuteMonthly}
+                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

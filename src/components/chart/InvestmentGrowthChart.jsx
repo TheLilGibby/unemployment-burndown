@@ -50,15 +50,20 @@ export default function InvestmentGrowthChart({ scenarios }) {
       const startOffset = Math.max(0, dayjs(s.startDate).diff(today, 'month'))
       let balance = 0
 
+      const matchPct = s.employer401kMatchPct || 0
+
       for (let m = 0; m <= zoom; m++) {
         if (m >= startOffset) {
           const monthsSinceStart = m - startOffset
           const fullYears = Math.floor(monthsSinceStart / 12)
-          const currentTakeHome = raisePct > 0 && fullYears > 0
-            ? baseMonthlyTakeHome * Math.pow(1 + raisePct / 100, fullYears)
-            : baseMonthlyTakeHome
+          const raiseFactor = raisePct > 0 && fullYears > 0
+            ? Math.pow(1 + raisePct / 100, fullYears) : 1
+          const currentTakeHome = baseMonthlyTakeHome * raiseFactor
           const monthlyContrib = computeAllocationAmount(s.investmentAllocation, s.investmentAllocationType, currentTakeHome)
-          balance = balance * (1 + MONTHLY_RETURN) + monthlyContrib
+          // Employer 401k match: % of gross monthly salary (grows with raises)
+          const matchContrib = matchPct > 0
+            ? (s.grossAnnualSalary / 12) * raiseFactor * (matchPct / 100) : 0
+          balance = balance * (1 + MONTHLY_RETURN) + monthlyContrib + matchContrib
         }
         dataMap[m][s.name] = Math.round(balance)
       }

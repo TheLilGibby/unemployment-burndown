@@ -10,15 +10,40 @@ function buildWaterfallData(scenario) {
   const taxes = monthlyGross - scenario.monthlyTakeHome
   const savings = computeAllocationAmount(scenario.savingsAllocation, scenario.savingsAllocationType, scenario.monthlyTakeHome)
   const invest = computeAllocationAmount(scenario.investmentAllocation, scenario.investmentAllocationType, scenario.monthlyTakeHome)
-  const spending = scenario.monthlyTakeHome - savings - invest
+  const equityMonthly = (scenario.equityAnnual || 0) / 12
+  const bonusMonthly = scenario.grossAnnualSalary * (scenario.annualBonusPct || 0) / 100 * (1 - scenario.taxRatePct / 100) / 12
+  const benefitsOffset = scenario.employerBenefitsMonthly || 0
+  const commute = scenario.commuteMonthly || 0
 
-  return [
-    { label: 'Gross', value: monthlyGross, base: 0, fill: '#3b82f6' },
-    { label: 'Taxes', value: taxes, base: monthlyGross - taxes, fill: '#ef4444' },
-    { label: 'Savings', value: savings, base: monthlyGross - taxes - savings, fill: '#f59e0b' },
-    { label: 'Invest', value: invest, base: monthlyGross - taxes - savings - invest, fill: '#a855f7' },
-    { label: 'Spending', value: spending, base: 0, fill: '#10b981' },
-  ]
+  const bars = []
+  let running = monthlyGross
+  bars.push({ label: 'Gross', value: monthlyGross, base: 0, fill: '#3b82f6' })
+  running -= taxes
+  bars.push({ label: 'Taxes', value: taxes, base: running, fill: '#ef4444' })
+  if (equityMonthly > 0) {
+    bars.push({ label: 'Equity', value: equityMonthly, base: running, fill: '#06b6d4' })
+    running += equityMonthly
+  }
+  if (bonusMonthly > 0) {
+    bars.push({ label: 'Bonus', value: bonusMonthly, base: running, fill: '#f59e0b' })
+    running += bonusMonthly
+  }
+  running -= savings
+  bars.push({ label: 'Savings', value: savings, base: running, fill: '#f59e0b' })
+  running -= invest
+  bars.push({ label: 'Invest', value: invest, base: running, fill: '#a855f7' })
+  // Adjusted spending: take-home + extra income - allocations + benefits offset - commute
+  const spending = scenario.monthlyTakeHome + equityMonthly + bonusMonthly - savings - invest + benefitsOffset - commute
+  if (benefitsOffset > 0) {
+    bars.push({ label: 'Benefits', value: benefitsOffset, base: running, fill: '#10b981' })
+  }
+  if (commute > 0) {
+    running -= commute
+    bars.push({ label: 'Commute', value: commute, base: running, fill: '#ef4444' })
+  }
+  bars.push({ label: 'Spending', value: Math.max(0, spending), base: 0, fill: '#10b981' })
+
+  return bars
 }
 
 function CustomTooltip({ active, payload }) {

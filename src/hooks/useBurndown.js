@@ -16,6 +16,14 @@ import dayjs from 'dayjs'
  *   freelanceRamp          array   [{monthOffset, monthlyAmount}] sorted by monthOffset
  *   partnerIncomeMonthly   number  second household income
  *   partnerStartDate       string  ISO date partner income begins
+ *   jobOfferSigningBonus   number  one-time signing bonus (net) at job start
+ *   jobOfferAnnualBonusPct number  0-100 annual bonus as % of gross salary
+ *   jobOfferBenefitsOffset number  monthly expense reduction from employer benefits
+ *   jobOfferEquityAnnual   number  annual equity/RSU vesting (net), distributed monthly
+ *   jobOfferCommuteMonthly number  monthly commute cost added to expenses
+ *   jobOfferGrossAnnual    number  gross annual salary (for bonus calculation)
+ *   jobOfferTaxRatePct     number  effective tax rate (for bonus calculation)
+ *   jobOfferEmployerMatchPct number 0-100 employer 401k match % (tracked separately, not liquid)
  */
 export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses = [], extraCash = 0, investments = [], oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
   return useMemo(() => {
@@ -86,6 +94,14 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
     const jobStartDate = whatIf.jobOfferStartDate ? dayjs(whatIf.jobOfferStartDate) : null
     const jobAnnualRaisePct = Number(whatIf.jobOfferAnnualRaisePct) || 0
 
+    // --- Compensation package fields ---
+    const jobOfferSigningBonus   = Number(whatIf.jobOfferSigningBonus) || 0
+    const jobOfferAnnualBonusPct = Number(whatIf.jobOfferAnnualBonusPct) || 0
+    const jobOfferBenefitsOffset = Number(whatIf.jobOfferBenefitsOffset) || 0
+    const jobOfferEquityAnnual   = Number(whatIf.jobOfferEquityAnnual) || 0
+    const jobOfferCommuteMonthly = Number(whatIf.jobOfferCommuteMonthly) || 0
+    const jobOfferGrossAnnual    = Number(whatIf.jobOfferGrossAnnual) || 0
+    const jobOfferTaxRatePct     = Number(whatIf.jobOfferTaxRatePct) || 0
 
     // --- Freeze date ---
     const freezeDate = whatIf.freezeDate ? dayjs(whatIf.freezeDate) : null
@@ -157,14 +173,27 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       // Job offer salary (what-if scenario, with annual raise compounding)
       const jobOfferActive = jobStartDate && !currentDate.isBefore(jobStartDate)
       if (jobOfferActive) {
-        if (jobAnnualRaisePct > 0 && jobStartDate) {
-          const monthsSinceStart = currentDate.diff(jobStartDate, 'month')
-          const fullYears = Math.floor(monthsSinceStart / 12)
-          income += fullYears > 0
-            ? jobSalary * Math.pow(1 + jobAnnualRaisePct / 100, fullYears)
-            : jobSalary
-        } else {
-          income += jobSalary
+        const monthsSinceStart = currentDate.diff(jobStartDate, 'month')
+        const fullYears = Math.floor(monthsSinceStart / 12)
+        const raiseFactor = (jobAnnualRaisePct > 0 && fullYears > 0)
+          ? Math.pow(1 + jobAnnualRaisePct / 100, fullYears) : 1
+        income += jobSalary * raiseFactor
+
+        // Signing bonus: one-time income in the first month
+        if (jobOfferSigningBonus > 0 && monthsSinceStart === 0) {
+          income += jobOfferSigningBonus
+        }
+
+        // Annual bonus: paid at each yearly anniversary
+        if (jobOfferAnnualBonusPct > 0 && monthsSinceStart > 0 && monthsSinceStart % 12 === 0) {
+          const currentGross = jobOfferGrossAnnual * raiseFactor
+          const bonusNet = currentGross * (jobOfferAnnualBonusPct / 100) * (1 - jobOfferTaxRatePct / 100)
+          income += bonusNet
+        }
+
+        // Equity/RSU vesting: distributed monthly as liquid income
+        if (jobOfferEquityAnnual > 0) {
+          income += jobOfferEquityAnnual / 12
         }
       }
 
@@ -194,7 +223,15 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       // Expense reduction only applies after freeze date (or always if no freeze date)
       const afterFreeze = freezeDate ? !currentDate.isBefore(freezeDate) : true
       const expReductionFactor = afterFreeze ? reductionFactor : 1
-      const monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
+      let monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
+
+      // Compensation package adjustments to expenses (only when job is active)
+      if (jobOfferActive) {
+        // Employer benefits offset personal insurance costs
+        if (jobOfferBenefitsOffset > 0) monthExpenses = Math.max(0, monthExpenses - jobOfferBenefitsOffset)
+        // Commute cost adds to monthly expenses
+        if (jobOfferCommuteMonthly > 0) monthExpenses += jobOfferCommuteMonthly
+      }
 
       const oneTimeCost = oneTimeByMonth[i] || 0
       const oneTimeIncomeThisMonth = oneTimeIncomeByMonth[i] || 0
@@ -267,12 +304,20 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       } else {
         currentIncome += jobSalary
       }
+      // Equity vesting income
+      if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
     }
     if (currentJobIncome === 0 && !jobOfferActiveNow) {
       currentIncome += sideIncome
     }
     if (partnerActiveNow) currentIncome += partnerIncome
-    const currentNetBurn = effectiveExpenses + monthlyInvestments - currentIncome
+    // Adjust effective expenses for current-month net burn
+    let currentEffectiveExpenses = effectiveExpenses
+    if (jobOfferActiveNow) {
+      if (jobOfferBenefitsOffset > 0) currentEffectiveExpenses = Math.max(0, currentEffectiveExpenses - jobOfferBenefitsOffset)
+      if (jobOfferCommuteMonthly > 0) currentEffectiveExpenses += jobOfferCommuteMonthly
+    }
+    const currentNetBurn = currentEffectiveExpenses + monthlyInvestments - currentIncome
     const totalMonthlyIncome = activeMonthlyIncomeNow
     const totalJobIncome = currentJobIncome
 

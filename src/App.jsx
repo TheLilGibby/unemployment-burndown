@@ -51,16 +51,29 @@ import {
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
-  if (s.grossAnnualSalary != null) return s
+  let migrated = s
+  // v1 migration: add gross salary fields
+  if (migrated.grossAnnualSalary == null) {
+    migrated = {
+      ...migrated,
+      grossAnnualSalary: (migrated.monthlyTakeHome || 0) * 12,
+      usState: '',
+      taxRatePct: 0,
+      savingsAllocation: 0,
+      savingsAllocationType: 'dollar',
+      investmentAllocation: 0,
+      investmentAllocationType: 'dollar',
+    }
+  }
+  // v2 migration: add compensation package fields (defaults first, then spread saved data)
   return {
-    ...s,
-    grossAnnualSalary: (s.monthlyTakeHome || 0) * 12,
-    usState: '',
-    taxRatePct: 0,
-    savingsAllocation: 0,
-    savingsAllocationType: 'dollar',
-    investmentAllocation: 0,
-    investmentAllocationType: 'dollar',
+    signingBonus: 0,
+    annualBonusPct: 0,
+    employerBenefitsMonthly: 0,
+    employer401kMatchPct: 0,
+    equityAnnual: 0,
+    commuteMonthly: 0,
+    ...migrated,
   }
 }
 
@@ -95,6 +108,15 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
   const jobSalary          = Number(whatIf.jobOfferSalary) || 0
   const jobStartDate       = whatIf.jobOfferStartDate ? dayjs(whatIf.jobOfferStartDate) : null
   const jobAnnualRaisePct  = Number(whatIf.jobOfferAnnualRaisePct) || 0
+
+  // Compensation package fields
+  const jobOfferSigningBonus   = Number(whatIf.jobOfferSigningBonus) || 0
+  const jobOfferAnnualBonusPct = Number(whatIf.jobOfferAnnualBonusPct) || 0
+  const jobOfferBenefitsOffset = Number(whatIf.jobOfferBenefitsOffset) || 0
+  const jobOfferEquityAnnual   = Number(whatIf.jobOfferEquityAnnual) || 0
+  const jobOfferCommuteMonthly = Number(whatIf.jobOfferCommuteMonthly) || 0
+  const jobOfferGrossAnnual    = Number(whatIf.jobOfferGrossAnnual) || 0
+  const jobOfferTaxRatePct     = Number(whatIf.jobOfferTaxRatePct) || 0
 
   function jobIncomeForDate(d) {
     let total = 0
@@ -155,13 +177,20 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     income += jobIncomeThisMonth
     const jobOfferActive = jobStartDate && !currentDate.isBefore(jobStartDate)
     if (jobOfferActive) {
-      if (jobAnnualRaisePct > 0 && jobStartDate) {
-        const monthsSinceStart = currentDate.diff(jobStartDate, 'month')
-        const fullYears = Math.floor(monthsSinceStart / 12)
-        income += fullYears > 0 ? jobSalary * Math.pow(1 + jobAnnualRaisePct / 100, fullYears) : jobSalary
-      } else {
-        income += jobSalary
+      const monthsSinceStart = currentDate.diff(jobStartDate, 'month')
+      const fullYears = Math.floor(monthsSinceStart / 12)
+      const raiseF = (jobAnnualRaisePct > 0 && fullYears > 0)
+        ? Math.pow(1 + jobAnnualRaisePct / 100, fullYears) : 1
+      income += jobSalary * raiseF
+      // Signing bonus: one-time income in the first month
+      if (jobOfferSigningBonus > 0 && monthsSinceStart === 0) income += jobOfferSigningBonus
+      // Annual bonus: paid at each yearly anniversary
+      if (jobOfferAnnualBonusPct > 0 && monthsSinceStart > 0 && monthsSinceStart % 12 === 0) {
+        const bonusNet = jobOfferGrossAnnual * raiseF * (jobOfferAnnualBonusPct / 100) * (1 - jobOfferTaxRatePct / 100)
+        income += bonusNet
       }
+      // Equity/RSU vesting: distributed monthly
+      if (jobOfferEquityAnnual > 0) income += jobOfferEquityAnnual / 12
     }
     if (jobIncomeThisMonth === 0 && !jobOfferActive) income += sideIncome
     const partnerActive = partnerStartDate && !currentDate.isBefore(partnerStartDate)
@@ -178,7 +207,12 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     }
     const afterFreeze = freezeDate ? !currentDate.isBefore(freezeDate) : true
     const expReductionFactor = afterFreeze ? reductionFactor : 1
-    const monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
+    let monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
+    // Compensation package adjustments to expenses
+    if (jobOfferActive) {
+      if (jobOfferBenefitsOffset > 0) monthExpenses = Math.max(0, monthExpenses - jobOfferBenefitsOffset)
+      if (jobOfferCommuteMonthly > 0) monthExpenses += jobOfferCommuteMonthly
+    }
     const oneTimeCost = oneTimeByMonth[i] || 0
     const oneTimeIncomeThisMonth = oneTimeIncomeByMonth[i] || 0
     const netBurn = monthExpenses + monthlyInvestments - income + oneTimeCost - oneTimeIncomeThisMonth
@@ -215,9 +249,15 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     } else {
       currentIncome += jobSalary
     }
+    if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
   }
   if (currentJobIncome === 0 && !jobOfferActiveNow) currentIncome += sideIncome
-  const currentNetBurn = effectiveExpenses + monthlyInvestments - currentIncome
+  let currentEffExpenses = effectiveExpenses
+  if (jobOfferActiveNow) {
+    if (jobOfferBenefitsOffset > 0) currentEffExpenses = Math.max(0, currentEffExpenses - jobOfferBenefitsOffset)
+    if (jobOfferCommuteMonthly > 0) currentEffExpenses += jobOfferCommuteMonthly
+  }
+  const currentNetBurn = currentEffExpenses + monthlyInvestments - currentIncome
 
   return {
     dataPoints, runoutDate, totalRunwayMonths: runoutMonth,
@@ -863,6 +903,13 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
         jobOfferSalary: effectiveTakeHome,
         jobOfferStartDate: scenario.startDate,
         jobOfferAnnualRaisePct: scenario.annualRaisePct || 0,
+        jobOfferSigningBonus: scenario.signingBonus || 0,
+        jobOfferAnnualBonusPct: scenario.annualBonusPct || 0,
+        jobOfferBenefitsOffset: scenario.employerBenefitsMonthly || 0,
+        jobOfferEquityAnnual: scenario.equityAnnual || 0,
+        jobOfferCommuteMonthly: scenario.commuteMonthly || 0,
+        jobOfferGrossAnnual: scenario.grossAnnualSalary || 0,
+        jobOfferTaxRatePct: scenario.taxRatePct || 0,
       }
       results[scenario.id] = computeBurndown(
         totalSavings, unemployment, expensesWithSubs, scenarioWhatIf,

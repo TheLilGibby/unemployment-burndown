@@ -145,6 +145,38 @@ export default function JobScenariosPage({
                   />
                   <MetricRow label="To Savings" value={formatCurrency(savingsAmt) + '/mo'} valueColor="#f59e0b" />
                   <MetricRow label="To Investments" value={formatCurrency(investAmt) + '/mo'} valueColor="#a855f7" />
+                  {(s.signingBonus || 0) > 0 && (
+                    <MetricRow label="Signing Bonus" value={formatCurrency(s.signingBonus)} valueColor="var(--accent-emerald)" />
+                  )}
+                  {(s.annualBonusPct || 0) > 0 && (
+                    <MetricRow
+                      label="Annual Bonus"
+                      value={s.annualBonusPct + '% (' + formatCurrency(s.grossAnnualSalary * s.annualBonusPct / 100 * (1 - s.taxRatePct / 100)) + ' net)'}
+                      valueColor="var(--accent-emerald)"
+                    />
+                  )}
+                  {(s.employerBenefitsMonthly || 0) > 0 && (
+                    <MetricRow label="Benefits Value" value={formatCurrency(s.employerBenefitsMonthly) + '/mo'} valueColor="var(--accent-blue)" />
+                  )}
+                  {(s.employer401kMatchPct || 0) > 0 && (
+                    <MetricRow label="401k Match" value={s.employer401kMatchPct + '%'} valueColor="#a855f7" />
+                  )}
+                  {(s.equityAnnual || 0) > 0 && (
+                    <MetricRow label="Equity/RSUs" value={formatCurrency(s.equityAnnual) + '/yr'} valueColor="var(--accent-blue)" />
+                  )}
+                  {(s.commuteMonthly || 0) > 0 && (
+                    <MetricRow label="Commute" value={formatCurrency(s.commuteMonthly) + '/mo'} valueColor="var(--accent-red)" />
+                  )}
+                  <MetricRow
+                    label="Total Comp (yr 1)"
+                    value={formatCurrency(
+                      s.grossAnnualSalary +
+                      (s.signingBonus || 0) +
+                      s.grossAnnualSalary * (s.annualBonusPct || 0) / 100 +
+                      (s.equityAnnual || 0)
+                    )}
+                    valueColor="var(--accent-blue)"
+                  />
                   <MetricRow
                     label="Monthly Surplus"
                     value={formatCurrency(surplus) + '/mo'}
