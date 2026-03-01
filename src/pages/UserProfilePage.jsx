@@ -1,6 +1,7 @@
 import { User, Mail, Building2, Shield, Key, Bell, Palette, BellOff } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
+import { useTheme } from '../context/ThemeContext'
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -11,6 +12,7 @@ const SNOOZE_OPTIONS = [
 export default function UserProfilePage() {
   const { user, logout } = useAuth()
   const { preferences, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
+  const { theme, setTheme } = useTheme()
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
   if (!user) {
@@ -27,7 +29,7 @@ export default function UserProfilePage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Profile
+            Settings
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Manage your account settings and preferences
@@ -132,9 +134,27 @@ export default function UserProfilePage() {
             <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700">
               <div>
                 <div className="font-medium text-gray-900 dark:text-white">Theme</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Use the theme toggle in the header</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred appearance</div>
               </div>
-              <Palette className="w-5 h-5 text-gray-400" />
+              <div className="flex gap-1">
+                {[
+                  { value: 'light', label: 'Light' },
+                  { value: 'dark', label: 'Dark' },
+                  { value: 'system', label: 'System' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setTheme(opt.value)}
+                    className={`text-sm px-3 py-1.5 rounded-md border transition-colors ${
+                      theme === opt.value
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
