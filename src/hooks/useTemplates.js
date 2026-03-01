@@ -101,11 +101,10 @@ export function useTemplates() {
     return t ? t.snapshot : null
   }, [templates])
 
-  // Replace all templates at once (used when loading from a file)
+  // Replace all templates at once (used when loading from cloud/file)
   const bulkLoad = useCallback((newTemplates) => {
     const arr = Array.isArray(newTemplates) ? newTemplates : []
-    setTemplates(arr)
-    // Don't write to localStorage here — file is the source of truth
+    persist(arr)
   }, [])
 
   // Update specific fields in a template's snapshot (without loading it)
