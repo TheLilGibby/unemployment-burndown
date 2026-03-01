@@ -224,19 +224,39 @@ app.post('/api/org/create', authMiddleware, async (req, res) => {
     user.orgId = orgId
     user.orgRole = 'owner'
 
-    // Initialize data.json for this org in S3
-    const initialData = {
-      state: {
-        people: [
-          { id: 1, name: user.email.split('@')[0], color: '#3b82f6', linkedUserId: user.userId, email: user.email },
-        ],
-        monthlyIncome: 0,
-        savingsAccounts: [],
-        creditCards: [],
-        bills: [],
-        expenses: [],
-      },
-      savedAt: now,
+    // Initialize data.json for this org
+    // In local mode, seed from examples/data.json so templates & sample data are available
+    let initialData
+    if (USE_LOCAL_DATA) {
+      const examplePath = resolve(LOCAL_DATA_DIR, 'data.json')
+      if (existsSync(examplePath)) {
+        initialData = JSON.parse(readFileSync(examplePath, 'utf-8'))
+        // Update the first person to match the registering user
+        if (initialData.state && initialData.state.people && initialData.state.people.length > 0) {
+          initialData.state.people[0] = {
+            ...initialData.state.people[0],
+            name: user.email.split('@')[0],
+            linkedUserId: user.userId,
+            email: user.email,
+          }
+        }
+        initialData.savedAt = now
+      }
+    }
+    if (!initialData) {
+      initialData = {
+        state: {
+          people: [
+            { id: 1, name: user.email.split('@')[0], color: '#3b82f6', linkedUserId: user.userId, email: user.email },
+          ],
+          monthlyIncome: 0,
+          savingsAccounts: [],
+          creditCards: [],
+          bills: [],
+          expenses: [],
+        },
+        savedAt: now,
+      }
     }
     await s3Put(dataKey(orgId), initialData)
 
