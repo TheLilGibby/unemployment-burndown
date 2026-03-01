@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-03-01T00:00:00.000Z",
+  "statements": [
+    {
+      "id": "example_chase_2026-02",
+      "cardId": 1,
+      "issuer": "Chase",
+      "closingDate": "2026-02-28",
+      "statementBalance": 1842.33,
+      "transactionCount": 12,
+      "parsedAt": "2026-03-01T00:00:00.000Z",
+      "source": "example",
+      "accountName": "Chase Freedom",
+      "accountType": "credit"
+    },
+    {
+      "id": "example_amex_2026-02",
+      "cardId": 2,
+      "issuer": "American Express",
+      "closingDate": "2026-02-28",
+      "statementBalance": 623.50,
+      "transactionCount": 8,
+      "parsedAt": "2026-03-01T00:00:00.000Z",
+      "source": "example",
+      "accountName": "Amex Blue Cash",
+      "accountType": "credit"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "state": {
+    "people": [
+      { "id": 1, "name": "Alex", "color": "#3b82f6", "linkedUserId": "user_1", "email": "alex@example.com" },
+      { "id": 2, "name": "Jordan", "color": "#8b5cf6", "linkedUserId": "user_2", "email": "jordan@example.com" }
+    ],
+    "furloughDate": "2026-02-21",
+    "unemployment": {
+      "startDate": "2026-03-07",
+      "weeklyAmount": 450,
+      "durationWeeks": 26,
+      "assignedTo": 1
+    },
+    "savingsAccounts": [
+      { "id": 1, "name": "Joint Checking", "amount": 8432.19, "active": true, "assignedTo": null },
+      { "id": 2, "name": "Emergency Fund", "amount": 15200.00, "active": true, "assignedTo": null },
+      { "id": 3, "name": "Alex Savings", "amount": 3750.50, "active": true, "assignedTo": 1 },
+      { "id": 4, "name": "Jordan Savings", "amount": 5100.00, "active": true, "assignedTo": 2 }
+    ],
+    "expenses": [
+      { "id": 1, "category": "Rent / Mortgage", "monthlyAmount": 2200, "essential": true, "assignedTo": null },
+      { "id": 2, "category": "Food & Groceries", "monthlyAmount": 650, "essential": true, "assignedTo": null },
+      { "id": 3, "category": "Utilities", "monthlyAmount": 185, "essential": true, "assignedTo": null },
+      { "id": 4, "category": "Health / Insurance", "monthlyAmount": 520, "essential": true, "assignedTo": 1 },
+      { "id": 5, "category": "Transportation", "monthlyAmount": 280, "essential": false, "assignedTo": null },
+      { "id": 6, "category": "Subscriptions", "monthlyAmount": 95, "essential": false, "assignedTo": null },
+      { "id": 7, "category": "Misc / Personal", "monthlyAmount": 150, "essential": false, "assignedTo": null },
+      { "id": 8, "category": "Pet Care", "monthlyAmount": 85, "essential": true, "assignedTo": 2 },
+      { "id": 9, "category": "Phone Bills", "monthlyAmount": 120, "essential": true, "assignedTo": null }
+    ],
+    "whatIf": {
+      "expenseReductionPct": 10,
+      "expenseRaisePct": 0,
+      "sideIncomeMonthly": 500,
+      "emergencyFloor": 2000,
+      "benefitDelayWeeks": 2,
+      "benefitCutWeeks": 0,
+      "freezeDate": "",
+      "jobOfferSalary": 95000,
+      "jobOfferStartDate": "2026-06-01",
+      "freelanceRamp": [],
+      "partnerIncomeMonthly": 4200,
+      "partnerStartDate": "2026-03-01"
+    },
+    "oneTimeExpenses": [
+      { "id": 1, "description": "COBRA Setup Fee", "amount": 350, "date": "2026-03-15", "assignedTo": 1 }
+    ],
+    "oneTimePurchases": [],
+    "oneTimeIncome": [
+      { "id": 1, "description": "Severance Package", "amount": 8500, "date": "2026-03-01", "assignedTo": 1 },
+      { "id": 2, "description": "Tax Refund", "amount": 2200, "date": "2026-04-15", "assignedTo": null }
+    ],
+    "monthlyIncome": [
+      { "id": 1, "description": "Jordan Salary", "amount": 4200, "assignedTo": 2 }
+    ],
+    "jobs": [
+      { "id": 1, "title": "Senior Developer", "company": "TechCorp", "salary": 120000, "endDate": "2026-02-21", "assignedTo": 1 },
+      { "id": 2, "title": "Product Designer", "company": "DesignCo", "salary": 95000, "assignedTo": 2 }
+    ],
+    "assets": [
+      { "id": 1, "name": "2020 Honda Civic", "value": 18500, "assignedTo": 1 }
+    ],
+    "investments": [
+      { "id": 1, "name": "401k", "balance": 45000, "monthlyContribution": 0, "assignedTo": 1 },
+      { "id": 2, "name": "Roth IRA", "balance": 12000, "monthlyContribution": 0, "assignedTo": 2 }
+    ],
+    "subscriptions": [
+      { "id": 101, "name": "Netflix", "monthlyAmount": 17, "active": true, "assignedTo": null },
+      { "id": 102, "name": "Spotify", "monthlyAmount": 11, "active": true, "assignedTo": null },
+      { "id": 103, "name": "Internet", "monthlyAmount": 60, "active": true, "assignedTo": null },
+      { "id": 104, "name": "Cloud Storage", "monthlyAmount": 3, "active": true, "assignedTo": 1 },
+      { "id": 105, "name": "Gym Membership", "monthlyAmount": 45, "active": false, "assignedTo": 1 }
+    ],
+    "creditCards": [
+      {
+        "id": 1,
+        "name": "Chase Freedom",
+        "balance": 1842.33,
+        "minimumPayment": 35,
+        "creditLimit": 8000,
+        "apr": 22.99,
+        "statementCloseDay": "15",
+        "assignedTo": 1
+      },
+      {
+        "id": 2,
+        "name": "Amex Blue Cash",
+        "balance": 623.50,
+        "minimumPayment": 25,
+        "creditLimit": 5000,
+        "apr": 19.49,
+        "statementCloseDay": "22",
+        "assignedTo": 2
+      }
+    ],
+    "notificationPreferences": {
+      "enabled": true,
+      "thresholds": {
+        "runwayCritical": 3,
+        "runwayWarning": 6,
+        "runwaySafe": 12,
+        "benefitEndDays": 30,
+        "balanceMilestones": [0.5, 0.25, 0.10]
+      },
+      "dismissedIds": [],
+      "mutedUntil": null
+    },
+    "plaidMeta": {},
+    "jobScenarios": [
+      {
+        "id": 1,
+        "name": "Target Role — Senior Dev",
+        "salary": 130000,
+        "startDate": "2026-05-15",
+        "signingBonus": 10000,
+        "state": "CA",
+        "filingStatus": "married",
+        "notes": "Several applications out, expecting callbacks Q2"
+      },
+      {
+        "id": 2,
+        "name": "Fallback — Contract Work",
+        "salary": 85000,
+        "startDate": "2026-04-01",
+        "signingBonus": 0,
+        "state": "CA",
+        "filingStatus": "married",
+        "notes": "Contract-to-hire, lower pay but faster start"
+      }
+    ],
+    "retirement": {
+      "currentAge": 32,
+      "targetRetirementAge": 60,
+      "currentBalance": 45000,
+      "monthlyContribution": 0,
+      "annualReturnPct": 7,
+      "inflationPct": 3,
+      "targetMode": "nestEgg",
+      "targetNestEgg": 1500000,
+      "desiredAnnualIncome": 60000,
+      "withdrawalRatePct": 4,
+      "assignedTo": 1
+    }
+  },
+  "savedAt": "2026-03-01T00:00:00.000Z"
+}

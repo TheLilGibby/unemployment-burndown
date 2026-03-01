@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "pull-examples": "node scripts/pull-prod-examples.mjs",
+    "dev:local": "USE_LOCAL_DATA=true concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
