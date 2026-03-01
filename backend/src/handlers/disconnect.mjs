@@ -2,6 +2,7 @@ import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItem, deletePlaidItem } from '../lib/dynamo.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * POST /plaid/disconnect
@@ -35,7 +36,8 @@ export async function handler(event) {
       await client.itemRemove({ access_token: item.accessToken })
     } catch (plaidErr) {
       // If Plaid call fails (e.g. token already invalid), still delete locally
-      console.warn('Plaid itemRemove failed:', plaidErr.message)
+      const log = createRequestLogger('disconnect', event)
+      log.warn({ err: plaidErr, itemId }, 'Plaid itemRemove failed, proceeding with local deletion')
     }
 
     // Delete from DynamoDB
@@ -43,7 +45,8 @@ export async function handler(event) {
 
     return ok({ success: true, itemId })
   } catch (error) {
-    console.error('disconnect error:', error.response?.data || error.message)
+    const log = createRequestLogger('disconnect', event)
+    log.error({ err: error, plaidError: error.response?.data }, 'disconnect failed')
     return err(500, error.response?.data?.error_message || error.message)
   }
 }

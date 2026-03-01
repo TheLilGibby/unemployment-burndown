@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { getUserByEmail } from '../lib/users.mjs'
 import { signToken } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/auth/login
@@ -20,13 +21,17 @@ export async function handler(event) {
       return err(400, 'Email and password are required')
     }
 
+    const audit = createAuditLogger('login', event)
+
     const user = await getUserByEmail(email)
     if (!user) {
+      audit.warn({ email, result: 'invalid_credentials' }, 'login attempt with unknown email')
       return err(401, 'Invalid email or password')
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) {
+      audit.warn({ userId: user.userId, result: 'invalid_password' }, 'login attempt with wrong password')
       return err(401, 'Invalid email or password')
     }
 
@@ -35,6 +40,7 @@ export async function handler(event) {
     // If MFA is enabled, return a temporary token that requires MFA verification
     if (user.mfaEnabled) {
       const tempToken = signToken(user.userId, { mfaVerified: false, ...orgOpts })
+      audit.info({ userId: user.userId, result: 'mfa_required' }, 'login requires MFA verification')
       return ok({
         mfaRequired: true,
         tempToken,
@@ -43,6 +49,7 @@ export async function handler(event) {
 
     // No MFA — return full access token
     const token = signToken(user.userId, { mfaVerified: true, ...orgOpts })
+    audit.info({ userId: user.userId, result: 'success', mfaEnabled: false }, 'user logged in')
     return ok({
       token,
       user: {
@@ -54,7 +61,8 @@ export async function handler(event) {
       },
     })
   } catch (error) {
-    console.error('login error:', error.message)
+    const log = createRequestLogger('login', event)
+    log.error({ err: error }, 'login failed')
     return err(500, 'Login failed')
   }
 }

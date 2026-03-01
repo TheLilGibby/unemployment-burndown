@@ -1,6 +1,7 @@
 import { writeDataJson } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * PUT /api/data
@@ -18,7 +19,8 @@ export async function handler(event) {
     await writeDataJson(data, user.orgId)
     return ok({ saved: true, savedAt: new Date().toISOString() })
   } catch (error) {
-    console.error('putData error:', error.message)
+    const log = createRequestLogger('putData', event)
+    log.error({ err: error }, 'failed to write data')
     return err(500, error.message)
   }
 }

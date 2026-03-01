@@ -1,6 +1,7 @@
 import { requireOrg } from '../lib/auth.mjs'
 import { regenerateJoinCode } from '../lib/orgs.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/org/regenerate-code
@@ -21,7 +22,8 @@ export async function handler(event) {
 
     return ok({ joinCode: newCode })
   } catch (error) {
-    console.error('orgRegenerateCode error:', error.message)
+    const log = createRequestLogger('orgRegenerateCode', event)
+    log.error({ err: error }, 'failed to regenerate join code')
     return err(500, 'Failed to regenerate join code')
   }
 }

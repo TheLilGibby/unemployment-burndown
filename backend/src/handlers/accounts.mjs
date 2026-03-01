@@ -2,6 +2,7 @@ import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItemsByUser } from '../lib/dynamo.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /plaid/accounts
@@ -49,7 +50,8 @@ export async function handler(event) {
         })
       } catch (acctErr) {
         // If a single item fails (e.g. token expired), include it with error
-        console.warn(`Failed to fetch accounts for item ${item.itemId}:`, acctErr.message)
+        const log = createRequestLogger('accounts', event)
+        log.warn({ err: acctErr, itemId: item.itemId }, 'failed to fetch accounts for item')
         result.push({
           itemId:          item.itemId,
           institutionName: item.institutionName,
@@ -63,7 +65,8 @@ export async function handler(event) {
 
     return ok({ items: result })
   } catch (error) {
-    console.error('accounts error:', error.response?.data || error.message)
+    const log = createRequestLogger('accounts', event)
+    log.error({ err: error, plaidError: error.response?.data }, 'accounts fetch failed')
     return err(500, error.response?.data?.error_message || error.message)
   }
 }

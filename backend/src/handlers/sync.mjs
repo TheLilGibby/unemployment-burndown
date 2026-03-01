@@ -3,6 +3,7 @@ import { getPlaidItemsByUser, getPlaidItem, updateCursor } from '../lib/dynamo.m
 import { readDataJson, writeDataJson } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 import {
   MAX_SYNC_PAGES,
   checkBudget,
@@ -107,7 +108,8 @@ export async function handler(event) {
       }
 
       if (hasMore) {
-        console.warn(`Sync for item ${iid} hit page limit (${MAX_SYNC_PAGES}). Remaining data will sync on next call.`)
+        const log = createRequestLogger('sync', event)
+        log.warn({ itemId: iid, pageLimit: MAX_SYNC_PAGES }, 'sync hit page limit, remaining data will sync on next call')
       }
 
       // Persist the cursor for next incremental sync
@@ -209,11 +211,12 @@ export async function handler(event) {
     })
   } catch (error) {
     // Return 429 for budget errors so the frontend can show a clear message
+    const log = createRequestLogger('sync', event)
     if (error instanceof PlaidBudgetExceededError) {
-      console.warn('Budget exceeded during sync:', error.message)
+      log.warn({ err: error }, 'budget exceeded during sync')
       return err(429, error.message)
     }
-    console.error('sync error:', error.response?.data || error.message)
+    log.error({ err: error, plaidError: error.response?.data }, 'sync failed')
     return err(500, error.response?.data?.error_message || error.message)
   }
 }

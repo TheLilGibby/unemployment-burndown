@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { getUser, enableMfa } from '../lib/users.mjs'
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 const APP_NAME = 'BurndownTracker'
 
@@ -34,7 +35,8 @@ export async function setupHandler(event) {
       otpauth,
     })
   } catch (error) {
-    console.error('setupMfa error:', error.message)
+    const log = createRequestLogger('setupMfa', event)
+    log.error({ err: error }, 'MFA setup failed')
     return err(500, 'MFA setup failed')
   }
 }
@@ -67,9 +69,13 @@ export async function enableHandler(event) {
     // Enable MFA for the user
     await enableMfa(tokenUser.sub, secret)
 
+    const audit = createAuditLogger('enableMfa', event)
+    audit.info({ userId: tokenUser.sub }, 'MFA enabled for user')
+
     return ok({ mfaEnabled: true })
   } catch (error) {
-    console.error('enableMfa error:', error.message)
+    const log = createRequestLogger('enableMfa', event)
+    log.error({ err: error }, 'failed to enable MFA')
     return err(500, 'Failed to enable MFA')
   }
 }

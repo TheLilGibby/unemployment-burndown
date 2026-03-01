@@ -1,6 +1,7 @@
 import { checkBudget } from '../lib/plaidBudget.mjs'
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /plaid/budget
@@ -15,7 +16,8 @@ export async function handler(event) {
     const budget = await checkBudget()
     return ok(budget)
   } catch (error) {
-    console.error('budget check error:', error.message)
+    const log = createRequestLogger('budget', event)
+    log.error({ err: error }, 'budget check failed')
     return err(500, error.message)
   }
 }
