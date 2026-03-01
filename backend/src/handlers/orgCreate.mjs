@@ -2,7 +2,7 @@ import { requireAuth, signToken } from '../lib/auth.mjs'
 import { getUser, updateUserOrg } from '../lib/users.mjs'
 import { createOrg } from '../lib/orgs.mjs'
 import { addMember } from '../lib/orgMembers.mjs'
-import { writeDataJson } from '../lib/s3.mjs'
+import { readDataJson, writeDataJson } from '../lib/s3.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
@@ -46,19 +46,40 @@ export async function handler(event) {
     const audit = createAuditLogger('orgCreate', event)
     audit.info({ userId: user.userId, orgId, orgName: name.trim() }, 'organization created')
 
-    // Initialize empty data.json for this org with the user as a person
-    const initialData = {
-      state: {
-        people: [
-          { id: 1, name: user.email.split('@')[0], color: '#3b82f6', linkedUserId: user.userId, email: user.email },
-        ],
-        monthlyIncome: 0,
-        savingsAccounts: [],
-        creditCards: [],
-        bills: [],
-        expenses: [],
-      },
-      savedAt: new Date().toISOString(),
+    // Initialize data.json for this org.
+    // Check for legacy root data.json (pre-org migration) and seed from it
+    // so templates, savings, expenses, etc. carry over.
+    const now = new Date().toISOString()
+    let initialData = null
+
+    const legacyData = await readDataJson(null)
+    if (legacyData && legacyData.state) {
+      initialData = legacyData
+      if (initialData.state.people && initialData.state.people.length > 0) {
+        initialData.state.people[0] = {
+          ...initialData.state.people[0],
+          name: user.email.split('@')[0],
+          linkedUserId: user.userId,
+          email: user.email,
+        }
+      }
+      initialData.savedAt = now
+    }
+
+    if (!initialData) {
+      initialData = {
+        state: {
+          people: [
+            { id: 1, name: user.email.split('@')[0], color: '#3b82f6', linkedUserId: user.userId, email: user.email },
+          ],
+          monthlyIncome: 0,
+          savingsAccounts: [],
+          creditCards: [],
+          bills: [],
+          expenses: [],
+        },
+        savedAt: now,
+      }
     }
     await writeDataJson(initialData, orgId)
 

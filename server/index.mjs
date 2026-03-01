@@ -227,24 +227,40 @@ app.post('/api/org/create', authMiddleware, async (req, res) => {
     user.orgRole = 'owner'
 
     // Initialize data.json for this org
-    // In local mode, seed from examples/data.json so templates & sample data are available
+    // Seed from existing data so templates, savings, expenses, etc. carry over:
+    //   - Local mode: read examples/data.json
+    //   - S3 mode: check for legacy root data.json (pre-org migration)
     let initialData
     if (USE_LOCAL_DATA) {
       const examplePath = resolve(LOCAL_DATA_DIR, 'data.json')
       if (existsSync(examplePath)) {
         initialData = JSON.parse(readFileSync(examplePath, 'utf-8'))
-        // Update the first person to match the registering user
-        if (initialData.state && initialData.state.people && initialData.state.people.length > 0) {
-          initialData.state.people[0] = {
-            ...initialData.state.people[0],
-            name: user.email.split('@')[0],
-            linkedUserId: user.userId,
-            email: user.email,
-          }
+      }
+    } else {
+      // S3 mode: check for legacy root data.json
+      try {
+        const legacyData = await s3Get('data.json')
+        if (legacyData && legacyData.state) {
+          initialData = legacyData
         }
-        initialData.savedAt = now
+      } catch (e) {
+        // No legacy data — that's fine
       }
     }
+
+    if (initialData && initialData.state) {
+      // Update the first person to match the registering user
+      if (initialData.state.people && initialData.state.people.length > 0) {
+        initialData.state.people[0] = {
+          ...initialData.state.people[0],
+          name: user.email.split('@')[0],
+          linkedUserId: user.userId,
+          email: user.email,
+        }
+      }
+      initialData.savedAt = now
+    }
+
     if (!initialData) {
       initialData = {
         state: {
@@ -1067,15 +1083,42 @@ async function mergeStatementsFromPlaid(orgId, added, modified, removed, account
 // DATA API (S3 proxy — org-scoped)
 // ═══════════════════════════════════════════════════════════════
 
-// GET /api/data — read data.json
+// GET /api/data — read data.json (with legacy root fallback)
 app.get('/api/data', orgMiddleware, async (req, res) => {
   try {
-    const data = await s3Get(dataKey(req.user.orgId))
+    let data
+    try {
+      data = await s3Get(dataKey(req.user.orgId))
+    } catch (err) {
+      if (err.name !== 'NoSuchKey' && err.$metadata?.httpStatusCode !== 404) throw err
+      data = null
+    }
+
+    // If org data is empty/missing, check for legacy root data.json and auto-migrate
+    const isEmpty = !data || !data.state ||
+      ((!data.state.savingsAccounts || data.state.savingsAccounts.length === 0) &&
+       (!data.state.expenses || data.state.expenses.length === 0))
+    if (isEmpty) {
+      try {
+        const legacyData = await s3Get('data.json')
+        if (legacyData && legacyData.state &&
+            ((legacyData.state.savingsAccounts && legacyData.state.savingsAccounts.length > 0) ||
+             (legacyData.state.expenses && legacyData.state.expenses.length > 0))) {
+          req.log.info({ orgId: req.user.orgId }, 'auto-migrating legacy root data.json into org')
+          legacyData.savedAt = new Date().toISOString()
+          await s3Put(dataKey(req.user.orgId), legacyData)
+          data = legacyData
+        }
+      } catch (e) {
+        // Legacy data not found — that's fine
+        if (e.name !== 'NoSuchKey' && e.$metadata?.httpStatusCode !== 404) {
+          req.log.warn({ err: e }, 'failed to check legacy data.json')
+        }
+      }
+    }
+
     res.json(data)
   } catch (err) {
-    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
-      return res.json(null)
-    }
     req.log.error({ err }, 'GET /api/data failed')
     res.status(500).json({ error: err.message })
   }
