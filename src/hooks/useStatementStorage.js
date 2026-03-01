@@ -8,6 +8,18 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error('API not reachable — backend may not be configured')
+    }
+    throw new Error(`Unexpected response (HTTP ${res.status})`)
+  }
+}
+
 /**
  * Fetches parsed credit card statement data via the backend API.
  * No longer accesses S3 directly.
@@ -26,7 +38,7 @@ export function useStatementStorage() {
           headers: { ...authHeaders() },
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
+        const data = await safeJson(res)
         setIndex(data)
         setLoading(false)
       } catch (e) {
@@ -46,7 +58,7 @@ export function useStatementStorage() {
         headers: { ...authHeaders() },
       })
       if (!res.ok) throw new Error(`Failed to load statement ${statementId}`)
-      const data = await res.json()
+      const data = await safeJson(res)
       setStatements(prev => ({ ...prev, [statementId]: data }))
       return data
     } catch (e) {
@@ -62,7 +74,7 @@ export function useStatementStorage() {
         headers: { ...authHeaders() },
       })
       if (res.ok) {
-        const data = await res.json()
+        const data = await safeJson(res)
         setIndex(data)
       }
     } catch { /* silent */ }

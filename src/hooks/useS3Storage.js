@@ -8,6 +8,18 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error('API not reachable — backend may not be configured')
+    }
+    throw new Error(`Unexpected response (HTTP ${res.status})`)
+  }
+}
+
 /**
  * Cloud storage backed by the backend API (which proxies to S3).
  * No longer accesses S3 directly — all data flows through authenticated API.
@@ -32,7 +44,7 @@ export function useS3Storage() {
           headers: { ...authHeaders() },
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
+        const data = await safeJson(res)
         if (data) {
           setRestoreData(data)
         }

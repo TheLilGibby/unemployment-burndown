@@ -17,6 +17,18 @@ export default function MfaSetup({ mfaEnabled, onMfaChange }) {
     return sessionStorage.getItem('burndown_token')
   }
 
+  async function safeJson(res) {
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new Error('API not reachable — backend may not be configured')
+      }
+      throw new Error(`Unexpected response (HTTP ${res.status})`)
+    }
+  }
+
   async function startSetup() {
     setStep('loading')
     setError(null)
@@ -28,8 +40,8 @@ export default function MfaSetup({ mfaEnabled, onMfaChange }) {
           Authorization: `Bearer ${getToken()}`,
         },
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await safeJson(res)
+      if (!res.ok) throw new Error(data.error || data.message)
       setQrCode(data.qrCode)
       setSecret(data.secret)
       setStep('scan')
@@ -50,8 +62,8 @@ export default function MfaSetup({ mfaEnabled, onMfaChange }) {
         },
         body: JSON.stringify({ secret, code }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await safeJson(res)
+      if (!res.ok) throw new Error(data.error || data.message)
       setStep('done')
       onMfaChange?.(true)
     } catch (e) {
