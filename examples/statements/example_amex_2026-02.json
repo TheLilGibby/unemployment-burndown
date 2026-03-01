@@ -1,0 +1,24 @@
+{
+  "id": "example_amex_2026-02",
+  "cardId": 2,
+  "issuer": "American Express",
+  "cardLastFour": "1003",
+  "accountName": "Amex Blue Cash",
+  "accountType": "credit",
+  "statementPeriodStart": "2026-02-01",
+  "statementPeriodEnd": "2026-02-28",
+  "closingDate": "2026-02-28",
+  "statementBalance": 623.50,
+  "transactions": [
+    { "id": "txn_20", "date": "2026-02-03", "description": "Safeway", "merchantName": "Safeway", "category": "Food & Groceries", "amount": 112.45, "isRefund": false, "pending": false },
+    { "id": "txn_21", "date": "2026-02-07", "description": "Netflix", "merchantName": "Netflix", "category": "Subscriptions", "amount": 16.99, "isRefund": false, "pending": false },
+    { "id": "txn_22", "date": "2026-02-11", "description": "Chevron Gas", "merchantName": "Chevron", "category": "Transportation", "amount": 48.20, "isRefund": false, "pending": false },
+    { "id": "txn_23", "date": "2026-02-14", "description": "Flowers — V-Day", "merchantName": "1-800-Flowers", "category": "Shopping", "amount": 65.00, "isRefund": false, "pending": false },
+    { "id": "txn_24", "date": "2026-02-17", "description": "Walgreens", "merchantName": "Walgreens", "category": "Health / Insurance", "amount": 18.75, "isRefund": false, "pending": false },
+    { "id": "txn_25", "date": "2026-02-20", "description": "Trader Joe's", "merchantName": "Trader Joe's", "category": "Food & Groceries", "amount": 78.90, "isRefund": false, "pending": false },
+    { "id": "txn_26", "date": "2026-02-24", "description": "Home Depot", "merchantName": "Home Depot", "category": "Shopping", "amount": 156.21, "isRefund": false, "pending": false },
+    { "id": "txn_27", "date": "2026-02-26", "description": "Starbucks", "merchantName": "Starbucks", "category": "Dining Out", "amount": 127.00, "isRefund": false, "pending": false }
+  ],
+  "source": "example",
+  "syncedAt": "2026-03-01T00:00:00.000Z"
+}

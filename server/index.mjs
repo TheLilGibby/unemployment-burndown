@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import crypto from 'node:crypto'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid'
@@ -27,10 +27,16 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
-// ── S3 client for data proxy ──
+// ── Local data mode: read/write from examples/ instead of S3 ──
+const USE_LOCAL_DATA = process.env.USE_LOCAL_DATA === 'true'
+const LOCAL_DATA_DIR = resolve(
+  __dirname, '..', process.env.LOCAL_DATA_DIR || 'examples'
+)
+
+// ── S3 client for data proxy (skipped in local mode) ──
 const S3_BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
 const S3_REGION = process.env.AWS_REGION || 'us-west-1'
-const s3 = new S3Client({
+const s3 = USE_LOCAL_DATA ? null : new S3Client({
   region: S3_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -72,17 +78,32 @@ function orgMiddleware(req, res, next) {
 function generateOrgId() { return `org_${crypto.randomBytes(8).toString('hex')}` }
 function generateJoinCode() { return crypto.randomBytes(4).toString('hex').toUpperCase() }
 
-// ── S3 helpers (org-scoped) ──
+// ── S3 / local-file helpers (org-scoped) ──
 function dataKey(orgId) { return orgId ? `orgs/${orgId}/data.json` : 'data.json' }
 function statementsIndexKey(orgId) { return orgId ? `orgs/${orgId}/statements/index.json` : 'statements/index.json' }
 function statementKey(orgId, id) { return orgId ? `orgs/${orgId}/statements/${id}.json` : `statements/${id}.json` }
 
 async function s3Get(key) {
+  if (USE_LOCAL_DATA) {
+    const filePath = resolve(LOCAL_DATA_DIR, key)
+    if (!existsSync(filePath)) {
+      const err = new Error(`Local file not found: ${filePath}`)
+      err.name = 'NoSuchKey'
+      throw err
+    }
+    return JSON.parse(readFileSync(filePath, 'utf-8'))
+  }
   const res = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }))
   return JSON.parse(await res.Body.transformToString('utf-8'))
 }
 
 async function s3Put(key, data) {
+  if (USE_LOCAL_DATA) {
+    const filePath = resolve(LOCAL_DATA_DIR, key)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, JSON.stringify(data, null, 2))
+    return
+  }
   await s3.send(new PutObjectCommand({
     Bucket: S3_BUCKET,
     Key: key,
@@ -1080,4 +1101,10 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 const PORT = process.env.PLAID_SERVER_PORT || 3001
 app.listen(PORT, () => {
   console.log(`Plaid API server running on http://localhost:${PORT}`)
+  if (USE_LOCAL_DATA) {
+    console.log(`  Data mode: LOCAL FILES (${LOCAL_DATA_DIR})`)
+    console.log('  No AWS credentials required — reading/writing from examples/')
+  } else {
+    console.log(`  Data mode: S3 (${S3_BUCKET})`)
+  }
 })

@@ -1,7 +1,13 @@
 node_modules
 dist
 .env
+.env.local
 setup-amplify.mjs
 .claude/
 backend/.aws-sam/
 backend/samconfig.toml
+
+# Local data pulled from prod (may contain real user data)
+# The shipped examples/ fixtures are committed; only ignore org-scoped
+# data pulled via `npm run pull-examples --org <id>`
+examples/orgs/
