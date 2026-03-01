@@ -10,7 +10,8 @@ import { mapPlaidCategory } from '../backend/src/lib/plaidCategoryMap.mjs'
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { authenticator } from 'otplib'
+import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib'
+const authenticator = new TOTP({ crypto: new NobleCryptoPlugin(), base32: new ScureBase32Plugin() })
 import QRCode from 'qrcode'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -139,13 +140,13 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 // POST /api/auth/verify-mfa
-app.post('/api/auth/verify-mfa', authMiddleware, (req, res) => {
+app.post('/api/auth/verify-mfa', authMiddleware, async (req, res) => {
   const { code } = req.body
   if (!code) return res.status(400).json({ error: 'MFA code is required' })
   const user = users.get(req.user.sub)
   if (!user || !user.mfaEnabled || !user.mfaSecret) return res.status(400).json({ error: 'MFA is not enabled' })
-  const isValid = authenticator.verify({ token: code, secret: user.mfaSecret })
-  if (!isValid) return res.status(401).json({ error: 'Invalid MFA code' })
+  const result = await authenticator.verify(code, { secret: user.mfaSecret })
+  if (!result.valid) return res.status(401).json({ error: 'Invalid MFA code' })
   const token = signJwt(user.userId, { mfaVerified: true, orgId: user.orgId, orgRole: user.orgRole })
   res.json({ token, user: { userId: user.userId, email: user.email, mfaEnabled: true, orgId: user.orgId, orgRole: user.orgRole } })
 })
@@ -155,17 +156,17 @@ app.post('/api/auth/setup-mfa', authMiddleware, async (req, res) => {
   const user = users.get(req.user.sub)
   if (!user) return res.status(404).json({ error: 'User not found' })
   const secret = authenticator.generateSecret()
-  const otpauth = authenticator.keyuri(user.email, 'BurndownTracker', secret)
+  const otpauth = authenticator.toURI({ label: user.email, issuer: 'BurndownTracker', secret })
   const qrCode = await QRCode.toDataURL(otpauth)
   res.json({ secret, qrCode, otpauth })
 })
 
 // POST /api/auth/enable-mfa
-app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
+app.post('/api/auth/enable-mfa', authMiddleware, async (req, res) => {
   const { secret, code } = req.body
   if (!secret || !code) return res.status(400).json({ error: 'Secret and code are required' })
-  const isValid = authenticator.verify({ token: code, secret })
-  if (!isValid) return res.status(400).json({ error: 'Invalid code. Please try again.' })
+  const result = await authenticator.verify(code, { secret })
+  if (!result.valid) return res.status(400).json({ error: 'Invalid code. Please try again.' })
   const user = users.get(req.user.sub)
   user.mfaEnabled = true
   user.mfaSecret = secret
