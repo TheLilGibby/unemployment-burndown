@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { DEFAULTS } from './constants/defaults'
 import { useBurndown } from './hooks/useBurndown'
@@ -21,6 +21,7 @@ import FinancialSidebar from './components/layout/FinancialSidebar'
 import BurndownPage from './pages/BurndownPage'
 import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
+import UserProfilePage from './pages/UserProfilePage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
@@ -320,6 +321,21 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             </svg>
             <span className="flex-1 text-left">Household</span>
           </button>
+
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="flex-1 text-left">Profile</span>
+          </Link>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
 
@@ -953,6 +969,8 @@ function AuthenticatedApp({ logout, user }) {
             currentNetBurn={current.currentNetBurn}
           />
         } />
+
+        <Route path="/profile" element={<UserProfilePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
