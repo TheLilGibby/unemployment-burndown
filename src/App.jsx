@@ -12,7 +12,7 @@ import TemplateManager from './components/templates/TemplateManager'
 import PersonFilter from './components/people/PersonFilter'
 import PeopleMenu from './components/people/PeopleMenu'
 import PresentationMode from './components/presentation/PresentationMode'
-import ThemeToggle from './components/layout/ThemeToggle'
+
 import TableOfContents from './components/layout/TableOfContents'
 import ViewMenu from './components/layout/ViewMenu'
 import CloudSaveStatus from './components/layout/CloudSaveStatus'
@@ -476,7 +476,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
           </button>
 
           <Link
-            to="/profile"
+            to="/settings"
             onClick={() => setOpen(false)}
             className={menuItemClass}
             style={menuItemStyle}
@@ -487,7 +487,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            <span className="flex-1 text-left">Profile</span>
+            <span className="flex-1 text-left">Settings</span>
           </Link>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
@@ -1022,7 +1022,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
             </button>
             <NotificationBell />
             <PeopleMenu people={people} onChange={onPeopleChange} />
-            <ThemeToggle />
+
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
             <TemplateManager
               templates={templates}
@@ -1239,7 +1239,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
           </ErrorBoundary>
         } />
 
-        <Route path="/profile" element={<UserProfilePage />} />
+        <Route path="/settings" element={<UserProfilePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

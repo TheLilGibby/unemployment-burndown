@@ -8,6 +8,12 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
+// Mock the ThemeContext
+vi.mock('../context/ThemeContext', () => ({
+  useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
+  ThemeProvider: ({ children }) => children,
+}))
+
 // Mock the NotificationsContext
 vi.mock('../context/NotificationsContext', () => ({
   useNotificationsContext: () => ({
@@ -49,7 +55,7 @@ describe('UserProfilePage', () => {
 
     render(<UserProfilePage />)
     
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('test@example.com')).toBeInTheDocument()
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByText('Test Org')).toBeInTheDocument()
