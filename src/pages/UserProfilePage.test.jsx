@@ -8,6 +8,21 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
+// Mock the NotificationsContext
+vi.mock('../context/NotificationsContext', () => ({
+  useNotificationsContext: () => ({
+    preferences: {
+      enabled: true,
+      mutedUntil: null,
+      thresholds: { runwayCritical: 3, runwayWarning: 6, benefitEndDays: 30 },
+    },
+    updatePreferences: vi.fn(),
+    updateThreshold: vi.fn(),
+    snooze: vi.fn(),
+    unsnooze: vi.fn(),
+  }),
+}))
+
 describe('UserProfilePage', () => {
   it('shows loading state when user is null', () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
