@@ -45,7 +45,11 @@ export default function ProfileSettings({ user, onClose, onSave }) {
   useEffect(() => {
     if (!user?.orgId) return
     fetch(`${API_BASE}/api/org`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
+      .then(async r => {
+        if (!r.ok) return null
+        const text = await r.text()
+        try { return JSON.parse(text) } catch { return null }
+      })
       .then(data => { if (data) setOrg(data) })
       .catch(() => {})
   }, [user?.orgId])

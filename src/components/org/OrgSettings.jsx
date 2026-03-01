@@ -8,6 +8,18 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error('API not reachable — backend may not be configured')
+    }
+    throw new Error(`Unexpected response (HTTP ${res.status})`)
+  }
+}
+
 export default function OrgSettings({ user, onClose }) {
   const [org, setOrg] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -21,7 +33,7 @@ export default function OrgSettings({ user, onClose }) {
         headers: { ...authHeaders() },
       })
       if (!res.ok) throw new Error('Failed to load organization')
-      const data = await res.json()
+      const data = await safeJson(res)
       setOrg(data)
       setLoading(false)
     } catch (e) {
@@ -40,7 +52,7 @@ export default function OrgSettings({ user, onClose }) {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
       })
       if (!res.ok) throw new Error('Failed to regenerate code')
-      const data = await res.json()
+      const data = await safeJson(res)
       setOrg(prev => ({ ...prev, joinCode: data.joinCode }))
     } catch (e) {
       setError(e.message)

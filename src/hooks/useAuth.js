@@ -3,6 +3,22 @@ import { useState, useCallback, useEffect } from 'react'
 const TOKEN_KEY = 'burndown_token'
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
+async function parseResponse(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error('API not reachable — VITE_PLAID_API_URL may not be configured. Contact your admin.')
+    }
+    throw new Error(`Unexpected response from server (HTTP ${res.status})`)
+  }
+}
+
+function extractError(data) {
+  return data.error || data.message || null
+}
+
 export function useAuth() {
   const [authed, setAuthed] = useState(false)
   const [user, setUser] = useState(null)
@@ -22,9 +38,9 @@ export function useAuth() {
     fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(res => {
+      .then(async res => {
         if (!res.ok) throw new Error('Token invalid')
-        return res.json()
+        return parseResponse(res)
       })
       .then(userData => {
         setUser(userData)
@@ -45,9 +61,9 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) {
-        setError(data.error || 'Login failed')
+        setError(extractError(data) || 'Login failed')
         return false
       }
 
@@ -64,7 +80,7 @@ export function useAuth() {
       setAuthed(true)
       return true
     } catch (e) {
-      setError('Network error. Please try again.')
+      setError(e.message || 'Network error. Please try again.')
       return false
     }
   }, [])
@@ -84,9 +100,9 @@ export function useAuth() {
         },
         body: JSON.stringify({ code }),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) {
-        setError(data.error || 'Invalid code')
+        setError(extractError(data) || 'Invalid code')
         return false
       }
       sessionStorage.setItem(TOKEN_KEY, data.token)
@@ -96,7 +112,7 @@ export function useAuth() {
       setTempToken(null)
       return true
     } catch (e) {
-      setError('Network error. Please try again.')
+      setError(e.message || 'Network error. Please try again.')
       return false
     }
   }, [tempToken])
@@ -109,9 +125,9 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) {
-        setError(data.error || 'Registration failed')
+        setError(extractError(data) || 'Registration failed')
         return false
       }
       sessionStorage.setItem(TOKEN_KEY, data.token)
@@ -119,7 +135,7 @@ export function useAuth() {
       setAuthed(true)
       return true
     } catch (e) {
-      setError('Network error. Please try again.')
+      setError(e.message || 'Network error. Please try again.')
       return false
     }
   }, [])
@@ -151,8 +167,8 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ profileColor, avatarDataUrl }),
       })
-      const data = await res.json()
-      if (!res.ok) return { ok: false, error: data.error || 'Update failed' }
+      const data = await parseResponse(res)
+      if (!res.ok) return { ok: false, error: extractError(data) || 'Update failed' }
       setUser(prev => ({
         ...prev,
         ...(profileColor !== undefined && { profileColor }),
@@ -160,7 +176,7 @@ export function useAuth() {
       }))
       return { ok: true }
     } catch (e) {
-      return { ok: false, error: 'Network error. Please try again.' }
+      return { ok: false, error: e.message || 'Network error. Please try again.' }
     }
   }, [])
 
@@ -178,16 +194,16 @@ export function useAuth() {
         },
         body: JSON.stringify({ name }),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) {
-        setError(data.error || 'Failed to create organization')
+        setError(extractError(data) || 'Failed to create organization')
         return false
       }
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       return data.org
     } catch (e) {
-      setError('Network error. Please try again.')
+      setError(e.message || 'Network error. Please try again.')
       return false
     }
   }, [])
@@ -204,16 +220,16 @@ export function useAuth() {
         },
         body: JSON.stringify({ joinCode }),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) {
-        setError(data.error || 'Failed to join organization')
+        setError(extractError(data) || 'Failed to join organization')
         return false
       }
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       return data.org
     } catch (e) {
-      setError('Network error. Please try again.')
+      setError(e.message || 'Network error. Please try again.')
       return false
     }
   }, [])

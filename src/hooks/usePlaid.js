@@ -36,8 +36,17 @@ export function usePlaid({ onSyncComplete } = {}) {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       ...options,
     })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    const text = await res.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new Error('API not reachable — backend may not be configured')
+      }
+      throw new Error(`Unexpected response (HTTP ${res.status})`)
+    }
+    if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
     return data
   }
 
