@@ -143,6 +143,27 @@ export function useAuth() {
     return sessionStorage.getItem(TOKEN_KEY)
   }, [])
 
+  const updateProfile = useCallback(async ({ profileColor, avatarDataUrl } = {}) => {
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ profileColor, avatarDataUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) return { ok: false, error: data.error || 'Update failed' }
+      setUser(prev => ({
+        ...prev,
+        ...(profileColor !== undefined && { profileColor }),
+        ...(avatarDataUrl !== undefined && { avatarDataUrl }),
+      }))
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: 'Network error. Please try again.' }
+    }
+  }, [])
+
   const hasOrg = !!(user && user.orgId)
 
   const createOrg = useCallback(async (name) => {
@@ -212,5 +233,6 @@ export function useAuth() {
     getToken,
     createOrg,
     joinOrg,
+    updateProfile,
   }
 }

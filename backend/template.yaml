@@ -325,6 +325,21 @@ Resources:
             Path: /api/auth/me
             Method: get
 
+  ProfileUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/profileUpdate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/profile
+            Method: put
+
   # ---------- Plaid Lambda Functions ----------
   PlaidLinkTokenFunction:
     Type: AWS::Serverless::Function

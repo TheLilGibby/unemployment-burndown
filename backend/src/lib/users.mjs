@@ -80,6 +80,29 @@ export async function updateUserOrg(userId, orgId, orgRole) {
   }))
 }
 
+export async function updateUserProfile(userId, { profileColor, avatarDataUrl } = {}) {
+  const updates = []
+  const vals = { ':u': new Date().toISOString() }
+
+  if (profileColor !== undefined) {
+    updates.push('profileColor = :pc')
+    vals[':pc'] = profileColor
+  }
+  if (avatarDataUrl !== undefined) {
+    updates.push('avatarDataUrl = :av')
+    vals[':av'] = avatarDataUrl
+  }
+
+  if (updates.length === 0) return
+
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: `SET ${updates.join(', ')}, updatedAt = :u`,
+    ExpressionAttributeValues: vals,
+  }))
+}
+
 export async function deleteUser(userId) {
   await doc().send(new DeleteCommand({
     TableName: TABLE,

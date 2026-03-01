@@ -32,6 +32,8 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import MfaSetup from './components/auth/MfaSetup'
 import OrgSetup from './components/auth/OrgSetup'
 import OrgSettings from './components/org/OrgSettings'
+import ProfileBubble from './components/profile/ProfileBubble'
+import ProfileSettings from './components/profile/ProfileSettings'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -340,7 +342,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile } = useAuth()
   const location = useLocation()
 
   // Privacy policy is accessible without authentication
@@ -374,14 +376,15 @@ export default function App() {
     />
   )
 
-  return <AuthenticatedApp logout={logout} user={user} />
+  return <AuthenticatedApp logout={logout} user={user} updateProfile={updateProfile} />
 }
 
-function AuthenticatedApp({ logout, user }) {
+function AuthenticatedApp({ logout, user, updateProfile }) {
   const [presentationMode, setPresentationMode] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [securityOpen, setSecurityOpen] = useState(false)
   const [orgOpen, setOrgOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const [viewSettings, setViewSettings] = useState(DEFAULT_VIEW)
   const [furloughDate, setFurloughDate] = useState(DEFAULTS.furloughDate)
@@ -773,6 +776,15 @@ function AuthenticatedApp({ logout, user }) {
         <OrgSettings user={user} onClose={() => setOrgOpen(false)} />
       )}
 
+      {/* Profile settings modal */}
+      {profileOpen && (
+        <ProfileSettings
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onSave={updateProfile}
+        />
+      )}
+
       <Header
         rightSlot={
           <div className="flex items-center gap-0.5">
@@ -825,6 +837,7 @@ function AuthenticatedApp({ logout, user }) {
               onDuplicate={duplicate}
               onUpdateSnapshot={updateSnapshot}
             />
+            <ProfileBubble user={user} onClick={() => setProfileOpen(true)} />
             <HeaderOverflow
               onLogOpen={() => setLogOpen(true)}
               logCount={logEntries.length}

@@ -22,6 +22,8 @@ export async function handler(event) {
       mfaEnabled: user.mfaEnabled,
       orgId: user.orgId || null,
       orgRole: user.orgRole || null,
+      profileColor: user.profileColor || 'blue',
+      avatarDataUrl: user.avatarDataUrl || null,
       createdAt: user.createdAt,
     })
   } catch (error) {
