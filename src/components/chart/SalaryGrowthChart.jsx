@@ -32,7 +32,7 @@ function CustomTooltip({ active, payload }) {
 
 export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) {
   const [zoom, setZoom] = useState(10)
-  const [mode, setMode] = useState('gross') // 'gross' | 'takeHome'
+  const [mode, setMode] = useState('gross') // 'gross' | 'takeHome' | 'totalComp'
 
   const chartData = useMemo(() => {
     if (!scenarios.length) return []
@@ -49,6 +49,11 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
 
         if (mode === 'gross') {
           point[s.name] = Math.round(projectedGross)
+        } else if (mode === 'totalComp') {
+          const bonusGross = projectedGross * (s.annualBonusPct || 0) / 100
+          const equity = s.equityAnnual || 0
+          const signing = y === 0 ? (s.signingBonus || 0) : 0
+          point[s.name] = Math.round(projectedGross + bonusGross + equity + signing)
         } else {
           point[s.name] = Math.round(computeMonthlyTakeHome(projectedGross, s.taxRatePct) * 12)
         }
@@ -108,6 +113,16 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
             }}
           >
             Take-Home
+          </button>
+          <button
+            onClick={() => setMode('totalComp')}
+            className="text-xs px-3 py-1 transition-colors"
+            style={{
+              background: mode === 'totalComp' ? '#a855f7' + '20' : 'var(--bg-input)',
+              color: mode === 'totalComp' ? '#a855f7' : 'var(--text-faint)',
+            }}
+          >
+            Total Comp
           </button>
         </div>
       </div>
@@ -182,11 +197,20 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
             {scenarios.map(s => {
               const r = (s.annualRaisePct || 0) / 100
               const g = s.grossAnnualSalary
-              const yr = (y) => g * Math.pow(1 + r, y)
+              const bonusPct = (s.annualBonusPct || 0) / 100
+              const equity = s.equityAnnual || 0
+              const signing = s.signingBonus || 0
+              const yrBase = (y) => g * Math.pow(1 + r, y)
+              const yr = mode === 'totalComp'
+                ? (y) => yrBase(y) + yrBase(y) * bonusPct + equity + (y === 0 ? signing : 0)
+                : yrBase
               // Total earnings over 10 years = sum of geometric series
-              const totalEarned = r > 0
+              const baseEarned = r > 0
                 ? g * (Math.pow(1 + r, 10) - 1) / r
                 : g * 10
+              const totalEarned = mode === 'totalComp'
+                ? baseEarned + baseEarned * bonusPct + equity * 10 + signing
+                : baseEarned
 
               return (
                 <tr key={s.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
