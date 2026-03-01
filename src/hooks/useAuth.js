@@ -80,7 +80,12 @@ export function useAuth() {
       setAuthed(true)
       return true
     } catch (e) {
-      setError(e.message || 'Network error. Please try again.')
+      const msg = e.message || ''
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
+        setError('Cannot reach the API — check that VITE_PLAID_API_URL is set to your deployed API Gateway URL.')
+      } else {
+        setError(msg || 'Network error. Please try again.')
+      }
       return false
     }
   }, [])
