@@ -66,7 +66,7 @@ function migrateJobScenario(s) {
 // Pure burndown computation (mirrors useBurndown logic without React hooks).
 // Used inside useMemo to compute template results for the Compare tab.
 // ---------------------------------------------------------------------------
-function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = []) {
+function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
   const today = dayjs(startDate || new Date())
 
   const rawBenefitStart = dayjs(unemployment.startDate)
@@ -116,6 +116,14 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     if (oteDate.isBefore(today)) continue
     const slot = Math.max(1, oteDate.diff(today, 'month') + 1)
     oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(ote.amount) || 0)
+  }
+  // Merge one-time purchases into the same expense map (they are also losses)
+  for (const otp of (oneTimePurchases || [])) {
+    if (!otp.date || !otp.amount) continue
+    const otpDate = dayjs(otp.date)
+    if (otpDate.isBefore(today)) continue
+    const slot = Math.max(1, otpDate.diff(today, 'month') + 1)
+    oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(otp.amount) || 0)
   }
 
   const oneTimeIncomeByMonth = {}
@@ -227,6 +235,7 @@ const DEFAULT_VIEW = {
     creditCards:   true,
     investments:   true,
     onetimes:      true,
+    onetimePurchases: true,
     onetimeIncome:   true,
     monthlyIncome:   true,
     assets:          true,
@@ -553,6 +562,7 @@ function AuthenticatedApp({ logout, user }) {
   const [expenses, setExpenses] = useState(DEFAULTS.expenses)
   const [whatIf, setWhatIf] = useState(DEFAULTS.whatIf)
   const [oneTimeExpenses, setOneTimeExpenses] = useState(DEFAULTS.oneTimeExpenses)
+  const [oneTimePurchases, setOneTimePurchases] = useState(DEFAULTS.oneTimePurchases)
   const [assets, setAssets] = useState(DEFAULTS.assets)
   const [investments, setInvestments] = useState(DEFAULTS.investments)
   const [subscriptions, setSubscriptions] = useState(DEFAULTS.subscriptions)
@@ -596,7 +606,7 @@ function AuthenticatedApp({ logout, user }) {
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
   }
 
   function applySnapshot(snapshot) {
@@ -609,6 +619,7 @@ function AuthenticatedApp({ logout, user }) {
     // Merge snapshot whatIf with DEFAULTS so new fields always exist
     if (snapshot.whatIf) setWhatIf({ ...DEFAULTS.whatIf, ...snapshot.whatIf })
     if (snapshot.oneTimeExpenses) setOneTimeExpenses(snapshot.oneTimeExpenses)
+    if (snapshot.oneTimePurchases) setOneTimePurchases(snapshot.oneTimePurchases)
     if (snapshot.oneTimeIncome) setOneTimeIncome(snapshot.oneTimeIncome)
     if (snapshot.monthlyIncome) setMonthlyIncome(snapshot.monthlyIncome)
     if (snapshot.jobs) setJobs(snapshot.jobs)
@@ -668,7 +679,7 @@ function AuthenticatedApp({ logout, user }) {
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, defaultPersonId, notificationPreferences]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, defaultPersonId]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -701,6 +712,7 @@ function AuthenticatedApp({ logout, user }) {
     return parts.length ? parts.join(', ') : 'baseline'
   }
   const summarizeOneTimeExp   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
+  const summarizeOneTimePurch = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeMonthlyInc   = (v) => _allSum(v, 'monthlyAmount') + '/mo'
   const summarizeJobs         = (v) => {
@@ -749,6 +761,7 @@ function AuthenticatedApp({ logout, user }) {
   const onPeopleChange       = track(() => people,          setPeople,          'People',             summarizePeople,       diffArray)
   const onWhatIfChange       = track(() => whatIf,          setWhatIf,          'What-if scenarios',  summarizeWhatIf,       diffObject)
   const onOneTimeExpChange   = track(() => oneTimeExpenses, setOneTimeExpenses, 'One-time expenses',  summarizeOneTimeExp,   diffArray)
+  const onOneTimePurchChange = track(() => oneTimePurchases, setOneTimePurchases, 'One-time purchases', summarizeOneTimePurch, diffArray)
   const onOneTimeIncChange   = track(() => oneTimeIncome,   setOneTimeIncome,   'One-time income',    summarizeOneTimeInc,   diffArray)
   const onMonthlyIncChange   = track(() => monthlyIncome,   setMonthlyIncome,   'Monthly income',     summarizeMonthlyInc,   diffArray)
   const onJobsChange         = track(() => jobs,            setJobs,            'Jobs',               summarizeJobs,         diffArray)
@@ -793,10 +806,10 @@ function AuthenticatedApp({ logout, user }) {
 
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs)
+  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs)
+  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -827,7 +840,8 @@ function AuthenticatedApp({ logout, user }) {
       const tMonthlyIncome = s.monthlyIncome || []
       const tFurloughDate = s.furloughDate || DEFAULTS.furloughDate
       const tJobs = s.jobs || []
-      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs)
+      const tOneTimePurchases = s.oneTimePurchases || []
+      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases)
     }
     return results
   }, [templates])
@@ -850,17 +864,17 @@ function AuthenticatedApp({ logout, user }) {
       results[scenario.id] = computeBurndown(
         totalSavings, unemployment, expensesWithSubs, scenarioWhatIf,
         oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-        monthlyIncome, furloughDate
+        monthlyIncome, furloughDate, [], oneTimePurchases
       )
     }
     // Baseline (no job) result
     results['__baseline__'] = computeBurndown(
       totalSavings, unemployment, expensesWithSubs, baseWhatIfForScenarios,
       oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-      monthlyIncome, furloughDate
+      monthlyIncome, furloughDate, [], oneTimePurchases
     )
     return results
-  }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
+  }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, oneTimePurchases, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
 
   const hasWhatIf =
     whatIf.expenseReductionPct > 0 ||
@@ -1039,6 +1053,81 @@ function AuthenticatedApp({ logout, user }) {
                 <PersonFilter people={people} value={filterPersonId} onChange={setFilterPersonId} />
               </div>
             )}
+            <FinancialSidebar
+              totalSavings={totalSavings}
+              assetProceeds={assetProceeds}
+              effectiveExpenses={current.effectiveExpenses}
+              monthlyBenefits={current.monthlyBenefits}
+              monthlyInvestments={current.monthlyInvestments}
+              currentNetBurn={current.currentNetBurn}
+              totalRunwayMonths={current.totalRunwayMonths}
+              benefitEnd={current.benefitEnd}
+              savingsAccounts={savingsAccounts}
+              expenses={expenses}
+              subscriptions={subscriptions}
+              creditCards={creditCards}
+              investments={investments}
+              oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
+              oneTimeIncome={oneTimeIncome}
+              monthlyIncome={monthlyIncome}
+              unemployment={unemployment}
+              jobs={jobs}
+              people={people}
+              filterPersonId={filterPersonId}
+            />
+            <BurndownPage
+              current={current}
+              base={base}
+              hasWhatIf={hasWhatIf}
+              totalSavings={totalSavings}
+              viewSettings={viewSettings}
+              people={people}
+              savingsAccounts={savingsAccounts}
+              unemployment={unemployment}
+              expenses={expenses}
+              whatIf={whatIf}
+              oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
+              oneTimeIncome={oneTimeIncome}
+              monthlyIncome={monthlyIncome}
+              assets={assets}
+              investments={investments}
+              subscriptions={subscriptions}
+              creditCards={creditCards}
+              jobs={jobs}
+              jobScenarios={jobScenarios}
+              onJobsChange={onJobsChange}
+              onSavingsChange={onSavingsChange}
+              onUnemploymentChange={onUnemploymentChange}
+              onFurloughChange={onFurloughChange}
+              onExpensesChange={onExpensesChange}
+              onWhatIfChange={onWhatIfChange}
+              onOneTimeExpChange={onOneTimeExpChange}
+              onOneTimePurchChange={onOneTimePurchChange}
+              onOneTimeIncChange={onOneTimeIncChange}
+              onMonthlyIncChange={onMonthlyIncChange}
+              onAssetsChange={onAssetsChange}
+              onInvestmentsChange={onInvestmentsChange}
+              onSubsChange={onSubsChange}
+              onCreditCardsChange={onCreditCardsChange}
+              onJobScenariosChange={onJobScenariosChange}
+              furloughDate={furloughDate}
+              derivedStartDate={derivedStartDate}
+              assetProceeds={assetProceeds}
+              onWhatIfReset={() => {
+                const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
+                setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
+              }}
+              templates={templates}
+              templateResults={templateResults}
+              jobScenarioResults={jobScenarioResults}
+              plaid={plaid}
+              filterPersonId={filterPersonId}
+              onFilterPersonChange={setFilterPersonId}
+              retirement={retirement}
+              onRetirementChange={onRetirementChange}
+            />
             <ErrorBoundary level="component">
               <FinancialSidebar
                 totalSavings={totalSavings}

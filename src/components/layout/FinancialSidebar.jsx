@@ -111,7 +111,7 @@ function MobileFinancialDrawer({
   totalMonthlyIncome, upcomingOneTimeIncome, totalExpensesOnly, totalSubsCost,
   totalCCPayments, upcomingOneTimeExpenses, activeAccounts, activeSubscriptions,
   activeCCPayments, activeInvestments, expenses, monthlyIncome, unemployment,
-  oneTimeExpenses, oneTimeIncome, activeJobs = [], totalJobIncome = 0, people = [], filterPersonId = null,
+  oneTimeExpenses, oneTimeIncome, upcomingOneTimePurchases = [], activeJobs = [], totalJobIncome = 0, people = [], filterPersonId = null,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -252,6 +252,11 @@ function MobileFinancialDrawer({
               items={upcomingOneTimeExpenses.map(e => ({ label: e.note || e.category || e.date || 'Expense', amount: Number(e.amount) || 0, personColor: getPersonColor(people, e.assignedTo) }))} />
           )}
 
+          {upcomingOneTimePurchases.length > 0 && (
+            <Section label="Purchases" total={upcomingOneTimePurchases.reduce((s, p) => s + (Number(p.amount) || 0), 0)} sign="-" color="var(--accent-red)"
+              items={upcomingOneTimePurchases.map(p => ({ label: `${p.description || 'Purchase'}${p.medium ? ` (${p.medium})` : ''}`, amount: Number(p.amount) || 0, personColor: getPersonColor(people, p.assignedTo) }))} />
+          )}
+
           <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
             <div className="flex items-center justify-between px-2 py-1">
               <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Net Burn</span>
@@ -287,6 +292,7 @@ export default function FinancialSidebar({
   creditCards = [],
   investments = [],
   oneTimeExpenses = [],
+  oneTimePurchases = [],
   oneTimeIncome = [],
   monthlyIncome = [],
   unemployment = {},
@@ -304,6 +310,7 @@ export default function FinancialSidebar({
   const filteredCreditCards = pf ? creditCards.filter(fp) : creditCards
   const filteredInvestments = pf ? investments.filter(fp) : investments
   const filteredOneTimeExpenses = pf ? oneTimeExpenses.filter(fp) : oneTimeExpenses
+  const filteredOneTimePurchases = pf ? oneTimePurchases.filter(fp) : oneTimePurchases
   const filteredOneTimeIncome = pf ? oneTimeIncome.filter(fp) : oneTimeIncome
   const filteredMonthlyIncome = pf ? monthlyIncome.filter(fp) : monthlyIncome
 
@@ -322,6 +329,7 @@ export default function FinancialSidebar({
   const totalMonthlyIncome = filteredMonthlyIncome.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)
   const fMonthlyInvestments = activeInvestments.reduce((s, inv) => s + (Number(inv.monthlyAmount) || 0), 0)
   const upcomingOneTimeExpenses = filteredOneTimeExpenses.filter(e => e.date && e.amount)
+  const upcomingOneTimePurchases = filteredOneTimePurchases.filter(p => p.date && p.amount)
   const upcomingOneTimeIncome = filteredOneTimeIncome.filter(e => e.date && e.amount)
 
   const fMonthlyBenefits = showBenefits ? monthlyBenefits : 0
@@ -393,6 +401,7 @@ export default function FinancialSidebar({
       totalSubsCost={totalSubsCost}
       totalCCPayments={totalCCPayments}
       upcomingOneTimeExpenses={upcomingOneTimeExpenses}
+      upcomingOneTimePurchases={upcomingOneTimePurchases}
       activeAccounts={activeAccounts}
       activeSubscriptions={activeSubscriptions}
       activeCCPayments={activeCCPayments}
@@ -552,6 +561,17 @@ export default function FinancialSidebar({
             sign="-"
             color="var(--accent-red)"
             items={upcomingOneTimeExpenses.map(e => ({ label: e.note || e.category || e.date || 'Expense', amount: Number(e.amount) || 0, personColor: getPersonColor(people, e.assignedTo) }))}
+          />
+        )}
+
+        {/* One-time Purchases */}
+        {upcomingOneTimePurchases.length > 0 && (
+          <Section
+            label="Purchases"
+            total={upcomingOneTimePurchases.reduce((s, p) => s + (Number(p.amount) || 0), 0)}
+            sign="-"
+            color="var(--accent-red)"
+            items={upcomingOneTimePurchases.map(p => ({ label: `${p.description || 'Purchase'}${p.medium ? ` (${p.medium})` : ''}`, amount: Number(p.amount) || 0, personColor: getPersonColor(people, p.assignedTo) }))}
           />
         )}
       </div>

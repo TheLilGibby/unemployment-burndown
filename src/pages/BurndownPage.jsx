@@ -5,6 +5,7 @@ import SavingsPanel from '../components/finances/SavingsPanel'
 import UnemploymentPanel from '../components/finances/UnemploymentPanel'
 import ExpensePanel from '../components/finances/ExpensePanel'
 import OneTimeExpensePanel from '../components/finances/OneTimeExpensePanel'
+import OneTimePurchasePanel from '../components/finances/OneTimePurchasePanel'
 import OneTimeIncomePanel from '../components/finances/OneTimeIncomePanel'
 import MonthlyIncomePanel from '../components/finances/MonthlyIncomePanel'
 import JobsPanel from '../components/finances/JobsPanel'
@@ -29,6 +30,7 @@ export default function BurndownPage({
   expenses,
   whatIf,
   oneTimeExpenses,
+  oneTimePurchases,
   oneTimeIncome,
   monthlyIncome,
   assets,
@@ -46,6 +48,7 @@ export default function BurndownPage({
   onExpensesChange,
   onWhatIfChange,
   onOneTimeExpChange,
+  onOneTimePurchChange,
   onOneTimeIncChange,
   onMonthlyIncChange,
   onAssetsChange,
@@ -230,6 +233,13 @@ export default function BurndownPage({
       {viewSettings.sections.onetimes && (
         <SectionCard id="sec-onetimes" title="One-Time Expenses" className="scroll-mt-20">
           <OneTimeExpensePanel expenses={oneTimeExpenses} onChange={onOneTimeExpChange} people={people} />
+        </SectionCard>
+      )}
+
+      {/* One-time purchases (losses) — full width */}
+      {viewSettings.sections.onetimePurchases && (
+        <SectionCard id="sec-onetimepurchases" title="One-Time Purchases" className="scroll-mt-20">
+          <OneTimePurchasePanel purchases={oneTimePurchases} onChange={onOneTimePurchChange} people={people} />
         </SectionCard>
       )}
 
