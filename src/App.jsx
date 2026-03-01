@@ -282,6 +282,7 @@ const DEFAULT_VIEW = {
     monthlyIncome:   true,
     assets:          true,
     plaidAccounts:   true,
+    transactions:    true,
     retirement:      true,
   },
 }
