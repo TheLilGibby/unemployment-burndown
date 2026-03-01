@@ -1,15 +1,29 @@
+import pino from 'pino'
 import { getS3Object, putS3Object } from './s3Helpers.mjs'
 import { parseEmail, extractTextFromAttachments } from './emailParser.mjs'
 import { parseStatementWithBedrock, matchToCard } from './parser.mjs'
 
 const BUCKET = process.env.BUCKET_NAME || 'rag-consulting-burndown'
 
+const logger = pino({
+  name: 'statement-parser',
+  level: process.env.LOG_LEVEL || 'info',
+  timestamp: pino.stdTimeFunctions.isoTime,
+  formatters: {
+    level(label) {
+      return { level: label }
+    },
+  },
+})
+
 export async function handler(event) {
-  console.log('Statement parser invoked', JSON.stringify(event, null, 2))
+  const log = logger.child({ recordCount: event.Records?.length })
+  log.info('statement parser invoked')
 
   for (const record of event.Records) {
     const s3Key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '))
-    console.log(`Processing email: ${s3Key}`)
+    const recordLog = log.child({ s3Key })
+    recordLog.info('processing email')
 
     try {
       // 1. Fetch raw email from S3
@@ -17,12 +31,12 @@ export async function handler(event) {
 
       // 2. Parse MIME email
       const parsed = await parseEmail(emailBuffer)
-      console.log(`Email from: ${parsed.from?.text}, subject: ${parsed.subject}`)
+      recordLog.info({ from: parsed.from?.text, subject: parsed.subject }, 'email parsed')
 
       // 3. Extract text content (from body + PDF attachments)
       const textContent = await extractTextFromAttachments(parsed)
       if (!textContent || textContent.trim().length < 50) {
-        console.warn('Insufficient text content extracted, skipping')
+        recordLog.warn({ contentLength: textContent?.trim().length || 0 }, 'insufficient text content extracted, skipping')
         return { statusCode: 200, body: 'Skipped: insufficient content' }
       }
 
@@ -56,14 +70,14 @@ export async function handler(event) {
         `statements/${stmtId}.json`,
         JSON.stringify(statementData, null, 2)
       )
-      console.log(`Wrote statement: statements/${stmtId}.json`)
+      recordLog.info({ statementId: stmtId, transactionCount: statementData.transactions?.length || 0 }, 'statement written to S3')
 
       // 8. Update index.json
       await updateIndex(BUCKET, statementData)
-      console.log('Updated statements/index.json')
+      recordLog.info('statements index updated')
 
     } catch (err) {
-      console.error(`Error processing ${s3Key}:`, err)
+      recordLog.error({ err }, 'failed to process email')
       throw err
     }
   }

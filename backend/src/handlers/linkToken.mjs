@@ -2,6 +2,7 @@ import { CountryCode, Products } from 'plaid'
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * POST /plaid/link-token
@@ -27,7 +28,8 @@ export async function handler(event) {
 
     return ok({ link_token: response.data.link_token })
   } catch (error) {
-    console.error('linkToken error:', error.response?.data || error.message)
+    const log = createRequestLogger('linkToken', event)
+    log.error({ err: error, plaidError: error.response?.data }, 'link token creation failed')
     return err(500, error.response?.data?.error_message || error.message)
   }
 }

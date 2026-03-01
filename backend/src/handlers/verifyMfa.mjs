@@ -2,6 +2,7 @@ import { authenticator } from 'otplib'
 import { getUser } from '../lib/users.mjs'
 import { requireAuth, signToken } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/auth/verify-mfa
@@ -28,10 +29,14 @@ export async function handler(event) {
       return err(400, 'MFA is not enabled for this account')
     }
 
+    const audit = createAuditLogger('verifyMfa', event)
     const isValid = authenticator.verify({ token: code, secret: user.mfaSecret })
     if (!isValid) {
+      audit.warn({ userId: user.userId, result: 'invalid_code' }, 'MFA verification failed - invalid code')
       return err(401, 'Invalid MFA code')
     }
+
+    audit.info({ userId: user.userId, result: 'success' }, 'MFA verification successful')
 
     // Issue a full-access token with org info
     const token = signToken(user.userId, {
@@ -50,7 +55,8 @@ export async function handler(event) {
       },
     })
   } catch (error) {
-    console.error('verifyMfa error:', error.message)
+    const log = createRequestLogger('verifyMfa', event)
+    log.error({ err: error }, 'MFA verification failed')
     return err(500, 'MFA verification failed')
   }
 }

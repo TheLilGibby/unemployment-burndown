@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { createUser, getUserByEmail } from '../lib/users.mjs'
 import { signToken } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/auth/register
@@ -33,6 +34,9 @@ export async function handler(event) {
 
     await createUser({ userId, email, passwordHash })
 
+    const audit = createAuditLogger('register', event)
+    audit.info({ userId }, 'new user registered')
+
     // Return JWT (no MFA yet, no org yet for new accounts)
     const token = signToken(userId, { mfaVerified: false, orgId: null, orgRole: null })
 
@@ -44,7 +48,8 @@ export async function handler(event) {
     if (error.name === 'ConditionalCheckFailedException') {
       return err(409, 'An account with this email already exists')
     }
-    console.error('register error:', error.message)
+    const log = createRequestLogger('register', event)
+    log.error({ err: error }, 'registration failed')
     return err(500, 'Registration failed')
   }
 }

@@ -1,5 +1,8 @@
+import pino from 'pino'
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime'
 import { getS3Object } from './s3Helpers.mjs'
+
+const log = pino({ name: 'statement-parser' })
 
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-1' })
 const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0'
@@ -135,10 +138,10 @@ export async function matchToCard(bucket, issuer, statementData) {
     }
 
     // No match — return null (unmatched statements still get stored)
-    console.warn(`Could not match issuer "${issuer}" / last4 "${lastFour}" to any card`)
+    log.warn({ issuer, lastFour }, 'could not match issuer to any card')
     return null
   } catch (err) {
-    console.warn('Failed to read data.json for card matching:', err.message)
+    log.warn({ err }, 'failed to read data.json for card matching')
     return null
   }
 }

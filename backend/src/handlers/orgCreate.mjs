@@ -4,6 +4,7 @@ import { createOrg } from '../lib/orgs.mjs'
 import { addMember } from '../lib/orgMembers.mjs'
 import { writeDataJson } from '../lib/s3.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/org/create
@@ -42,6 +43,9 @@ export async function handler(event) {
     // Update user record with org info
     await updateUserOrg(user.userId, orgId, 'owner')
 
+    const audit = createAuditLogger('orgCreate', event)
+    audit.info({ userId: user.userId, orgId, orgName: name.trim() }, 'organization created')
+
     // Initialize empty data.json for this org with the user as a person
     const initialData = {
       state: {
@@ -77,7 +81,8 @@ export async function handler(event) {
       },
     })
   } catch (error) {
-    console.error('orgCreate error:', error.message)
+    const log = createRequestLogger('orgCreate', event)
+    log.error({ err: error }, 'org creation failed')
     return err(500, 'Failed to create organization')
   }
 }

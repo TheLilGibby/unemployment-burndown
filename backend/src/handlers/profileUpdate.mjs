@@ -1,6 +1,7 @@
 import { updateUserProfile } from '../lib/users.mjs'
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 const ALLOWED_COLORS = ['blue', 'purple', 'emerald', 'amber', 'rose', 'cyan']
 
@@ -50,7 +51,8 @@ export async function handler(event) {
 
     return ok({ success: true, ...updates })
   } catch (error) {
-    console.error('profileUpdate error:', error.message)
+    const log = createRequestLogger('profileUpdate', event)
+    log.error({ err: error }, 'profile update failed')
     return err(500, error.message)
   }
 }

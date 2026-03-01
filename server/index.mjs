@@ -12,6 +12,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
+import log, { requestLogger, createAuditLogger } from './logger.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -26,6 +27,7 @@ if (!process.env.PLAID_CLIENT_ID) {
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
+app.use(requestLogger)
 
 // ── Local data mode: read/write from examples/ instead of S3 ──
 const USE_LOCAL_DATA = process.env.USE_LOCAL_DATA === 'true'
@@ -129,7 +131,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = signJwt(userId, { mfaVerified: false, orgId: null, orgRole: null })
     res.json({ token, user: { userId, email: userId, mfaEnabled: false, orgId: null, orgRole: null } })
   } catch (err) {
-    console.error('register error:', err.message)
+    req.log.error({ err }, 'registration failed')
     res.status(500).json({ error: 'Registration failed' })
   }
 })
@@ -154,7 +156,7 @@ app.post('/api/auth/login', async (req, res) => {
     const token = signJwt(userId, { mfaVerified: true, ...orgOpts })
     res.json({ token, user: { userId, email: user.email, mfaEnabled: user.mfaEnabled, ...orgOpts } })
   } catch (err) {
-    console.error('login error:', err.message)
+    req.log.error({ err }, 'login failed')
     res.status(500).json({ error: 'Login failed' })
   }
 })
@@ -267,7 +269,7 @@ app.post('/api/org/create', authMiddleware, async (req, res) => {
       user: { userId: user.userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId, orgRole: 'owner' },
     })
   } catch (err) {
-    console.error('orgCreate error:', err.message)
+    req.log.error({ err }, 'org creation failed')
     res.status(500).json({ error: 'Failed to create organization' })
   }
 })
@@ -317,7 +319,7 @@ app.post('/api/org/join', authMiddleware, async (req, res) => {
         await s3Put(dataKey(org.orgId), data)
       }
     } catch (e) {
-      console.warn('Could not update data.json for join:', e.message)
+      req.log.warn({ err: e }, 'could not update data.json for join')
     }
 
     const token = signJwt(user.userId, { mfaVerified: req.user.mfaVerified, orgId: org.orgId, orgRole: 'member' })
@@ -327,7 +329,7 @@ app.post('/api/org/join', authMiddleware, async (req, res) => {
       user: { userId: user.userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: org.orgId, orgRole: 'member' },
     })
   } catch (err) {
-    console.error('orgJoin error:', err.message)
+    req.log.error({ err }, 'org join failed')
     res.status(500).json({ error: 'Failed to join organization' })
   }
 })
@@ -423,7 +425,7 @@ const handleCreateLinkToken = async (req, res) => {
     })
     res.json({ link_token: response.data.link_token })
   } catch (err) {
-    console.error('create-link-token error:', err.response?.data || err.message)
+    req.log.error({ err, plaidError: err.response?.data }, 'create-link-token failed')
     res.status(500).json({ error: err.response?.data || err.message })
   }
 }
@@ -496,7 +498,7 @@ const handleExchangeToken = async (req, res) => {
       })),
     })
   } catch (err) {
-    console.error('exchange-token error:', err.response?.data || err.message)
+    req.log.error({ err, plaidError: err.response?.data }, 'exchange-token failed')
     res.status(500).json({ error: err.response?.data || err.message })
   }
 }
@@ -519,7 +521,7 @@ app.post('/api/plaid/balances', orgMiddleware, async (req, res) => {
       })),
     })
   } catch (err) {
-    console.error('balances error:', err.response?.data || err.message)
+    req.log.error({ err, plaidError: err.response?.data }, 'balances fetch failed')
     res.status(500).json({ error: err.response?.data || err.message })
   }
 })
@@ -559,7 +561,7 @@ app.post('/api/plaid/transactions', orgMiddleware, async (req, res) => {
     }
 
     if (hasMore) {
-      console.warn(`Transactions sync hit page limit (${MAX_SYNC_PAGES}). Remaining data will sync on next call.`)
+      req.log.warn({ pageLimit: MAX_SYNC_PAGES }, 'transactions sync hit page limit, remaining data will sync on next call')
     }
 
     res.json({
@@ -591,7 +593,7 @@ app.post('/api/plaid/transactions', orgMiddleware, async (req, res) => {
       next_cursor: nextCursor,
     })
   } catch (err) {
-    console.error('transactions error:', err.response?.data || err.message)
+    req.log.error({ err, plaidError: err.response?.data }, 'transactions sync failed')
     res.status(500).json({ error: err.response?.data || err.message })
   }
 })
@@ -651,7 +653,7 @@ app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
 
     res.json({ items })
   } catch (err) {
-    console.error('accounts error:', err.message)
+    req.log.error({ err }, 'accounts fetch failed')
     res.status(500).json({ error: err.message })
   }
 })
@@ -832,7 +834,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
       data,
     })
   } catch (err) {
-    console.error('sync error:', err.response?.data || err.message)
+    req.log.error({ err, plaidError: err.response?.data }, 'sync failed')
     res.status(500).json({ error: err.response?.data?.error_message || err.message })
   }
 })
@@ -857,7 +859,7 @@ app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
     lastSyncTimes.delete(itemId)
     res.json({ success: true, itemId })
   } catch (err) {
-    console.error('disconnect error:', err.message)
+    req.log.error({ err }, 'disconnect failed')
     res.status(500).json({ error: err.message })
   }
 })
@@ -1074,7 +1076,7 @@ app.get('/api/data', orgMiddleware, async (req, res) => {
     if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       return res.json(null)
     }
-    console.error('GET /api/data error:', err.message)
+    req.log.error({ err }, 'GET /api/data failed')
     res.status(500).json({ error: err.message })
   }
 })
@@ -1085,7 +1087,7 @@ app.put('/api/data', orgMiddleware, async (req, res) => {
     await s3Put(dataKey(req.user.orgId), req.body)
     res.json({ saved: true, savedAt: new Date().toISOString() })
   } catch (err) {
-    console.error('PUT /api/data error:', err.message)
+    req.log.error({ err }, 'PUT /api/data failed')
     res.status(500).json({ error: err.message })
   }
 })
@@ -1099,7 +1101,7 @@ app.get('/api/statements', orgMiddleware, async (req, res) => {
     if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       return res.json({ version: 1, lastUpdated: null, statements: [] })
     }
-    console.error('GET /api/statements error:', err.message)
+    req.log.error({ err }, 'GET /api/statements failed')
     res.status(500).json({ error: err.message })
   }
 })
@@ -1113,18 +1115,12 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
     if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       return res.status(404).json({ error: 'Statement not found' })
     }
-    console.error('GET /api/statements/:id error:', err.message)
+    req.log.error({ err }, 'GET /api/statements/:id failed')
     res.status(500).json({ error: err.message })
   }
 })
 
 const PORT = process.env.PLAID_SERVER_PORT || 3001
 app.listen(PORT, () => {
-  console.log(`Plaid API server running on http://localhost:${PORT}`)
-  if (USE_LOCAL_DATA) {
-    console.log(`  Data mode: LOCAL FILES (${LOCAL_DATA_DIR})`)
-    console.log('  No AWS credentials required — reading/writing from examples/')
-  } else {
-    console.log(`  Data mode: S3 (${S3_BUCKET})`)
-  }
+  log.info({ port: PORT, dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started')
 })

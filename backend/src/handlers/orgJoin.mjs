@@ -4,6 +4,7 @@ import { getOrgByJoinCode } from '../lib/orgs.mjs'
 import { addMember, getMember } from '../lib/orgMembers.mjs'
 import { readDataJson, writeDataJson } from '../lib/s3.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/org/join
@@ -50,6 +51,9 @@ export async function handler(event) {
     // Update user record
     await updateUserOrg(user.userId, org.orgId, 'member')
 
+    const audit = createAuditLogger('orgJoin', event)
+    audit.info({ userId: user.userId, orgId: org.orgId, orgName: org.name }, 'user joined organization')
+
     // Add as a person in the org's data.json
     const data = await readDataJson(org.orgId)
     if (data && data.state) {
@@ -85,7 +89,8 @@ export async function handler(event) {
       },
     })
   } catch (error) {
-    console.error('orgJoin error:', error.message)
+    const log = createRequestLogger('orgJoin', event)
+    log.error({ err: error }, 'org join failed')
     return err(500, 'Failed to join organization')
   }
 }

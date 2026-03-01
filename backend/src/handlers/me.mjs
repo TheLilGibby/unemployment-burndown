@@ -1,6 +1,7 @@
 import { getUser } from '../lib/users.mjs'
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /api/auth/me
@@ -27,7 +28,8 @@ export async function handler(event) {
       createdAt: user.createdAt,
     })
   } catch (error) {
-    console.error('me error:', error.message)
+    const log = createRequestLogger('me', event)
+    log.error({ err: error }, 'failed to get user profile')
     return err(500, error.message)
   }
 }

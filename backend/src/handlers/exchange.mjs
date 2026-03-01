@@ -2,6 +2,7 @@ import { getPlaidClient } from '../lib/plaid.mjs'
 import { putPlaidItem } from '../lib/dynamo.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * POST /plaid/exchange
@@ -47,7 +48,8 @@ export async function handler(event) {
           institutionName = instRes.data.institution.name
         }
       } catch (e) {
-        console.warn('Could not fetch institution name:', e.message)
+        const log = createRequestLogger('exchange', event)
+        log.warn({ err: e }, 'could not fetch institution name')
       }
     }
 
@@ -82,7 +84,8 @@ export async function handler(event) {
       accounts,
     })
   } catch (error) {
-    console.error('exchange error:', error.response?.data || error.message)
+    const log = createRequestLogger('exchange', event)
+    log.error({ err: error, plaidError: error.response?.data }, 'token exchange failed')
     return err(500, error.response?.data?.error_message || error.message)
   }
 }

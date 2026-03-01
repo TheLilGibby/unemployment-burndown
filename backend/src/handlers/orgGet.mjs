@@ -3,6 +3,7 @@ import { getOrg } from '../lib/orgs.mjs'
 import { getMembersByOrg } from '../lib/orgMembers.mjs'
 import { getUser } from '../lib/users.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /api/org
@@ -45,7 +46,8 @@ export async function handler(event) {
 
     return ok(response)
   } catch (error) {
-    console.error('orgGet error:', error.message)
+    const log = createRequestLogger('orgGet', event)
+    log.error({ err: error }, 'failed to get organization')
     return err(500, 'Failed to get organization')
   }
 }

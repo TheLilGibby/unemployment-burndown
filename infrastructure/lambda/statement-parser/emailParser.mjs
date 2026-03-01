@@ -1,5 +1,8 @@
+import pino from 'pino'
 import { simpleParser } from 'mailparser'
 import pdf from 'pdf-parse/lib/pdf-parse.js'
+
+const log = pino({ name: 'statement-parser' })
 
 /**
  * Parse a raw MIME email buffer into a structured object.
@@ -36,7 +39,7 @@ export async function extractTextFromAttachments(parsed) {
             parts.push(`\n--- PDF: ${att.filename || 'attachment.pdf'} ---\n${result.text}`)
           }
         } catch (err) {
-          console.warn(`Failed to parse PDF attachment ${att.filename}:`, err.message)
+          log.warn({ err, filename: att.filename }, 'failed to parse PDF attachment')
         }
       }
     }

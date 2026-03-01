@@ -1,6 +1,7 @@
 import { readDataJson } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /api/data
@@ -17,7 +18,8 @@ export async function handler(event) {
     }
     return ok(data)
   } catch (error) {
-    console.error('getData error:', error.message)
+    const log = createRequestLogger('getData', event)
+    log.error({ err: error }, 'failed to read data')
     return err(500, error.message)
   }
 }

@@ -1,6 +1,7 @@
 import { readStatement } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /api/statements
@@ -26,7 +27,8 @@ export async function handler(event) {
 
     return ok(data)
   } catch (error) {
-    console.error('getStatements error:', error.message)
+    const log = createRequestLogger('getStatements', event)
+    log.error({ err: error }, 'failed to get statements')
     return err(500, error.message)
   }
 }
