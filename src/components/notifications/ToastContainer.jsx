@@ -8,7 +8,7 @@ const SEVERITY_COLORS = {
 }
 
 function SeverityIcon({ severity }) {
-  const size = 14
+  const size = 13
   if (severity === 'critical') return <AlertCircle size={size} />
   if (severity === 'warning') return <AlertTriangle size={size} />
   return <Info size={size} />
@@ -21,18 +21,18 @@ export default function ToastContainer() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[70] flex flex-col gap-2"
-      style={{ maxWidth: 360 }}
+      className="fixed bottom-3 right-3 z-[70] flex flex-col gap-1.5"
+      style={{ maxWidth: 280 }}
     >
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className="rounded-lg p-3 flex gap-3 shadow-lg cursor-pointer"
+          className="rounded-md px-2.5 py-2 flex items-start gap-2 cursor-pointer"
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
-            borderLeft: `3px solid ${SEVERITY_COLORS[toast.severity]}`,
-            animation: 'slideInRight 0.3s ease-out',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            animation: 'slideInRight 0.2s ease-out',
           }}
           onClick={() => {
             removeToast(toast.id)
@@ -40,17 +40,14 @@ export default function ToastContainer() {
           }}
         >
           <span
-            className="flex-shrink-0 mt-0.5"
+            className="flex-shrink-0 mt-px"
             style={{ color: SEVERITY_COLORS[toast.severity] }}
           >
             <SeverityIcon severity={toast.severity} />
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-xs font-medium leading-snug" style={{ color: 'var(--text-primary)', fontSize: 11 }}>
               {toast.title}
-            </p>
-            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {toast.message}
             </p>
           </div>
           <button
@@ -62,7 +59,7 @@ export default function ToastContainer() {
             style={{ color: 'var(--text-muted)' }}
             title="Dismiss"
           >
-            <X size={12} />
+            <X size={11} />
           </button>
         </div>
       ))}

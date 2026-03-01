@@ -13,30 +13,27 @@ export default function NotificationBell() {
   return (
     <button
       onClick={togglePanel}
-      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
+      className="relative flex items-center justify-center rounded transition-colors hover:opacity-80"
       title={unreadCount > 0 ? `${unreadCount} notification${unreadCount !== 1 ? 's' : ''}` : 'No notifications'}
       style={{
-        borderColor: 'var(--border-subtle)',
-        background: 'var(--bg-input)',
-        color: unreadCount > 0 ? SEVERITY_COLORS[highestSeverity] : 'var(--text-muted)',
+        color: 'var(--text-muted)',
+        width: 28,
+        height: 28,
       }}
     >
-      <Bell size={12} />
-      <span className="hidden sm:inline">Alerts</span>
+      <Bell size={15} />
       {unreadCount > 0 && (
         <span
-          className="text-xs font-semibold px-1 rounded-full tabular-nums"
+          className="absolute rounded-full"
           style={{
+            top: 4,
+            right: 4,
+            width: 7,
+            height: 7,
             background: SEVERITY_COLORS[highestSeverity],
-            color: '#fff',
-            fontSize: '10px',
-            lineHeight: '16px',
-            minWidth: 16,
-            textAlign: 'center',
+            boxShadow: `0 0 0 2px var(--header-bg, var(--bg-card))`,
           }}
-        >
-          {unreadCount > 99 ? '99+' : unreadCount}
-        </span>
+        />
       )}
     </button>
   )
