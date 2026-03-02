@@ -1,4 +1,5 @@
 import express from 'express'
+import https from 'node:https'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import crypto from 'node:crypto'
@@ -25,6 +26,8 @@ const authenticator = {
 }
 import QRCode from 'qrcode'
 import log, { requestLogger, createAuditLogger } from './logger.mjs'
+import { getDevTlsCredentials } from './tls.mjs'
+import { encrypt, decrypt, isEncryptionConfigured } from '../backend/src/lib/encryption.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -492,8 +495,17 @@ const MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
 let callCounter = { month: new Date().toISOString().slice(0, 7), count: 0 }
 
 // ── In-memory store for linked Plaid items (dev server only) ──
-// Map: orgId -> Map<itemId, { accessToken, cursor, institutionName, institutionId }>
+// Map: orgId -> Map<itemId, { accessToken (encrypted if key set), cursor, institutionName, institutionId }>
 const plaidItems = new Map()
+
+function encryptToken(token) {
+  if (!token || !isEncryptionConfigured()) return token
+  return encrypt(token)
+}
+function decryptToken(token) {
+  if (!token || !isEncryptionConfigured()) return token
+  try { return decrypt(token) } catch { return token }
+}
 
 function checkDevBudget() {
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -563,11 +575,11 @@ const handleExchangeToken = async (req, res) => {
       }
     }
 
-    // Store item for sync route
+    // Store item for sync route (access token encrypted at rest)
     const orgId = req.user.orgId
     if (!plaidItems.has(orgId)) plaidItems.set(orgId, new Map())
     plaidItems.get(orgId).set(item_id, {
-      accessToken: access_token,
+      accessToken: encryptToken(access_token),
       cursor: null,
       institutionName,
       institutionId: institutionId || null,
@@ -725,7 +737,7 @@ app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
     for (const [itemId, itemData] of orgItems) {
       try {
         recordDevCall()
-        const acctRes = await plaidClient.accountsGet({ access_token: itemData.accessToken })
+        const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
         items.push({
           itemId,
           institutionName: itemData.institutionName,
@@ -828,7 +840,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
         pageCount++
         recordDevCall()
         const syncRes = await plaidClient.transactionsSync({
-          access_token: itemData.accessToken,
+          access_token: decryptToken(itemData.accessToken),
           cursor: cursor || undefined,
           count: 500,
         })
@@ -847,7 +859,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
 
       // ── Fetch current balances ──
       recordDevCall()
-      const acctRes = await plaidClient.accountsGet({ access_token: itemData.accessToken })
+      const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
       const plaidAccounts = acctRes.data.accounts
 
       for (const acct of plaidAccounts) {
@@ -954,7 +966,7 @@ app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
 
     if (itemData) {
       try {
-        await plaidClient.itemRemove({ access_token: itemData.accessToken })
+        await plaidClient.itemRemove({ access_token: decryptToken(itemData.accessToken) })
       } catch { /* tolerate failure */ }
       orgItemMap.delete(itemId)
     }
@@ -1224,6 +1236,18 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 })
 
 const PORT = process.env.PLAID_SERVER_PORT || 3001
-app.listen(PORT, () => {
-  log.info({ port: PORT, dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started')
+
+// ── HTTPS with TLS 1.2+ ──
+const tlsCreds = getDevTlsCredentials()
+const server = https.createServer(
+  {
+    key: tlsCreds.key,
+    cert: tlsCreds.cert,
+    minVersion: 'TLSv1.2',
+  },
+  app,
+)
+
+server.listen(PORT, () => {
+  log.info({ port: PORT, tls: true, minTlsVersion: 'TLSv1.2', dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started (HTTPS)')
 })

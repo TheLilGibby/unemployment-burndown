@@ -4,6 +4,7 @@ dist
 .env.local
 setup-amplify.mjs
 .claude/
+.certs/
 backend/.aws-sam/
 backend/samconfig.toml
 
