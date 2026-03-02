@@ -10,7 +10,19 @@ import { mapPlaidCategory } from '../backend/src/lib/plaidCategoryMap.mjs'
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { authenticator } from 'otplib'
+import { createRequire } from 'module'
+const _require = createRequire(import.meta.url)
+const { generateSecret: _generateSecret, verifySync: _verifySync, generateURI: _generateURI } = _require('otplib')
+// Compatibility shim — otplib v13 removed the `authenticator` named export
+const authenticator = {
+  generateSecret: () => _generateSecret(),
+  keyuri: (accountName, issuer, secret) =>
+    _generateURI({ strategy: 'totp', issuer, label: accountName, secret }),
+  verify: ({ token, secret }) => {
+    try { const r = _verifySync({ type: 'totp', token, secret }); return !!(r && r.valid) }
+    catch { return false }
+  },
+}
 import QRCode from 'qrcode'
 import log, { requestLogger, createAuditLogger } from './logger.mjs'
 
