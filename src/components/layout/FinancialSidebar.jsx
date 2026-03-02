@@ -417,12 +417,16 @@ export default function FinancialSidebar({
       filterPersonId={filterPersonId}
     />
     <aside
-      className="hidden xl:flex flex-col fixed z-40"
+      className="hidden xl:flex flex-col fixed z-40 rounded-xl"
       style={{
         top: '5.5rem',
         right: '0.75rem',
         width: '11rem',
         maxHeight: 'calc(100vh - 7rem)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-default)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.08)',
+        padding: '0.5rem 0',
       }}
       aria-label="Financial summary"
     >
