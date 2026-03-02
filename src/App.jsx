@@ -29,6 +29,7 @@ import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import MfaSetup from './components/auth/MfaSetup'
 import OrgSetup from './components/auth/OrgSetup'
@@ -290,7 +291,7 @@ const DEFAULT_VIEW = {
   },
 }
 
-function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData }) {
+function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity, onHousehold, exportData, user }) {
   const [open, setOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
@@ -535,6 +536,24 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
             </svg>
             <span className="flex-1 text-left">Settings</span>
           </Link>
+
+          {user?.orgRole === 'owner' && (
+            <Link
+              to="/admin/tools"
+              onClick={() => setOpen(false)}
+              className={menuItemClass}
+              style={menuItemStyle}
+              onMouseEnter={hoverOn}
+              onMouseLeave={hoverOff}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              <span className="flex-1 text-left">Superadmin Tools</span>
+            </Link>
+          )}
 
           {/* Theme submenu */}
           <button
@@ -1143,6 +1162,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               onSignOut={logout}
               onSecurity={() => setSecurityOpen(true)}
               onHousehold={() => setOrgOpen(true)}
+              user={user}
               exportData={{
                 burndown: current,
                 expenses,
@@ -1340,6 +1360,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/settings" element={<UserProfilePage />} />
+        <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
 
         {user?.isSuperAdmin && (
           <Route path="/admin" element={<SuperAdminPage />} />
