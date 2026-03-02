@@ -103,6 +103,46 @@ export async function updateUserProfile(userId, { profileColor, avatarDataUrl } 
   }))
 }
 
+export async function setResetToken(userId, resetTokenHash, resetTokenExpiry) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET resetTokenHash = :h, resetTokenExpiry = :e, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':h': resetTokenHash,
+      ':e': resetTokenExpiry,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function clearResetToken(userId) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET resetTokenHash = :n, resetTokenExpiry = :n2, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':n': null,
+      ':n2': null,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function updatePassword(userId, passwordHash) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET passwordHash = :ph, resetTokenHash = :n, resetTokenExpiry = :n2, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':ph': passwordHash,
+      ':n': null,
+      ':n2': null,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
 export async function deleteUser(userId) {
   await doc().send(new DeleteCommand({
     TableName: TABLE,

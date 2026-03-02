@@ -29,6 +29,7 @@ import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import MfaSetup from './components/auth/MfaSetup'
 import OrgSetup from './components/auth/OrgSetup'
 import OrgSettings from './components/org/OrgSettings'
@@ -616,11 +617,12 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin, forgotPassword } = useAuth()
   const location = useLocation()
 
-  // Privacy policy is accessible without authentication
+  // Public pages accessible without authentication
   if (location.pathname === '/privacy') return <PrivacyPolicyPage />
+  if (location.pathname === '/reset-password') return <ResetPasswordPage />
 
   // Show loading state while checking token
   if (loading) return (
@@ -636,6 +638,7 @@ export default function App() {
       onVerifyMfa={verifyMfa}
       onCancelMfa={cancelMfa}
       onDevLogin={devLogin}
+      onForgotPassword={forgotPassword}
       mfaPending={mfaPending}
       error={authError}
     />
