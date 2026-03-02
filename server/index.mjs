@@ -308,6 +308,103 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 })
 
+// POST /api/auth/delete-account — permanently delete user account and all data
+app.post('/api/auth/delete-account', authMiddleware, async (req, res) => {
+  try {
+    const user = users.get(req.user.sub)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const orgId = user.orgId
+
+    // 1. Revoke all Plaid access tokens for the org and clean up
+    if (orgId) {
+      const orgItemMap = plaidItems.get(orgId)
+      if (orgItemMap) {
+        for (const [itemId, itemData] of orgItemMap) {
+          try {
+            await plaidClient.itemRemove({ access_token: itemData.accessToken })
+          } catch { /* tolerate failure */ }
+          lastSyncTimes.delete(itemId)
+        }
+        plaidItems.delete(orgId)
+      }
+
+      // 2. Delete org data from S3/local storage
+      if (USE_LOCAL_DATA) {
+        const orgDir = resolve(LOCAL_DATA_DIR, 'orgs', orgId)
+        const { rmSync } = await import('fs')
+        try { rmSync(orgDir, { recursive: true, force: true }) } catch { /* ok */ }
+      } else {
+        try {
+          const { ListObjectsV2Command, DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+          const prefix = `orgs/${orgId}/`
+          let continuationToken
+          do {
+            const listRes = await s3.send(new ListObjectsV2Command({
+              Bucket: S3_BUCKET, Prefix: prefix, ContinuationToken: continuationToken,
+            }))
+            if (listRes.Contents) {
+              for (const obj of listRes.Contents) {
+                await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: obj.Key }))
+              }
+            }
+            continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined
+          } while (continuationToken)
+        } catch (s3Err) {
+          req.log.warn({ err: s3Err, orgId }, 'S3 cleanup failed during account deletion')
+        }
+      }
+
+      // 3. Clean up org membership
+      orgs.delete(orgId)
+      orgMembers.delete(orgId)
+    }
+
+    // 4. Delete the user record
+    users.delete(req.user.sub)
+
+    req.log.info({ userId: user.userId, orgId }, 'account deleted')
+    res.json({ deleted: true })
+  } catch (err) {
+    req.log.error({ err }, 'account deletion failed')
+    res.status(500).json({ error: 'Account deletion failed. Please contact privacy@rag-consulting.com for assistance.' })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
+// PRIVACY / CONSENT ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// POST /api/privacy/consent — record user consent for audit trail
+app.post('/api/privacy/consent', authMiddleware, (req, res) => {
+  try {
+    const { consentType, consentVersion } = req.body
+    const validTypes = ['plaid_data_access', 'privacy_policy', 'account_registration']
+    if (!consentType || !validTypes.includes(consentType)) {
+      return res.status(400).json({ error: `consentType must be one of: ${validTypes.join(', ')}` })
+    }
+
+    const user = users.get(req.user.sub)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const consentRecord = {
+      consentType,
+      consentVersion: consentVersion || '1.0',
+      grantedAt: new Date().toISOString(),
+      userAgent: req.headers['user-agent'] || null,
+    }
+
+    if (!user.consentRecords) user.consentRecords = []
+    user.consentRecords.push(consentRecord)
+
+    req.log.info({ userId: user.userId, consentType, consentVersion }, 'consent recorded')
+    res.json({ recorded: true, consent: consentRecord })
+  } catch (err) {
+    req.log.error({ err }, 'consent recording failed')
+    res.status(500).json({ error: 'Failed to record consent' })
+  }
+})
+
 // ═══════════════════════════════════════════════════════════════
 // ORG ROUTES
 // ═══════════════════════════════════════════════════════════════

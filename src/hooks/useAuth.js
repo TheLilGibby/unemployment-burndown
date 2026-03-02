@@ -138,6 +138,29 @@ export function useAuth() {
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       setAuthed(true)
+
+      // Record privacy policy and registration consent for audit trail
+      try {
+        await fetch(`${API_BASE}/api/privacy/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.token}`,
+          },
+          body: JSON.stringify({ consentType: 'account_registration', consentVersion: '1.1' }),
+        })
+        await fetch(`${API_BASE}/api/privacy/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.token}`,
+          },
+          body: JSON.stringify({ consentType: 'privacy_policy', consentVersion: '1.1' }),
+        })
+      } catch {
+        // Don't block registration if consent recording fails
+      }
+
       return true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
@@ -204,6 +227,32 @@ export function useAuth() {
     } catch (e) {
       setError(e.message || 'Dev login failed')
       return false
+    }
+  }, [])
+
+  const deleteAccount = useCallback(async () => {
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        return { ok: false, error: extractError(data) || 'Account deletion failed' }
+      }
+      // Clear local state
+      sessionStorage.removeItem(TOKEN_KEY)
+      setAuthed(false)
+      setUser(null)
+      setMfaPending(false)
+      setTempToken(null)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e.message || 'Network error. Please try again.' }
     }
   }, [])
 
@@ -299,5 +348,6 @@ export function useAuth() {
     updateProfile,
     devLogin,
     forgotPassword,
+    deleteAccount,
   }
 }
