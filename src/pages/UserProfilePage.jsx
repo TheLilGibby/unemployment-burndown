@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
+import { useTheme } from '../context/ThemeContext'
+import MfaSetup from '../components/auth/MfaSetup'
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -16,6 +18,8 @@ export default function UserProfilePage() {
   const [deleteError, setDeleteError] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const { preferences, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
+  const { theme, setTheme } = useTheme()
+  const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
   if (!user) {
@@ -102,19 +106,12 @@ export default function UserProfilePage() {
             <Key className="w-5 h-5" />
             Security
           </h2>
-          
+
           <div className="space-y-3">
-            <button
-              onClick={() => {/* TODO: Navigate to MFA setup */}}
-              className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <div className="font-medium text-gray-900 dark:text-white">
-                {user.mfaEnabled ? 'Manage MFA' : 'Enable Two-Factor Authentication'}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {user.mfaEnabled ? 'Update or disable MFA settings' : 'Add an extra layer of security to your account'}
-              </div>
-            </button>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Signed in as <strong className="text-gray-900 dark:text-white">{user.email}</strong>
+            </div>
+            <MfaSetup mfaEnabled={mfaEnabled} onMfaChange={setMfaEnabled} />
 
             <button
               onClick={() => {/* TODO: Change password flow */}}
@@ -123,6 +120,35 @@ export default function UserProfilePage() {
               <div className="font-medium text-gray-900 dark:text-white">Change Password</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">Update your account password</div>
             </button>
+          </div>
+        </div>
+
+        {/* Theme Settings */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Sun className="w-5 h-5" />
+            Theme
+          </h2>
+
+          <div className="flex gap-3">
+            {[
+              { value: 'light', label: 'Light', Icon: Sun },
+              { value: 'dark', label: 'Dark', Icon: Moon },
+              { value: 'system', label: 'System', Icon: Monitor },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
+                  theme === opt.value
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <opt.Icon className="w-4 h-4" />
+                <span className="text-sm font-medium">{opt.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
