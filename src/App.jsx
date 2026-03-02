@@ -1105,31 +1105,6 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
                 syncing={plaid.syncing}
               />
             )}
-            {/* Activity log button */}
-            <button
-              onClick={() => setLogOpen(true)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
-              title="View activity log"
-              style={{
-                borderColor: 'var(--border-subtle)',
-                background: 'var(--bg-input)',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" strokeLinecap="round" />
-              </svg>
-              <span className="hidden sm:inline">Log</span>
-              {logEntries.length > 0 && (
-                <span
-                  className="text-xs font-semibold px-1 rounded-full tabular-nums"
-                  style={{ background: 'var(--accent-blue)', color: '#fff', fontSize: '10px', lineHeight: '16px', minWidth: 16, textAlign: 'center' }}
-                >
-                  {logEntries.length > 99 ? '99+' : logEntries.length}
-                </span>
-              )}
-            </button>
             <NotificationBell />
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
             <TemplateManager
