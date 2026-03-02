@@ -391,6 +391,41 @@ Resources:
             Path: /api/auth/reset-password
             Method: post
 
+  RecordConsentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/recordConsent.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/privacy/consent
+            Method: post
+
+  DeleteAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteAccount.handler
+      CodeUri: .
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/delete-account
+            Method: post
+
   # ---------- Plaid Lambda Functions ----------
   PlaidLinkTokenFunction:
     Type: AWS::Serverless::Function

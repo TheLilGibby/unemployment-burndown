@@ -1,8 +1,8 @@
 # RAG Consulting LLC — Data Retention and Deletion Policy
 
-**Version:** 1.0
+**Version:** 1.1
 **Effective Date:** February 27, 2026
-**Last Reviewed:** February 27, 2026
+**Last Reviewed:** March 2, 2026
 **Owner:** Information Security Officer, RAG Consulting LLC
 
 ---
@@ -28,6 +28,7 @@ This policy applies to all consumer data stored in:
 | **Parsed credit card statements** | S3 (statements/) | Duration of active account | Account deletion or user request |
 | **User-entered financial data** | S3 (data.json) | Duration of active account | Account deletion or user request |
 | **Sync cursors / metadata** | DynamoDB | Until user disconnects the account | User-initiated disconnect |
+| **Consent records** | DynamoDB (on user record) | Duration of active account | Account deletion |
 | **Raw ingested emails** | S3 (emails/raw/) | 90 days after processing | Automatic scheduled cleanup |
 
 ## 4. Data Deletion Procedures
@@ -52,10 +53,14 @@ When a user requests account deletion:
 ### 4.3 Deletion Request Process
 
 Users may request data deletion by:
-- Using the account deletion feature within the application (when available)
+- Using the "Delete Account" feature on the Settings page within the application
 - Sending an email to privacy@rag-consulting.com with the subject "Data Deletion Request"
 
 All deletion requests are logged and tracked to completion.
+
+### 4.4 Consent Records
+
+When a user provides consent (e.g., for Plaid data access, privacy policy acceptance, or account registration), a timestamped consent record is stored on their user profile. These records include the consent type, policy version, timestamp, and user-agent. Consent records are retained for the duration of the user's active account and are permanently deleted upon account deletion.
 
 ## 5. Automated Cleanup
 
@@ -90,3 +95,4 @@ This policy is reviewed annually and updated as necessary to reflect changes in:
 | Version | Date | Author | Changes |
 |---|---|---|---|
 | 1.0 | 2026-02-27 | RAG Consulting LLC | Initial release |
+| 1.1 | 2026-03-02 | RAG Consulting LLC | Added in-app account deletion, consent tracking records, periodic review note |

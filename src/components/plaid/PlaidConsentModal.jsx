@@ -1,12 +1,39 @@
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
+const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+const TOKEN_KEY = 'burndown_token'
+
 /**
  * Consent modal shown before opening Plaid Link.
  * User must explicitly agree to data collection before proceeding.
+ * Records consent server-side with timestamp for Plaid production audit requirements.
  * Rendered via portal to escape header's backdrop-filter stacking context.
  */
 export default function PlaidConsentModal({ onAccept, onDecline }) {
+  const handleAccept = async () => {
+    // Record consent server-side for audit trail before proceeding
+    try {
+      const token = sessionStorage.getItem(TOKEN_KEY)
+      if (token) {
+        await fetch(`${API_BASE}/api/privacy/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            consentType: 'plaid_data_access',
+            consentVersion: '1.1',
+          }),
+        })
+      }
+    } catch {
+      // Don't block the flow if consent recording fails — proceed with link
+    }
+    onAccept()
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
@@ -72,6 +99,11 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
             <Link to="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">
               Privacy Policy
             </Link>.
+            {' '}For more about how Plaid handles your data, see{' '}
+            <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline">
+              Plaid's End User Privacy Policy
+            </a>.
           </p>
         </div>
 
@@ -83,7 +115,7 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
             Cancel
           </button>
           <button
-            onClick={onAccept}
+            onClick={handleAccept}
             className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
           >
             Agree & Connect

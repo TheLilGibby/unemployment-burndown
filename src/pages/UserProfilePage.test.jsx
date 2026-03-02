@@ -34,6 +34,7 @@ describe('UserProfilePage', () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       user: null,
       logout: vi.fn(),
+      deleteAccount: vi.fn(),
     })
 
     render(<UserProfilePage />)
@@ -51,6 +52,7 @@ describe('UserProfilePage', () => {
         organizationName: 'Test Org',
       },
       logout: vi.fn(),
+      deleteAccount: vi.fn(),
     })
 
     render(<UserProfilePage />)
@@ -69,6 +71,7 @@ describe('UserProfilePage', () => {
         mfaEnabled: false,
       },
       logout: vi.fn(),
+      deleteAccount: vi.fn(),
     })
 
     render(<UserProfilePage />)
@@ -83,6 +86,7 @@ describe('UserProfilePage', () => {
         email: 'test@example.com',
       },
       logout: mockLogout,
+      deleteAccount: vi.fn(),
     })
 
     render(<UserProfilePage />)

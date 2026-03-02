@@ -1,4 +1,6 @@
-import { User, Mail, Building2, Shield, Key, Bell, BellOff } from 'lucide-react'
+import { useState } from 'react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
 
@@ -9,7 +11,10 @@ const SNOOZE_OPTIONS = [
 ]
 
 export default function UserProfilePage() {
-  const { user, logout } = useAuth()
+  const { user, logout, deleteAccount } = useAuth()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const { preferences, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
@@ -233,6 +238,87 @@ export default function UserProfilePage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Privacy & Data */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Privacy & Data
+          </h2>
+
+          <div className="space-y-3">
+            <Link
+              to="/privacy"
+              className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block"
+            >
+              <div className="font-medium text-gray-900 dark:text-white">Privacy Policy</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Review how we collect, use, and protect your data
+              </div>
+            </Link>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+              {!showDeleteConfirm ? (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full text-left px-4 py-3 rounded-lg border border-red-200 dark:border-red-800/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <div className="font-medium text-red-600 dark:text-red-400 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Delete Account
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Permanently delete your account and all associated data
+                  </div>
+                </button>
+              ) : (
+                <div className="px-4 py-4 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20">
+                  <div className="flex items-start gap-3 mb-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium text-red-700 dark:text-red-400">
+                        Are you sure you want to delete your account?
+                      </div>
+                      <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                        This action is permanent and cannot be undone. All of your data will be deleted,
+                        including financial data, linked bank accounts, Plaid tokens, and transaction history.
+                      </p>
+                    </div>
+                  </div>
+
+                  {deleteError && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mb-3 px-8">{deleteError}</p>
+                  )}
+
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+                      disabled={deleting}
+                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setDeleting(true)
+                        setDeleteError(null)
+                        const result = await deleteAccount()
+                        if (!result.ok) {
+                          setDeleteError(result.error)
+                          setDeleting(false)
+                        }
+                      }}
+                      disabled={deleting}
+                      className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, Delete My Account'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
