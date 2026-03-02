@@ -8,7 +8,8 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid'
 import { mapPlaidCategory } from '../backend/src/lib/plaidCategoryMap.mjs'
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+// @aws-sdk/client-s3 is loaded dynamically below so the server can start
+// without the SDK installed (e.g. local-data dev mode).
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { createRequire } from 'module'
@@ -53,13 +54,18 @@ const LOCAL_DATA_DIR = resolve(
 // ── S3 client for data proxy (skipped in local mode) ──
 const S3_BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
 const S3_REGION = process.env.AWS_REGION || 'us-west-1'
-const s3 = USE_LOCAL_DATA ? null : new S3Client({
-  region: S3_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-})
+let s3 = null
+let S3Client, GetObjectCommand, PutObjectCommand
+if (!USE_LOCAL_DATA) {
+  ;({ S3Client, GetObjectCommand, PutObjectCommand } = await import('@aws-sdk/client-s3'))
+  s3 = new S3Client({
+    region: S3_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  })
+}
 
 // ── Auth (in-memory stores for local dev) ──
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod'
