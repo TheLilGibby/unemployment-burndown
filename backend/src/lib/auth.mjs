@@ -4,14 +4,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'
 const JWT_EXPIRES_IN = '24h'
 
 /**
+ * Check if a userId/email is in the SUPER_ADMINS env var allowlist.
+ */
+export function isEnvSuperAdmin(email) {
+  const list = (process.env.SUPER_ADMINS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  return list.includes(email.toLowerCase())
+}
+
+/**
  * Create a signed JWT for a user.
  */
-export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null } = {}) {
-  return jwt.sign(
-    { sub: userId, mfaVerified, orgId, orgRole },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN },
-  )
+export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null } = {}) {
+  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
+  if (impersonatedBy) payload.impersonatedBy = impersonatedBy
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
 }
 
 /**
@@ -69,6 +75,21 @@ export function requireOrg(event) {
 
   if (!result.user.orgId) {
     return { error: { statusCode: 403, message: 'Organization membership required' } }
+  }
+
+  return result
+}
+
+/**
+ * Auth middleware that requires the caller to be a superadmin.
+ * Checks both the JWT isSuperAdmin claim and the SUPER_ADMINS env var.
+ */
+export function requireSuperAdmin(event) {
+  const result = requireAuth(event)
+  if (result.error) return result
+
+  if (!result.user.isSuperAdmin && !isEnvSuperAdmin(result.user.sub)) {
+    return { error: { statusCode: 403, message: 'Superadmin access required' } }
   }
 
   return result

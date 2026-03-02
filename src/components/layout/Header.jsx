@@ -1,16 +1,23 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const NAV_TABS = [
+const BASE_TABS = [
   { path: '/',              label: 'Overview',      shortLabel: 'Overview' },
   { path: '/job-scenarios', label: 'Job Scenarios', shortLabel: 'Jobs' },
   { path: '/credit-cards',  label: 'Statements',    shortLabel: 'Cards' },
 ]
 
-export default function Header({ rightSlot }) {
+const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin' }
+
+export default function Header({ rightSlot, isSuperAdmin }) {
   const location = useLocation()
   const navigate = useNavigate()
   const activePath = location.pathname
+
+  const tabs = useMemo(() =>
+    isSuperAdmin ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS,
+    [isSuperAdmin],
+  )
   const [visible, setVisible] = useState(true)
   const lastScrollY = useRef(0)
   const ticking = useRef(false)
@@ -48,7 +55,7 @@ export default function Header({ rightSlot }) {
       }}
     >
       <nav className="flex items-center">
-        {NAV_TABS.map(tab => {
+        {tabs.map(tab => {
           const isActive = activePath === tab.path
           return (
             <button

@@ -64,8 +64,15 @@ const users = new Map()  // userId -> { userId, email, passwordHash, mfaEnabled,
 const orgs = new Map()   // orgId -> { orgId, name, joinCode, ownerId, createdAt }
 const orgMembers = new Map() // orgId -> [{ userId, role, joinedAt }]
 
-function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null } = {}) {
-  return jwt.sign({ sub: userId, mfaVerified, orgId, orgRole }, JWT_SECRET, { expiresIn: '24h' })
+function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null } = {}) {
+  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
+  if (impersonatedBy) payload.impersonatedBy = impersonatedBy
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' })
+}
+
+function isSuperAdminEmail(email) {
+  const list = (process.env.SUPER_ADMINS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  return list.includes(email.toLowerCase())
 }
 
 function verifyJwt(token) {
@@ -85,6 +92,16 @@ function authMiddleware(req, res, next) {
 function orgMiddleware(req, res, next) {
   authMiddleware(req, res, () => {
     if (!req.user.orgId) return res.status(403).json({ error: 'Organization membership required' })
+    next()
+  })
+}
+
+function superAdminMiddleware(req, res, next) {
+  authMiddleware(req, res, () => {
+    const user = users.get(req.user.sub)
+    if (!req.user.isSuperAdmin && !isSuperAdminEmail(req.user.sub) && !isSuperAdminEmail(user?.email || '')) {
+      return res.status(403).json({ error: 'Superadmin access required' })
+    }
     next()
   })
 }
@@ -159,7 +176,8 @@ app.post('/api/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' })
 
-    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null }
+    const isSuperAdmin = isSuperAdminEmail(user.email)
+    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin }
 
     if (user.mfaEnabled) {
       const tempToken = signJwt(userId, { mfaVerified: false, ...orgOpts })
@@ -211,7 +229,17 @@ app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   const user = users.get(req.user.sub)
   if (!user) return res.status(404).json({ error: 'User not found' })
-  res.json({ userId: user.userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null })
+  res.json({
+    userId: user.userId,
+    email: user.email,
+    mfaEnabled: user.mfaEnabled,
+    orgId: user.orgId || null,
+    orgRole: user.orgRole || null,
+    profileColor: user.profileColor || 'blue',
+    avatarDataUrl: user.avatarDataUrl || null,
+    isSuperAdmin: isSuperAdminEmail(user.email),
+    impersonatedBy: req.user.impersonatedBy || null,
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -369,6 +397,95 @@ app.post('/api/org/regenerate-code', orgMiddleware, (req, res) => {
   if (!org) return res.status(404).json({ error: 'Organization not found' })
   org.joinCode = generateJoinCode()
   res.json({ joinCode: org.joinCode })
+})
+
+// ═══════════════════════════════════════════════════════════════
+// SUPERADMIN ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// GET /api/admin/orgs — list all organizations with member counts
+app.get('/api/admin/orgs', superAdminMiddleware, (req, res) => {
+  const allOrgs = Array.from(orgs.values()).map(org => {
+    const members = orgMembers.get(org.orgId) || []
+    return {
+      orgId: org.orgId,
+      name: org.name,
+      ownerId: org.ownerId,
+      memberCount: members.length,
+      createdAt: org.createdAt,
+    }
+  })
+  res.json({ orgs: allOrgs })
+})
+
+// GET /api/admin/orgs/:orgId — org detail with member list
+app.get('/api/admin/orgs/:orgId', superAdminMiddleware, (req, res) => {
+  const org = orgs.get(req.params.orgId)
+  if (!org) return res.status(404).json({ error: 'Organization not found' })
+
+  const members = (orgMembers.get(org.orgId) || []).map(m => {
+    const u = users.get(m.userId)
+    return {
+      userId: m.userId,
+      email: u?.email || m.userId,
+      role: m.role,
+      joinedAt: m.joinedAt,
+      mfaEnabled: u?.mfaEnabled || false,
+      createdAt: u?.createdAt,
+    }
+  })
+
+  res.json({
+    orgId: org.orgId,
+    name: org.name,
+    joinCode: org.joinCode,
+    ownerId: org.ownerId,
+    createdAt: org.createdAt,
+    members,
+  })
+})
+
+// GET /api/admin/users — list all users
+app.get('/api/admin/users', superAdminMiddleware, (req, res) => {
+  const allUsers = Array.from(users.values()).map(u => ({
+    userId: u.userId,
+    email: u.email,
+    orgId: u.orgId || null,
+    orgRole: u.orgRole || null,
+    mfaEnabled: u.mfaEnabled || false,
+    createdAt: u.createdAt,
+  }))
+  res.json({ users: allUsers })
+})
+
+// POST /api/admin/impersonate — generate impersonation token
+app.post('/api/admin/impersonate', superAdminMiddleware, (req, res) => {
+  const { targetUserId } = req.body
+  if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' })
+
+  const targetUser = users.get(targetUserId)
+  if (!targetUser) return res.status(404).json({ error: 'Target user not found' })
+
+  req.log.warn({ adminUserId: req.user.sub, targetUserId }, 'superadmin started impersonation')
+
+  const impersonationToken = signJwt(targetUser.userId, {
+    mfaVerified: true,
+    orgId: targetUser.orgId || null,
+    orgRole: targetUser.orgRole || null,
+    isSuperAdmin: false,
+    impersonatedBy: req.user.sub,
+  })
+
+  res.json({
+    token: impersonationToken,
+    user: {
+      userId: targetUser.userId,
+      email: targetUser.email,
+      orgId: targetUser.orgId || null,
+      orgRole: targetUser.orgRole || null,
+      mfaEnabled: targetUser.mfaEnabled,
+    },
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════

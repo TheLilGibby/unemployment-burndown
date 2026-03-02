@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { getUserByEmail } from '../lib/users.mjs'
-import { signToken } from '../lib/auth.mjs'
+import { signToken, isEnvSuperAdmin } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
@@ -35,7 +35,8 @@ export async function handler(event) {
       return err(401, 'Invalid email or password')
     }
 
-    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null }
+    const isSuperAdmin = isEnvSuperAdmin(user.email)
+    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin }
 
     // If MFA is enabled, return a temporary token that requires MFA verification
     if (user.mfaEnabled) {
