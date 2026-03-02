@@ -8,6 +8,8 @@ const REDACT_PATHS = [
   'passwordHash',
   'token',
   'tempToken',
+  'resetToken',
+  'resetTokenHash',
   'secret',
   'mfaSecret',
   'authorization',
@@ -18,6 +20,7 @@ const REDACT_PATHS = [
   'body.secret',
   'body.access_token',
   'body.public_token',
+  'body.token',
 ]
 
 // ── Log level from env (default: info in prod, debug in dev) ──

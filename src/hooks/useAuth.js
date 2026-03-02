@@ -239,6 +239,26 @@ export function useAuth() {
     }
   }, [])
 
+  const forgotPassword = useCallback(async (email) => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Request failed')
+        return false
+      }
+      return data.message || true
+    } catch (e) {
+      setError(e.message || 'Network error. Please try again.')
+      return false
+    }
+  }, [])
+
   return {
     authed,
     user,
@@ -255,5 +275,6 @@ export function useAuth() {
     createOrg,
     joinOrg,
     updateProfile,
+    forgotPassword,
   }
 }
