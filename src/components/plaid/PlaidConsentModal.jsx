@@ -1,11 +1,13 @@
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
 /**
  * Consent modal shown before opening Plaid Link.
  * User must explicitly agree to data collection before proceeding.
+ * Rendered via portal to escape header's backdrop-filter stacking context.
  */
 export default function PlaidConsentModal({ onAccept, onDecline }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
         <div className="px-6 pt-6 pb-4">
@@ -88,6 +90,7 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
