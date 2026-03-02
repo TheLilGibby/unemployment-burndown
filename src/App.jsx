@@ -1142,7 +1142,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               />
             )}
             <NotificationBell />
-            <ViewMenu value={viewSettings} onChange={setViewSettings} />
             <TemplateManager
               templates={templates}
               activeTemplateId={activeTemplateId}
@@ -1181,11 +1180,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         <Route path="/" element={
           <>
             <TableOfContents visibleSections={viewSettings.sections} />
-            {people.length > 0 && (
-              <div className="max-w-5xl mx-auto px-4 pt-4">
-                <PersonFilter people={people} value={filterPersonId} onChange={setFilterPersonId} />
+            <div className="max-w-5xl mx-auto px-4 pt-4 flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                {people.length > 0 && (
+                  <PersonFilter people={people} value={filterPersonId} onChange={setFilterPersonId} />
+                )}
               </div>
-            )}
+              <ViewMenu value={viewSettings} onChange={setViewSettings} />
+            </div>
             <FinancialSidebar
               totalSavings={totalSavings}
               assetProceeds={assetProceeds}
