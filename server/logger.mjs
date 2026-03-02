@@ -11,6 +11,8 @@ const REDACT_PATHS = [
   'passwordHash',
   'token',
   'tempToken',
+  'resetToken',
+  'resetTokenHash',
   'secret',
   'mfaSecret',
   'req.headers.authorization',
@@ -18,6 +20,7 @@ const REDACT_PATHS = [
   'body.secret',
   'body.access_token',
   'body.public_token',
+  'body.token',
 ]
 
 // Use pino-pretty in dev for readable console output

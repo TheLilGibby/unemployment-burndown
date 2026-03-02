@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, mfaPending, error }) {
+export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, onDevLogin, onForgotPassword, mfaPending, error }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -10,6 +10,9 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
   const [mfaCode, setMfaCode] = useState('')
   const [localError, setLocalError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSubmitted, setForgotSubmitted] = useState(false)
 
   const displayError = error || localError
 
@@ -36,6 +39,110 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
     setSubmitting(true)
     await onVerifyMfa(mfaCode)
     setSubmitting(false)
+  }
+
+  async function handleForgotSubmit(e) {
+    e.preventDefault()
+    setLocalError(null)
+    setSubmitting(true)
+    const result = await onForgotPassword(forgotEmail)
+    if (result) setForgotSubmitted(true)
+    setSubmitting(false)
+  }
+
+  // Forgot password screen
+  if (showForgot) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: 'var(--bg-page)', color: 'var(--text-primary)' }}
+      >
+        <div
+          className="w-full max-w-sm rounded-2xl border p-8 shadow-xl"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
+        >
+          <div className="mb-6 text-center">
+            <div
+              className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
+              style={{ background: 'var(--accent-blue)', opacity: 0.9 }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              Reset Password
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+              {forgotSubmitted
+                ? 'Check your email for a reset link.'
+                : 'Enter your email to receive a password reset link.'}
+            </p>
+          </div>
+
+          {!forgotSubmitted ? (
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="forgotEmail"
+                  className="block text-xs font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Email
+                </label>
+                <input
+                  id="forgotEmail"
+                  type="email"
+                  autoComplete="email"
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
+                  style={{
+                    background: 'var(--bg-input)',
+                    borderColor: 'var(--border-default)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+
+              {displayError && (
+                <p
+                  className="text-sm rounded-lg px-3 py-2"
+                  style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--accent-red)', border: '1px solid rgba(248,113,113,0.2)' }}
+                >
+                  {displayError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full rounded-lg py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
+                style={{ background: 'var(--accent-blue)', color: '#fff', opacity: submitting ? 0.6 : 1 }}
+              >
+                {submitting ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
+          ) : (
+            <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>
+              If an account with that email exists, you will receive a password reset link shortly.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setShowForgot(false); setForgotSubmitted(false); setLocalError(null) }}
+            className="w-full text-sm py-1 mt-4"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // MFA verification screen
@@ -218,6 +325,19 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
             </div>
           </div>
 
+          {!isRegister && (
+            <div className="text-right -mt-1">
+              <button
+                type="button"
+                onClick={() => { setShowForgot(true); setForgotEmail(email); setLocalError(null) }}
+                className="text-xs hover:underline"
+                style={{ color: 'var(--accent-blue)' }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           {isRegister && (
             <div>
               <label
@@ -287,6 +407,25 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
             Privacy Policy
           </Link>
         </div>
+
+        {import.meta.env.DEV && onDevLogin && (
+          <div className="mt-4 pt-4" style={{ borderTop: '1px dashed var(--border-default)' }}>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={async () => {
+                setSubmitting(true)
+                setLocalError(null)
+                await onDevLogin()
+                setSubmitting(false)
+              }}
+              className="w-full rounded-lg py-2 text-xs font-medium transition-opacity hover:opacity-90"
+              style={{ background: 'var(--accent-amber, #f59e0b)', color: '#000', opacity: submitting ? 0.6 : 1 }}
+            >
+              Dev Login (test@test.com)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

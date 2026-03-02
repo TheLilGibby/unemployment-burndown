@@ -29,6 +29,7 @@ import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import MfaSetup from './components/auth/MfaSetup'
 import OrgSetup from './components/auth/OrgSetup'
 import SuperAdminPage from './pages/SuperAdminPage'
@@ -618,11 +619,12 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, hasOrg, impersonating, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, stopImpersonating } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, impersonating, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin, forgotPassword, stopImpersonating } = useAuth()
   const location = useLocation()
 
-  // Privacy policy is accessible without authentication
+  // Public pages accessible without authentication
   if (location.pathname === '/privacy') return <PrivacyPolicyPage />
+  if (location.pathname === '/reset-password') return <ResetPasswordPage />
 
   // Show loading state while checking token
   if (loading) return (
@@ -637,6 +639,8 @@ export default function App() {
       onRegister={register}
       onVerifyMfa={verifyMfa}
       onCancelMfa={cancelMfa}
+      onDevLogin={devLogin}
+      onForgotPassword={forgotPassword}
       mfaPending={mfaPending}
       error={authError}
     />
@@ -1118,31 +1122,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 syncing={plaid.syncing}
               />
             )}
-            {/* Activity log button */}
-            <button
-              onClick={() => setLogOpen(true)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
-              title="View activity log"
-              style={{
-                borderColor: 'var(--border-subtle)',
-                background: 'var(--bg-input)',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" strokeLinecap="round" />
-              </svg>
-              <span className="hidden sm:inline">Log</span>
-              {logEntries.length > 0 && (
-                <span
-                  className="text-xs font-semibold px-1 rounded-full tabular-nums"
-                  style={{ background: 'var(--accent-blue)', color: '#fff', fontSize: '10px', lineHeight: '16px', minWidth: 16, textAlign: 'center' }}
-                >
-                  {logEntries.length > 99 ? '99+' : logEntries.length}
-                </span>
-              )}
-            </button>
             <NotificationBell />
             <ViewMenu value={viewSettings} onChange={setViewSettings} />
             <TemplateManager

@@ -1,4 +1,5 @@
 import express from 'express'
+import https from 'node:https'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import crypto from 'node:crypto'
@@ -25,6 +26,8 @@ const authenticator = {
 }
 import QRCode from 'qrcode'
 import log, { requestLogger, createAuditLogger } from './logger.mjs'
+import { getDevTlsCredentials } from './tls.mjs'
+import { encrypt, decrypt, isEncryptionConfigured } from '../backend/src/lib/encryption.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -225,6 +228,30 @@ app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
   res.json({ mfaEnabled: true })
 })
 
+// POST /api/auth/dev-login — quick login for local development only
+if (USE_LOCAL_DATA) {
+  app.post('/api/auth/dev-login', async (req, res) => {
+    try {
+      const email = 'test@test.com'
+      const password = 'qwerqwer'
+      const userId = email
+
+      // Auto-register if user doesn't exist
+      if (!users.has(userId)) {
+        const passwordHash = await bcrypt.hash(password, 12)
+        users.set(userId, { userId, email, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null })
+      }
+
+      const user = users.get(userId)
+      const token = signJwt(userId, { mfaVerified: true, orgId: user.orgId || null, orgRole: user.orgRole || null })
+      res.json({ token, user: { userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null } })
+    } catch (err) {
+      req.log.error({ err }, 'dev-login failed')
+      res.status(500).json({ error: 'Dev login failed' })
+    }
+  })
+}
+
 // GET /api/auth/me
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   const user = users.get(req.user.sub)
@@ -240,6 +267,170 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
     isSuperAdmin: isSuperAdminEmail(user.email),
     impersonatedBy: req.user.impersonatedBy || null,
   })
+})
+
+// POST /api/auth/forgot-password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const GENERIC_MSG = 'If an account with that email exists, a password reset link has been sent.'
+  try {
+    const { email } = req.body
+    if (!email) return res.json({ message: GENERIC_MSG })
+
+    const userId = email.toLowerCase()
+    const user = users.get(userId)
+    if (!user) {
+      return res.json({ message: GENERIC_MSG })
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+    user.resetTokenHash = tokenHash
+    user.resetTokenExpiry = expiry
+
+    const APP_URL = process.env.APP_URL || 'http://localhost:5173'
+    const resetUrl = `${APP_URL}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`
+    req.log.info({ resetUrl }, 'DEV: Password reset link')
+
+    res.json({ message: GENERIC_MSG })
+  } catch (err) {
+    req.log.error({ err }, 'forgot-password failed')
+    res.json({ message: GENERIC_MSG })
+  }
+})
+
+// POST /api/auth/reset-password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, token, password } = req.body
+    if (!email || !token || !password) {
+      return res.status(400).json({ error: 'Email, token, and new password are required' })
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const userId = email.toLowerCase()
+    const user = users.get(userId)
+    if (!user) return res.status(400).json({ error: 'Invalid or expired reset token' })
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    if (!user.resetTokenHash || user.resetTokenHash !== tokenHash) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' })
+    }
+    if (!user.resetTokenExpiry || new Date(user.resetTokenExpiry) < new Date()) {
+      user.resetTokenHash = null
+      user.resetTokenExpiry = null
+      return res.status(400).json({ error: 'Invalid or expired reset token' })
+    }
+
+    user.passwordHash = await bcrypt.hash(password, 12)
+    user.resetTokenHash = null
+    user.resetTokenExpiry = null
+
+    res.json({ message: 'Password has been reset successfully. You can now sign in.' })
+  } catch (err) {
+    req.log.error({ err }, 'reset-password failed')
+    res.status(500).json({ error: 'Password reset failed' })
+  }
+})
+
+// POST /api/auth/delete-account — permanently delete user account and all data
+app.post('/api/auth/delete-account', authMiddleware, async (req, res) => {
+  try {
+    const user = users.get(req.user.sub)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const orgId = user.orgId
+
+    // 1. Revoke all Plaid access tokens for the org and clean up
+    if (orgId) {
+      const orgItemMap = plaidItems.get(orgId)
+      if (orgItemMap) {
+        for (const [itemId, itemData] of orgItemMap) {
+          try {
+            await plaidClient.itemRemove({ access_token: itemData.accessToken })
+          } catch { /* tolerate failure */ }
+          lastSyncTimes.delete(itemId)
+        }
+        plaidItems.delete(orgId)
+      }
+
+      // 2. Delete org data from S3/local storage
+      if (USE_LOCAL_DATA) {
+        const orgDir = resolve(LOCAL_DATA_DIR, 'orgs', orgId)
+        const { rmSync } = await import('fs')
+        try { rmSync(orgDir, { recursive: true, force: true }) } catch { /* ok */ }
+      } else {
+        try {
+          const { ListObjectsV2Command, DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+          const prefix = `orgs/${orgId}/`
+          let continuationToken
+          do {
+            const listRes = await s3.send(new ListObjectsV2Command({
+              Bucket: S3_BUCKET, Prefix: prefix, ContinuationToken: continuationToken,
+            }))
+            if (listRes.Contents) {
+              for (const obj of listRes.Contents) {
+                await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: obj.Key }))
+              }
+            }
+            continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined
+          } while (continuationToken)
+        } catch (s3Err) {
+          req.log.warn({ err: s3Err, orgId }, 'S3 cleanup failed during account deletion')
+        }
+      }
+
+      // 3. Clean up org membership
+      orgs.delete(orgId)
+      orgMembers.delete(orgId)
+    }
+
+    // 4. Delete the user record
+    users.delete(req.user.sub)
+
+    req.log.info({ userId: user.userId, orgId }, 'account deleted')
+    res.json({ deleted: true })
+  } catch (err) {
+    req.log.error({ err }, 'account deletion failed')
+    res.status(500).json({ error: 'Account deletion failed. Please contact privacy@rag-consulting.com for assistance.' })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
+// PRIVACY / CONSENT ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// POST /api/privacy/consent — record user consent for audit trail
+app.post('/api/privacy/consent', authMiddleware, (req, res) => {
+  try {
+    const { consentType, consentVersion } = req.body
+    const validTypes = ['plaid_data_access', 'privacy_policy', 'account_registration']
+    if (!consentType || !validTypes.includes(consentType)) {
+      return res.status(400).json({ error: `consentType must be one of: ${validTypes.join(', ')}` })
+    }
+
+    const user = users.get(req.user.sub)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const consentRecord = {
+      consentType,
+      consentVersion: consentVersion || '1.0',
+      grantedAt: new Date().toISOString(),
+      userAgent: req.headers['user-agent'] || null,
+    }
+
+    if (!user.consentRecords) user.consentRecords = []
+    user.consentRecords.push(consentRecord)
+
+    req.log.info({ userId: user.userId, consentType, consentVersion }, 'consent recorded')
+    res.json({ recorded: true, consent: consentRecord })
+  } catch (err) {
+    req.log.error({ err }, 'consent recording failed')
+    res.status(500).json({ error: 'Failed to record consent' })
+  }
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -518,8 +709,17 @@ const MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
 let callCounter = { month: new Date().toISOString().slice(0, 7), count: 0 }
 
 // ── In-memory store for linked Plaid items (dev server only) ──
-// Map: orgId -> Map<itemId, { accessToken, cursor, institutionName, institutionId }>
+// Map: orgId -> Map<itemId, { accessToken (encrypted if key set), cursor, institutionName, institutionId }>
 const plaidItems = new Map()
+
+function encryptToken(token) {
+  if (!token || !isEncryptionConfigured()) return token
+  return encrypt(token)
+}
+function decryptToken(token) {
+  if (!token || !isEncryptionConfigured()) return token
+  try { return decrypt(token) } catch { return token }
+}
 
 function checkDevBudget() {
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -589,11 +789,11 @@ const handleExchangeToken = async (req, res) => {
       }
     }
 
-    // Store item for sync route
+    // Store item for sync route (access token encrypted at rest)
     const orgId = req.user.orgId
     if (!plaidItems.has(orgId)) plaidItems.set(orgId, new Map())
     plaidItems.get(orgId).set(item_id, {
-      accessToken: access_token,
+      accessToken: encryptToken(access_token),
       cursor: null,
       institutionName,
       institutionId: institutionId || null,
@@ -751,7 +951,7 @@ app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
     for (const [itemId, itemData] of orgItems) {
       try {
         recordDevCall()
-        const acctRes = await plaidClient.accountsGet({ access_token: itemData.accessToken })
+        const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
         items.push({
           itemId,
           institutionName: itemData.institutionName,
@@ -854,7 +1054,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
         pageCount++
         recordDevCall()
         const syncRes = await plaidClient.transactionsSync({
-          access_token: itemData.accessToken,
+          access_token: decryptToken(itemData.accessToken),
           cursor: cursor || undefined,
           count: 500,
         })
@@ -873,7 +1073,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
 
       // ── Fetch current balances ──
       recordDevCall()
-      const acctRes = await plaidClient.accountsGet({ access_token: itemData.accessToken })
+      const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
       const plaidAccounts = acctRes.data.accounts
 
       for (const acct of plaidAccounts) {
@@ -980,7 +1180,7 @@ app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
 
     if (itemData) {
       try {
-        await plaidClient.itemRemove({ access_token: itemData.accessToken })
+        await plaidClient.itemRemove({ access_token: decryptToken(itemData.accessToken) })
       } catch { /* tolerate failure */ }
       orgItemMap.delete(itemId)
     }
@@ -1250,6 +1450,18 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 })
 
 const PORT = process.env.PLAID_SERVER_PORT || 3001
-app.listen(PORT, () => {
-  log.info({ port: PORT, dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started')
+
+// ── HTTPS with TLS 1.2+ ──
+const tlsCreds = getDevTlsCredentials()
+const server = https.createServer(
+  {
+    key: tlsCreds.key,
+    cert: tlsCreds.cert,
+    minVersion: 'TLSv1.2',
+  },
+  app,
+)
+
+server.listen(PORT, () => {
+  log.info({ port: PORT, tls: true, minTlsVersion: 'TLSv1.2', dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started (HTTPS)')
 })

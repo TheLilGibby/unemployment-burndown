@@ -32,6 +32,8 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
   const [showNewCompPkg, setShowNewCompPkg] = useState(false)
   // Track which existing scenario cards have compensation package expanded
   const [showCompPkg, setShowCompPkg] = useState({})
+  // Track which scenario cards are expanded (default: all collapsed)
+  const [expandedCards, setExpandedCards] = useState({})
 
   function updateScenario(id, updates) {
     onChange(scenarios.map(s => s.id === id ? { ...s, ...updates } : s))
@@ -112,31 +114,73 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
         const savingsAmt = computeAllocationAmount(s.savingsAllocation, s.savingsAllocationType, s.monthlyTakeHome)
         const investAmt = computeAllocationAmount(s.investmentAllocation, s.investmentAllocationType, s.monthlyTakeHome)
         const spending = s.monthlyTakeHome - savingsAmt - investAmt
+        const isExpanded = !!expandedCards[s.id]
+        const netMonthly = s.monthlyTakeHome - effectiveExpenses
+        const surplus = result ? s.monthlyTakeHome - result.effectiveExpenses : 0
 
         return (
           <div
             key={s.id}
-            className="rounded-xl border p-5 space-y-4"
+            className="rounded-xl border"
             style={{ borderColor: s.color + '40', background: s.color + '08' }}
           >
-            {/* Header */}
-            <div className="flex items-center gap-2">
+            {/* Collapsed summary header - always visible */}
+            <button
+              type="button"
+              onClick={() => setExpandedCards(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+              className="w-full text-left px-5 py-3 flex items-center gap-3 transition-colors rounded-xl"
+              style={{ cursor: 'pointer' }}
+            >
+              <span
+                className="flex-shrink-0 text-xs"
+                style={{ color: 'var(--text-muted)', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+              >&#9654;</span>
               <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
-              <input
-                type="text"
-                value={s.name}
-                onChange={e => updateScenario(s.id, { name: e.target.value })}
-                className="flex-1 text-sm font-semibold bg-transparent border-none outline-none"
-                style={{ color: 'var(--text-primary)' }}
-              />
-              <button
-                onClick={() => removeScenario(s.id)}
-                className="text-xs px-2 py-1 rounded border transition-colors"
-                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
-              >
-                &times;
-              </button>
-            </div>
+              <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
+              <span className="flex-shrink-0 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                {formatCurrency(s.grossAnnualSalary)}/yr
+              </span>
+              <span className="flex-shrink-0 text-xs font-medium" style={{ color: 'var(--accent-emerald)' }}>
+                {formatCurrency(s.monthlyTakeHome)}/mo
+              </span>
+              {result && (
+                <span className="flex-shrink-0 text-xs font-medium" style={{ color: surplus >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)' }}>
+                  {surplus >= 0 ? '+' : ''}{formatCurrency(surplus)}/mo
+                </span>
+              )}
+              {result && (
+                <span className="flex-shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {result.runoutDate ? formatMonths(result.totalRunwayMonths) : '>10yr'}
+                </span>
+              )}
+              <span className="ml-auto flex-shrink-0">
+                <span
+                  onClick={e => { e.stopPropagation(); removeScenario(s.id) }}
+                  className="text-xs px-2 py-1 rounded border transition-colors hover:opacity-80"
+                  style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); removeScenario(s.id) } }}
+                >
+                  &times;
+                </span>
+              </span>
+            </button>
+
+            {/* Expanded detail form */}
+            {isExpanded && (
+              <div className="px-5 pb-5 pt-1 space-y-4 border-t" style={{ borderColor: s.color + '20' }}>
+                {/* Header - editable name */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Name:</span>
+                  <input
+                    type="text"
+                    value={s.name}
+                    onChange={e => updateScenario(s.id, { name: e.target.value })}
+                    className="flex-1 text-sm font-semibold bg-transparent border-none outline-none"
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                </div>
 
             {/* Row 1: Gross, State, Start Date */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -415,7 +459,6 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
 
             {/* Net amount & minimum salary highlight */}
             {result && (() => {
-              const netMonthly = s.monthlyTakeHome - effectiveExpenses
               const minGross = computeMinimumGrossSalary(effectiveExpenses, s.taxRatePct)
               const meetsMinimum = s.grossAnnualSalary >= minGross
 
@@ -472,6 +515,8 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                     </strong>
                   </span>
                 )}
+              </div>
+            )}
               </div>
             )}
           </div>

@@ -146,6 +146,29 @@ export function useAuth() {
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       setAuthed(true)
+
+      // Record privacy policy and registration consent for audit trail
+      try {
+        await fetch(`${API_BASE}/api/privacy/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.token}`,
+          },
+          body: JSON.stringify({ consentType: 'account_registration', consentVersion: '1.1' }),
+        })
+        await fetch(`${API_BASE}/api/privacy/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.token}`,
+          },
+          body: JSON.stringify({ consentType: 'privacy_policy', consentVersion: '1.1' }),
+        })
+      } catch {
+        // Don't block registration if consent recording fails
+      }
+
       return true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
@@ -189,6 +212,54 @@ export function useAuth() {
         ...(profileColor !== undefined && { profileColor }),
         ...(avatarDataUrl !== undefined && { avatarDataUrl }),
       }))
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e.message || 'Network error. Please try again.' }
+    }
+  }, [])
+
+  const devLogin = useCallback(async () => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/dev-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Dev login failed')
+        return false
+      }
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
+      setAuthed(true)
+      return true
+    } catch (e) {
+      setError(e.message || 'Dev login failed')
+      return false
+    }
+  }, [])
+
+  const deleteAccount = useCallback(async () => {
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        return { ok: false, error: extractError(data) || 'Account deletion failed' }
+      }
+      // Clear local state
+      sessionStorage.removeItem(TOKEN_KEY)
+      setAuthed(false)
+      setUser(null)
+      setMfaPending(false)
+      setTempToken(null)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e.message || 'Network error. Please try again.' }
@@ -243,6 +314,26 @@ export function useAuth() {
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       return data.org
+    } catch (e) {
+      setError(e.message || 'Network error. Please try again.')
+      return false
+    }
+  }, [])
+
+  const forgotPassword = useCallback(async (email) => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Request failed')
+        return false
+      }
+      return data.message || true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
       return false
@@ -319,6 +410,9 @@ export function useAuth() {
     createOrg,
     joinOrg,
     updateProfile,
+    devLogin,
+    forgotPassword,
+    deleteAccount,
     impersonate,
     stopImpersonating,
   }
