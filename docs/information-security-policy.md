@@ -92,8 +92,8 @@ Access to production systems and sensitive data stores is reviewed quarterly. Un
 
 ### 7.2 Encryption
 
-- **In Transit:** All data is encrypted using TLS 1.2 or higher. API Gateway and AWS Amplify enforce HTTPS. Plaid API communication uses TLS.
-- **At Rest:** Consumer data in S3 is encrypted with SSE-S3 (AES-256). DynamoDB tables use AWS-managed encryption at rest by default.
+- **In Transit:** All data is encrypted using TLS 1.2 or higher. API Gateway and AWS Amplify enforce HTTPS. The development server enforces TLS 1.2+ via HTTPS with auto-generated certificates. Plaid API communication uses TLS.
+- **At Rest:** Consumer data in S3 is encrypted with SSE-S3 (AES-256). DynamoDB tables use AWS-managed encryption at rest by default. Plaid access tokens are additionally encrypted at the application layer using AES-256-GCM before storage in DynamoDB.
 
 ### 7.3 Secrets Management
 
@@ -140,7 +140,7 @@ Access to production systems and sensitive data stores is reviewed quarterly. Un
 ### 10.1 Plaid Integration
 
 - Consumer financial data received through the Plaid API is treated as Confidential.
-- Plaid access tokens are stored in encrypted DynamoDB tables with access limited to authorized Lambda functions.
+- Plaid access tokens are encrypted with AES-256-GCM at the application layer before storage in DynamoDB, with access limited to authorized Lambda functions.
 - Data received from Plaid is used solely for the purposes disclosed in our privacy policy and consented to by the consumer.
 
 ### 10.2 Vendor Assessment

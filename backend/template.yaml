@@ -64,6 +64,10 @@ Parameters:
     Type: String
     Description: Frontend application URL for password reset links
     Default: 'http://localhost:5173'
+  PlaidEncryptionKey:
+    Type: String
+    Description: AES-256-GCM key for encrypting Plaid access tokens at rest
+    NoEcho: true
 
 Globals:
   Function:
@@ -92,6 +96,7 @@ Globals:
         SENDGRID_API_KEY: !Ref SendGridApiKey
         SENDGRID_FROM_EMAIL: !Ref SendGridFromEmail
         APP_URL: !Ref AppUrl
+        PLAID_ENCRYPTION_KEY: !Ref PlaidEncryptionKey
 
   Api:
     Cors:
