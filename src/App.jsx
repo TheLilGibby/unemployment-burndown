@@ -32,6 +32,8 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import MfaSetup from './components/auth/MfaSetup'
 import OrgSetup from './components/auth/OrgSetup'
+import SuperAdminPage from './pages/SuperAdminPage'
+import ImpersonationBanner from './components/admin/ImpersonationBanner'
 import OrgSettings from './components/org/OrgSettings'
 import ProfileBubble from './components/profile/ProfileBubble'
 import ProfileSettings from './components/profile/ProfileSettings'
@@ -617,7 +619,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin, forgotPassword } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, impersonating, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin, forgotPassword, stopImpersonating } = useAuth()
   const location = useLocation()
 
   // Public pages accessible without authentication
@@ -644,6 +646,14 @@ export default function App() {
     />
   )
 
+  // Superadmins can access the admin panel even without an org
+  if (user?.isSuperAdmin && !hasOrg) return (
+    <>
+      {impersonating && <ImpersonationBanner user={user} onStop={stopImpersonating} />}
+      <SuperAdminPage />
+    </>
+  )
+
   // User is authenticated but hasn't joined/created an org yet
   if (!hasOrg) return (
     <OrgSetup
@@ -654,10 +664,10 @@ export default function App() {
     />
   )
 
-  return <AuthenticatedApp logout={logout} user={user} updateProfile={updateProfile} />
+  return <AuthenticatedApp logout={logout} user={user} updateProfile={updateProfile} impersonating={impersonating} stopImpersonating={stopImpersonating} />
 }
 
-function AuthenticatedApp({ logout, user, updateProfile }) {
+function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpersonating }) {
   const [presentationMode, setPresentationMode] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [securityOpen, setSecurityOpen] = useState(false)
@@ -1006,6 +1016,8 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
     ((Number(whatIf.partnerIncomeMonthly) || 0) > 0 && !!whatIf.partnerStartDate)
 
   return (
+    <>
+    {impersonating && <ImpersonationBanner user={user} onStop={stopImpersonating} />}
     <NotificationsProvider
       burndown={current}
       preferences={notificationPreferences}
@@ -1097,6 +1109,7 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
       )}
 
       <Header
+        isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
           <div className="flex items-center gap-0.5">
             <CloudSaveStatus storage={s3Storage} />
@@ -1328,10 +1341,15 @@ function AuthenticatedApp({ logout, user, updateProfile }) {
 
         <Route path="/settings" element={<UserProfilePage />} />
 
+        {user?.isSuperAdmin && (
+          <Route path="/admin" element={<SuperAdminPage />} />
+        )}
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
     </CommentsProvider>
     </NotificationsProvider>
+    </>
   )
 }

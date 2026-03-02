@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import {
-  DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand,
+  DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, ScanCommand,
 } from '@aws-sdk/lib-dynamodb'
 import crypto from 'node:crypto'
 
@@ -59,4 +59,9 @@ export async function regenerateJoinCode(orgId) {
     },
   }))
   return newCode
+}
+
+export async function listAllOrgs() {
+  const res = await doc().send(new ScanCommand({ TableName: TABLE }))
+  return res.Items || []
 }

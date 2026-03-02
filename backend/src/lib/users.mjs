@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import {
-  DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand,
+  DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand, ScanCommand,
 } from '@aws-sdk/lib-dynamodb'
 
 const TABLE = process.env.USERS_TABLE || 'BurndownUsers'
@@ -148,4 +148,12 @@ export async function deleteUser(userId) {
     TableName: TABLE,
     Key: { userId },
   }))
+}
+
+export async function listAllUsers() {
+  const res = await doc().send(new ScanCommand({
+    TableName: TABLE,
+    ProjectionExpression: 'userId, email, orgId, orgRole, mfaEnabled, createdAt, updatedAt',
+  }))
+  return res.Items || []
 }

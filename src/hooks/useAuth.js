@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 
 const TOKEN_KEY = 'burndown_token'
+const ADMIN_TOKEN_KEY = 'burndown_admin_token'
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
 async function parseResponse(res) {
@@ -26,6 +27,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
   const [mfaPending, setMfaPending] = useState(false)
   const [tempToken, setTempToken] = useState(null)
+  const [impersonating, setImpersonating] = useState(false)
 
   // Check for existing token on mount
   useEffect(() => {
@@ -33,6 +35,10 @@ export function useAuth() {
     if (!token) {
       setLoading(false)
       return
+    }
+    // Detect impersonation state
+    if (sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
+      setImpersonating(true)
     }
     // Validate token by calling /me
     fetch(`${API_BASE}/api/auth/me`, {
@@ -49,6 +55,8 @@ export function useAuth() {
       })
       .catch(() => {
         sessionStorage.removeItem(TOKEN_KEY)
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+        setImpersonating(false)
         setLoading(false)
       })
   }, [])
@@ -170,10 +178,12 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY)
     setAuthed(false)
     setUser(null)
     setMfaPending(false)
     setTempToken(null)
+    setImpersonating(false)
   }, [])
 
   const cancelMfa = useCallback(() => {
@@ -330,6 +340,59 @@ export function useAuth() {
     }
   }, [])
 
+  // ── Superadmin impersonation ──
+
+  const impersonate = useCallback(async (targetUserId) => {
+    setError(null)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/impersonate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUserId }),
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Impersonation failed')
+        return false
+      }
+      // Store original admin token so we can restore later
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, token)
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
+      setImpersonating(true)
+      return true
+    } catch (e) {
+      setError(e.message || 'Network error. Please try again.')
+      return false
+    }
+  }, [])
+
+  const stopImpersonating = useCallback(async () => {
+    const adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY)
+    if (!adminToken) return
+
+    sessionStorage.setItem(TOKEN_KEY, adminToken)
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+    setImpersonating(false)
+
+    // Reload admin user data
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      if (res.ok) {
+        const userData = await parseResponse(res)
+        setUser(userData)
+      }
+    } catch {
+      // If fetch fails, just clear state — user can re-login
+    }
+  }, [])
+
   return {
     authed,
     user,
@@ -337,6 +400,7 @@ export function useAuth() {
     loading,
     mfaPending,
     hasOrg,
+    impersonating,
     login,
     verifyMfa,
     register,
@@ -349,5 +413,7 @@ export function useAuth() {
     devLogin,
     forgotPassword,
     deleteAccount,
+    impersonate,
+    stopImpersonating,
   }
 }

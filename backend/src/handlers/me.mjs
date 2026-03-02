@@ -1,5 +1,5 @@
 import { getUser } from '../lib/users.mjs'
-import { requireAuth } from '../lib/auth.mjs'
+import { requireAuth, isEnvSuperAdmin } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
 
@@ -26,6 +26,8 @@ export async function handler(event) {
       profileColor: user.profileColor || 'blue',
       avatarDataUrl: user.avatarDataUrl || null,
       createdAt: user.createdAt,
+      isSuperAdmin: isEnvSuperAdmin(user.email),
+      impersonatedBy: tokenUser.impersonatedBy || null,
     })
   } catch (error) {
     const log = createRequestLogger('me', event)
