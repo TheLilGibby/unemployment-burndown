@@ -1452,7 +1452,7 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 const PORT = process.env.PLAID_SERVER_PORT || 3001
 
 // ── HTTPS with TLS 1.2+ ──
-const tlsCreds = getDevTlsCredentials()
+const tlsCreds = await getDevTlsCredentials()
 const server = https.createServer(
   {
     key: tlsCreds.key,
