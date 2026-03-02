@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, mfaPending, error }) {
+export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, onDevLogin, mfaPending, error }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -287,6 +287,25 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
             Privacy Policy
           </Link>
         </div>
+
+        {import.meta.env.DEV && onDevLogin && (
+          <div className="mt-4 pt-4" style={{ borderTop: '1px dashed var(--border-default)' }}>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={async () => {
+                setSubmitting(true)
+                setLocalError(null)
+                await onDevLogin()
+                setSubmitting(false)
+              }}
+              className="w-full rounded-lg py-2 text-xs font-medium transition-opacity hover:opacity-90"
+              style={{ background: 'var(--accent-amber, #f59e0b)', color: '#000', opacity: submitting ? 0.6 : 1 }}
+            >
+              Dev Login (test@test.com)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

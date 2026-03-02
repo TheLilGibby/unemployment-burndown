@@ -185,6 +185,28 @@ export function useAuth() {
     }
   }, [])
 
+  const devLogin = useCallback(async () => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/dev-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Dev login failed')
+        return false
+      }
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
+      setAuthed(true)
+      return true
+    } catch (e) {
+      setError(e.message || 'Dev login failed')
+      return false
+    }
+  }, [])
+
   const hasOrg = !!(user && user.orgId)
 
   const createOrg = useCallback(async (name) => {
@@ -255,5 +277,6 @@ export function useAuth() {
     createOrg,
     joinOrg,
     updateProfile,
+    devLogin,
   }
 }

@@ -616,7 +616,7 @@ function HeaderOverflow({ onLogOpen, logCount, onPresent, onSignOut, onSecurity,
 }
 
 export default function App() {
-  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile } = useAuth()
+  const { authed, user, error: authError, loading, mfaPending, hasOrg, login, verifyMfa, register, logout, cancelMfa, createOrg, joinOrg, updateProfile, devLogin } = useAuth()
   const location = useLocation()
 
   // Privacy policy is accessible without authentication
@@ -635,6 +635,7 @@ export default function App() {
       onRegister={register}
       onVerifyMfa={verifyMfa}
       onCancelMfa={cancelMfa}
+      onDevLogin={devLogin}
       mfaPending={mfaPending}
       error={authError}
     />

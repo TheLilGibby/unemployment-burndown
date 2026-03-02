@@ -207,6 +207,30 @@ app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
   res.json({ mfaEnabled: true })
 })
 
+// POST /api/auth/dev-login — quick login for local development only
+if (USE_LOCAL_DATA) {
+  app.post('/api/auth/dev-login', async (req, res) => {
+    try {
+      const email = 'test@test.com'
+      const password = 'qwerqwer'
+      const userId = email
+
+      // Auto-register if user doesn't exist
+      if (!users.has(userId)) {
+        const passwordHash = await bcrypt.hash(password, 12)
+        users.set(userId, { userId, email, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null })
+      }
+
+      const user = users.get(userId)
+      const token = signJwt(userId, { mfaVerified: true, orgId: user.orgId || null, orgRole: user.orgRole || null })
+      res.json({ token, user: { userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null } })
+    } catch (err) {
+      req.log.error({ err }, 'dev-login failed')
+      res.status(500).json({ error: 'Dev login failed' })
+    }
+  })
+}
+
 // GET /api/auth/me
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   const user = users.get(req.user.sub)
