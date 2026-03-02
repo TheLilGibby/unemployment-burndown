@@ -214,6 +214,73 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ userId: user.userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null })
 })
 
+// POST /api/auth/forgot-password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const GENERIC_MSG = 'If an account with that email exists, a password reset link has been sent.'
+  try {
+    const { email } = req.body
+    if (!email) return res.json({ message: GENERIC_MSG })
+
+    const userId = email.toLowerCase()
+    const user = users.get(userId)
+    if (!user) {
+      return res.json({ message: GENERIC_MSG })
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+    user.resetTokenHash = tokenHash
+    user.resetTokenExpiry = expiry
+
+    const APP_URL = process.env.APP_URL || 'http://localhost:5173'
+    const resetUrl = `${APP_URL}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`
+    req.log.info({ resetUrl }, 'DEV: Password reset link')
+
+    res.json({ message: GENERIC_MSG })
+  } catch (err) {
+    req.log.error({ err }, 'forgot-password failed')
+    res.json({ message: GENERIC_MSG })
+  }
+})
+
+// POST /api/auth/reset-password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, token, password } = req.body
+    if (!email || !token || !password) {
+      return res.status(400).json({ error: 'Email, token, and new password are required' })
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const userId = email.toLowerCase()
+    const user = users.get(userId)
+    if (!user) return res.status(400).json({ error: 'Invalid or expired reset token' })
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    if (!user.resetTokenHash || user.resetTokenHash !== tokenHash) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' })
+    }
+    if (!user.resetTokenExpiry || new Date(user.resetTokenExpiry) < new Date()) {
+      user.resetTokenHash = null
+      user.resetTokenExpiry = null
+      return res.status(400).json({ error: 'Invalid or expired reset token' })
+    }
+
+    user.passwordHash = await bcrypt.hash(password, 12)
+    user.resetTokenHash = null
+    user.resetTokenExpiry = null
+
+    res.json({ message: 'Password has been reset successfully. You can now sign in.' })
+  } catch (err) {
+    req.log.error({ err }, 'reset-password failed')
+    res.status(500).json({ error: 'Password reset failed' })
+  }
+})
+
 // ═══════════════════════════════════════════════════════════════
 // ORG ROUTES
 // ═══════════════════════════════════════════════════════════════

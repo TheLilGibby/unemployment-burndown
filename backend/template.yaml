@@ -51,6 +51,19 @@ Parameters:
     Type: String
     Description: Minimum seconds between syncs for the same item
     Default: '300'
+  SendGridApiKey:
+    Type: String
+    Description: SendGrid API key for sending emails
+    NoEcho: true
+    Default: ''
+  SendGridFromEmail:
+    Type: String
+    Description: Verified sender email for SendGrid
+    Default: 'noreply@example.com'
+  AppUrl:
+    Type: String
+    Description: Frontend application URL for password reset links
+    Default: 'http://localhost:5173'
 
 Globals:
   Function:
@@ -76,6 +89,9 @@ Globals:
         PLAID_EST_COST_PER_CALL: !Ref PlaidEstCostPerCall
         PLAID_MAX_SYNC_PAGES: !Ref PlaidMaxSyncPages
         PLAID_SYNC_COOLDOWN_SECONDS: !Ref PlaidSyncCooldownSeconds
+        SENDGRID_API_KEY: !Ref SendGridApiKey
+        SENDGRID_FROM_EMAIL: !Ref SendGridFromEmail
+        APP_URL: !Ref AppUrl
 
   Api:
     Cors:
@@ -339,6 +355,36 @@ Resources:
           Properties:
             Path: /api/auth/profile
             Method: put
+
+  ForgotPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/forgotPassword.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/forgot-password
+            Method: post
+
+  ResetPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/resetPassword.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/reset-password
+            Method: post
 
   # ---------- Plaid Lambda Functions ----------
   PlaidLinkTokenFunction:
