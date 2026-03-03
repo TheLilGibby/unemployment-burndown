@@ -153,6 +153,30 @@ async function s3Put(key, data) {
   }))
 }
 
+// ── Binary S3 put (for screenshots) ──
+const SCREENSHOT_BUCKET = process.env.S3_SCREENSHOT_BUCKET || S3_BUCKET
+async function s3PutBinary(key, buffer, contentType) {
+  if (USE_LOCAL_DATA) {
+    const filePath = resolve(LOCAL_DATA_DIR, key)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, buffer)
+    return
+  }
+  await s3.send(new PutObjectCommand({
+    Bucket: SCREENSHOT_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+  }))
+}
+
+function screenshotPublicUrl(key) {
+  if (USE_LOCAL_DATA) {
+    return `file://${resolve(LOCAL_DATA_DIR, key)}`
+  }
+  return `https://${SCREENSHOT_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`
+}
+
 // ═══════════════════════════════════════════════════════════════
 // AUTH ROUTES
 // ═══════════════════════════════════════════════════════════════
@@ -1457,7 +1481,7 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 })
 
 // ═══════════════════════════════════════════════════════════════
-// FEEDBACK ROUTE
+// FEEDBACK ROUTES
 // ═══════════════════════════════════════════════════════════════
 
 const FEEDBACK_REPO = 'RAG-Consulting-LLC/unemployment-burndown'
@@ -1466,6 +1490,59 @@ const FEEDBACK_LABEL_MAP = {
   feature_request: 'enhancement',
   question: 'question',
 }
+const MAX_SCREENSHOT_SIZE = 5 * 1024 * 1024 // 5 MB
+
+// POST /api/feedback/screenshot — upload an annotated screenshot to S3
+// Accepts multipart/form-data with a single "screenshot" file field (PNG)
+app.post('/api/feedback/screenshot', async (req, res) => {
+  try {
+    const contentType = req.headers['content-type'] || ''
+    if (!contentType.includes('multipart/form-data')) {
+      return res.status(400).json({ error: 'Expected multipart/form-data' })
+    }
+
+    const boundaryMatch = contentType.match(/boundary=(.+)/)
+    if (!boundaryMatch) {
+      return res.status(400).json({ error: 'Missing multipart boundary' })
+    }
+
+    // Read raw body
+    const chunks = []
+    for await (const chunk of req) {
+      chunks.push(chunk)
+    }
+    const body = Buffer.concat(chunks)
+
+    if (body.length > MAX_SCREENSHOT_SIZE) {
+      return res.status(413).json({ error: 'Screenshot too large (max 5 MB)' })
+    }
+
+    // Extract PNG from multipart body by looking for PNG magic bytes
+    const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+    const pngStart = body.indexOf(pngMagic)
+    if (pngStart === -1) {
+      return res.status(400).json({ error: 'No PNG image found in request' })
+    }
+
+    // PNG ends with IEND chunk
+    const iendMarker = Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82])
+    const iendPos = body.indexOf(iendMarker, pngStart)
+    const pngEnd = iendPos !== -1 ? iendPos + iendMarker.length : body.length
+    const pngBuffer = body.subarray(pngStart, pngEnd)
+
+    const id = crypto.randomUUID()
+    const key = `feedback/screenshots/${id}.png`
+
+    await s3PutBinary(key, pngBuffer, 'image/png')
+
+    const url = screenshotPublicUrl(key)
+    req.log.info({ key, size: pngBuffer.length }, 'feedback screenshot uploaded')
+    res.json({ url, key })
+  } catch (err) {
+    req.log.error({ err }, 'screenshot upload failed')
+    res.status(500).json({ error: 'Failed to upload screenshot' })
+  }
+})
 
 // POST /api/feedback — create a GitHub issue from in-app feedback
 app.post('/api/feedback', async (req, res) => {
@@ -1475,7 +1552,7 @@ app.post('/api/feedback', async (req, res) => {
       return res.status(503).json({ error: 'Feedback service is not configured' })
     }
 
-    const { category, description } = req.body
+    const { category, description, screenshotUrl } = req.body
     if (!description || !description.trim()) {
       return res.status(400).json({ error: 'Description is required' })
     }
@@ -1484,12 +1561,14 @@ app.post('/api/feedback', async (req, res) => {
     if (category && FEEDBACK_LABEL_MAP[category]) labels.push(FEEDBACK_LABEL_MAP[category])
 
     const title = description.trim().slice(0, 100)
-    const issueBody = [
-      description.trim(),
-      '',
-      '---',
-      `*Submitted via in-app feedback widget*`,
-    ].join('\n')
+    const bodyParts = [description.trim()]
+
+    if (screenshotUrl) {
+      bodyParts.push('', '### Screenshot', `![Feedback screenshot](${screenshotUrl})`)
+    }
+
+    bodyParts.push('', '---', `*Submitted via in-app feedback widget*`)
+    const issueBody = bodyParts.join('\n')
 
     const ghRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/issues`, {
       method: 'POST',
@@ -1509,7 +1588,7 @@ app.post('/api/feedback', async (req, res) => {
     }
 
     const issue = await ghRes.json()
-    req.log.info({ issueNumber: issue.number }, 'feedback issue created')
+    req.log.info({ issueNumber: issue.number, hasScreenshot: !!screenshotUrl }, 'feedback issue created')
     res.json({ created: true, issueNumber: issue.number, url: issue.html_url })
   } catch (err) {
     req.log.error({ err }, 'feedback submission failed')

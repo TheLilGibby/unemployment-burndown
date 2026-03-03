@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useTheme } from '../../context/ThemeContext'
+import ScreenshotAnnotator from './ScreenshotAnnotator'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
@@ -60,8 +61,12 @@ export default function BugDropWidget() {
 function FeedbackPanel({ isDark, onClose }) {
   const [description, setDescription] = useState('')
   const [selected, setSelected] = useState(null)
-  const [status, setStatus] = useState('idle') // idle | submitting | success | error
+  const [status, setStatus] = useState('idle') // idle | submitting | capturing | success | error
   const [errorMsg, setErrorMsg] = useState('')
+
+  // Screenshot state
+  const [screenshotDataUrl, setScreenshotDataUrl] = useState(null)
+  const screenshotBlobRef = useRef(null)
 
   const bg = isDark ? '#1f2937' : '#ffffff'
   const text = isDark ? '#f9fafb' : '#111827'
@@ -69,6 +74,69 @@ function FeedbackPanel({ isDark, onClose }) {
   const border = isDark ? '#374151' : '#d1d5db'
   const inputBg = isDark ? '#111827' : '#f9fafb'
 
+  // ── Screenshot capture ──
+  const captureScreenshot = useCallback(async () => {
+    setStatus('capturing')
+    try {
+      // Dynamically import html2canvas to avoid bundling it when unused
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(document.body, {
+        ignoreElements: (el) => {
+          // Exclude the feedback widget itself from the capture
+          return el.closest?.('[data-testid="feedback-panel"]') ||
+                 el.closest?.('[data-testid="feedback-button"]') ||
+                 el === el.ownerDocument?.querySelector('[data-testid="feedback-button"]')
+        },
+        useCORS: true,
+        logging: false,
+        scale: window.devicePixelRatio || 1,
+      })
+      setScreenshotDataUrl(canvas.toDataURL('image/png'))
+      setStatus('idle')
+    } catch {
+      setStatus('error')
+      setErrorMsg('Failed to capture screenshot')
+    }
+  }, [])
+
+  const discardScreenshot = useCallback(() => {
+    setScreenshotDataUrl(null)
+    screenshotBlobRef.current = null
+  }, [])
+
+  const handleAnnotationSave = useCallback((blob) => {
+    screenshotBlobRef.current = blob
+  }, [])
+
+  // ── Upload screenshot to S3 ──
+  async function uploadScreenshot() {
+    if (!screenshotBlobRef.current && !screenshotDataUrl) return null
+
+    // If the user hasn't drawn anything, convert the raw data URL to a blob
+    let blob = screenshotBlobRef.current
+    if (!blob && screenshotDataUrl) {
+      const resp = await fetch(screenshotDataUrl)
+      blob = await resp.blob()
+    }
+
+    const formData = new FormData()
+    formData.append('screenshot', blob, 'screenshot.png')
+
+    const res = await fetch(`${API_BASE}/api/feedback/screenshot`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to upload screenshot')
+    }
+
+    const data = await res.json()
+    return data.url
+  }
+
+  // ── Submit ──
   const handleSubmit = useCallback(async () => {
     if (!description.trim()) return
 
@@ -76,12 +144,19 @@ function FeedbackPanel({ isDark, onClose }) {
     setErrorMsg('')
 
     try {
+      // Upload screenshot first if present
+      let screenshotUrl = null
+      if (screenshotDataUrl) {
+        screenshotUrl = await uploadScreenshot()
+      }
+
       const res = await fetch(`${API_BASE}/api/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category: selected?.value || null,
           description: description.trim(),
+          screenshotUrl,
         }),
       })
 
@@ -93,11 +168,15 @@ function FeedbackPanel({ isDark, onClose }) {
       setStatus('success')
       setDescription('')
       setSelected(null)
+      setScreenshotDataUrl(null)
+      screenshotBlobRef.current = null
     } catch (err) {
       setStatus('error')
       setErrorMsg(err.message || 'Something went wrong')
     }
-  }, [description, selected])
+  }, [description, selected, screenshotDataUrl])
+
+  const hasScreenshot = !!screenshotDataUrl
 
   return (
     <div
@@ -107,7 +186,9 @@ function FeedbackPanel({ isDark, onClose }) {
         bottom: '5rem',
         right: '1.25rem',
         zIndex: 9999,
-        width: '320px',
+        width: hasScreenshot ? '600px' : '320px',
+        maxHeight: 'calc(100vh - 7rem)',
+        overflowY: 'auto',
         background: bg,
         color: text,
         borderRadius: '12px',
@@ -115,6 +196,7 @@ function FeedbackPanel({ isDark, onClose }) {
         boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
         padding: '1.25rem',
         fontFamily: 'system-ui, -apple-system, sans-serif',
+        transition: 'width 0.2s ease',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -187,6 +269,16 @@ function FeedbackPanel({ isDark, onClose }) {
             ))}
           </div>
 
+          {/* Screenshot annotator (shown when screenshot is captured) */}
+          {screenshotDataUrl && (
+            <ScreenshotAnnotator
+              imageDataUrl={screenshotDataUrl}
+              onSave={handleAnnotationSave}
+              onDiscard={discardScreenshot}
+              isDark={isDark}
+            />
+          )}
+
           {/* Description textarea */}
           <textarea
             value={description}
@@ -215,27 +307,54 @@ function FeedbackPanel({ isDark, onClose }) {
             </p>
           )}
 
-          {/* Submit */}
-          <button
-            onClick={handleSubmit}
-            disabled={status === 'submitting' || !description.trim()}
-            data-testid="feedback-submit"
-            style={{
-              marginTop: '0.75rem',
-              width: '100%',
-              padding: '0.5rem',
-              borderRadius: '6px',
-              border: 'none',
-              background: status === 'submitting' || !description.trim() ? '#5eead4' : '#14b8a6',
-              color: '#fff',
-              cursor: status === 'submitting' || !description.trim() ? 'not-allowed' : 'pointer',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              opacity: status === 'submitting' ? 0.7 : 1,
-            }}
-          >
-            {status === 'submitting' ? 'Submitting...' : 'Submit'}
-          </button>
+          {/* Action bar: screenshot + submit */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+            {/* Capture screenshot button */}
+            {!screenshotDataUrl && (
+              <button
+                onClick={captureScreenshot}
+                disabled={status === 'submitting' || status === 'capturing'}
+                data-testid="feedback-screenshot"
+                title="Capture screenshot"
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  border: `1px solid ${border}`,
+                  background: 'transparent',
+                  color: text,
+                  cursor: status === 'capturing' ? 'wait' : 'pointer',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {status === 'capturing' ? '\u23F3' : '\uD83D\uDCF7'} {status === 'capturing' ? 'Capturing...' : 'Screenshot'}
+              </button>
+            )}
+
+            {/* Submit */}
+            <button
+              onClick={handleSubmit}
+              disabled={status === 'submitting' || status === 'capturing' || !description.trim()}
+              data-testid="feedback-submit"
+              style={{
+                flex: 1,
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: 'none',
+                background: status === 'submitting' || !description.trim() ? '#5eead4' : '#14b8a6',
+                color: '#fff',
+                cursor: status === 'submitting' || !description.trim() ? 'not-allowed' : 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                opacity: status === 'submitting' ? 0.7 : 1,
+              }}
+            >
+              {status === 'submitting' ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
         </>
       )}
     </div>

@@ -64,7 +64,16 @@ describe('BugDropWidget', () => {
     expect(submit.disabled).toBe(true)
   })
 
-  it('submits feedback via API and shows success', async () => {
+  it('shows the screenshot button in the panel', () => {
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+
+    const btn = screen.getByTestId('feedback-screenshot')
+    expect(btn).toBeTruthy()
+    expect(btn.textContent).toContain('Screenshot')
+  })
+
+  it('submits feedback via API and shows success (no screenshot)', async () => {
     fetchSpy.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ created: true, issueNumber: 42, url: 'https://github.com/test/42' }),
@@ -87,7 +96,7 @@ describe('BugDropWidget', () => {
       '/api/feedback',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ category: 'bug_report', description: 'Something broke' }),
+        body: JSON.stringify({ category: 'bug_report', description: 'Something broke', screenshotUrl: null }),
       }),
     )
   })
