@@ -84,7 +84,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6" style={{ minHeight: 260 }}>
+    <div className="flex flex-col sm:flex-row items-start gap-6" style={{ minHeight: 260 }}>
       {/* Donut */}
       <div style={{ width: 210, height: 210, flexShrink: 0, position: 'relative' }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -194,8 +194,15 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
               </div>
 
               {/* Top merchants on hover */}
-              {isHovered && slice.topItems.length > 0 && (
-                <div className="ml-3 mt-1 space-y-0.5">
+              {slice.topItems.length > 0 && (
+                <div
+                  className="ml-3 space-y-0.5 overflow-hidden transition-all duration-200"
+                  style={{
+                    maxHeight: isHovered ? slice.topItems.length * 24 : 0,
+                    opacity: isHovered ? 1 : 0,
+                    marginTop: isHovered ? 4 : 0,
+                  }}
+                >
                   {slice.topItems.map((item, j) => (
                     <div key={j} className="flex justify-between text-xs" style={{ color: '#6b7280' }}>
                       <span className="truncate mr-2 max-w-[55%]">{item.name}</span>
