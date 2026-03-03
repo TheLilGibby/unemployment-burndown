@@ -1474,9 +1474,40 @@ app.post('/api/feedback', async (req, res) => {
       return res.status(503).json({ error: 'Feedback service is not configured' })
     }
 
-    const { category, description } = req.body
+    const { category, description, screenshot } = req.body
     if (!description || !description.trim()) {
       return res.status(400).json({ error: 'Description is required' })
+    }
+
+    // Upload screenshot to repo (best-effort)
+    let screenshotMd = ''
+    if (screenshot) {
+      try {
+        const base64 = screenshot.replace(/^data:image\/\w+;base64,/, '')
+        const ext = screenshot.startsWith('data:image/png') ? 'png' : 'jpg'
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+        const path = `.github/feedback-screenshots/${filename}`
+
+        const uploadRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/contents/${path}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${githubToken}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+          body: JSON.stringify({ message: `feedback screenshot: ${filename}`, content: base64 }),
+        })
+
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          screenshotMd = `\n\n![Screenshot](${data.content.download_url})`
+        } else {
+          req.log.warn({ status: uploadRes.status }, 'screenshot upload failed')
+        }
+      } catch (uploadErr) {
+        req.log.warn({ err: uploadErr }, 'screenshot upload error')
+      }
     }
 
     const labels = []
@@ -1485,6 +1516,7 @@ app.post('/api/feedback', async (req, res) => {
     const title = description.trim().slice(0, 100)
     const issueBody = [
       description.trim(),
+      screenshotMd,
       '',
       '---',
       `*Submitted via in-app feedback widget*`,

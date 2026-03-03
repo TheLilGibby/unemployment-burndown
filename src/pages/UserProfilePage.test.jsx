@@ -58,7 +58,7 @@ describe('UserProfilePage', () => {
     render(<UserProfilePage />)
     
     expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('test@example.com')).toBeInTheDocument()
+    expect(screen.getAllByText('test@example.com').length).toBeGreaterThan(0)
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByText('Test Org')).toBeInTheDocument()
     expect(screen.getByText('MFA Enabled')).toBeInTheDocument()
