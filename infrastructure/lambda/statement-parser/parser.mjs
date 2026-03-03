@@ -10,7 +10,9 @@ const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240
 const CATEGORIES = [
   'dining', 'groceries', 'gas', 'travel', 'entertainment', 'shopping',
   'subscriptions', 'health', 'utilities', 'transportation', 'education',
-  'personalCare', 'fees', 'other',
+  'personalCare', 'fees', 'homeImprovement', 'investments',
+  'investments_crypto', 'investments_retirement', 'investments_stocks',
+  'venmo', 'venmo_rent', 'venmo_bills', 'venmo_personal', 'other',
 ]
 
 const SYSTEM_PROMPT = `You are a credit card statement parser. Given the raw text of a credit card statement (from an email body or PDF), extract structured data.
@@ -53,6 +55,15 @@ Category guidelines:
 - education: tuition, books, courses, school supplies
 - personalCare: salon, spa, cosmetics, clothing care
 - fees: late fees, annual fees, interest charges, finance charges
+- homeImprovement: home improvement stores, furniture, hardware, contractors, renovations
+- investments: general investment transactions
+- investments_crypto: cryptocurrency purchases, exchanges (Coinbase, Binance, etc.)
+- investments_retirement: 401k, IRA, pension contributions
+- investments_stocks: stock/ETF purchases, brokerage transactions (Fidelity, Schwab, etc.)
+- venmo: general Venmo, Zelle, CashApp, or other P2P transfers
+- venmo_rent: rent or mortgage payments made via Venmo/Zelle/P2P
+- venmo_bills: bill or utility payments made via Venmo/Zelle/P2P
+- venmo_personal: personal transfers, splitting costs, gifts via Venmo/Zelle/P2P
 - other: anything that doesn't fit above
 
 Important:

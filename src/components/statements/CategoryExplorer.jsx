@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
 
 /* ───────── helpers ───────── */
 
@@ -42,7 +42,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate }) {
     onClose()
   }
 
-  const cat = STATEMENT_CATEGORIES.find(c => c.key === editCategory)
+  const cat = findCategory(editCategory)
 
   return (
     <>
@@ -118,27 +118,57 @@ function TransactionDrawer({ transaction, onClose, onUpdate }) {
               Category
             </label>
             <div className="space-y-1">
-              {STATEMENT_CATEGORIES.map(c => (
-                <button
-                  key={c.key}
-                  onClick={() => setEditCategory(c.key)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all duration-100"
-                  style={{
-                    background: editCategory === c.key ? c.color + '18' : 'transparent',
-                    border: '1px solid',
-                    borderColor: editCategory === c.key ? c.color + '60' : 'transparent',
-                    color: editCategory === c.key ? '#f9fafb' : 'var(--text-muted)',
-                  }}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
-                  <span className="font-medium">{c.label}</span>
-                  {editCategory === c.key && c.key !== (transaction.category || 'other') && (
-                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
-                      new
-                    </span>
-                  )}
-                </button>
-              ))}
+              {STATEMENT_CATEGORIES.map(c => {
+                const isSelected = editCategory === c.key
+                const isSubSelected = c.subCategories?.some(s => s.key === editCategory)
+                return (
+                  <div key={c.key}>
+                    <button
+                      onClick={() => setEditCategory(c.key)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all duration-100"
+                      style={{
+                        background: isSelected ? c.color + '18' : 'transparent',
+                        border: '1px solid',
+                        borderColor: isSelected ? c.color + '60' : 'transparent',
+                        color: isSelected ? '#f9fafb' : 'var(--text-muted)',
+                      }}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                      <span className="font-medium">{c.label}</span>
+                      {isSelected && c.key !== (transaction.category || 'other') && (
+                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
+                          new
+                        </span>
+                      )}
+                    </button>
+                    {c.subCategories && (isSelected || isSubSelected) && (
+                      <div className="ml-5 mt-1 mb-1 space-y-1">
+                        {c.subCategories.map(sub => (
+                          <button
+                            key={sub.key}
+                            onClick={() => setEditCategory(sub.key)}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-sm transition-all duration-100"
+                            style={{
+                              background: editCategory === sub.key ? sub.color + '18' : 'transparent',
+                              border: '1px solid',
+                              borderColor: editCategory === sub.key ? sub.color + '60' : 'transparent',
+                              color: editCategory === sub.key ? '#f9fafb' : 'var(--text-muted)',
+                            }}
+                          >
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: sub.color }} />
+                            <span className="font-medium">{sub.label}</span>
+                            {editCategory === sub.key && sub.key !== (transaction.category || 'other') && (
+                              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
+                                new
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -215,18 +245,27 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
   const [sortDir, setSortDir] = useState('desc')
   const [merchantFilter, setMerchantFilter] = useState(null)
 
-  const cfg = STATEMENT_CATEGORIES.find(c => c.key === categoryKey) || { key: categoryKey, label: categoryKey, color: '#6b7280' }
+  const cfg = findCategory(categoryKey) || { key: categoryKey, label: categoryKey, color: '#6b7280' }
   const color = categoryColor || cfg.color
 
-  // Category transactions (expenses only for totals, all for listing)
+  // Category transactions — include sub-category transactions when viewing a parent category
+  const parentCfg = STATEMENT_CATEGORIES.find(c => c.key === categoryKey)
+  const matchKeys = useMemo(() => {
+    const keys = new Set([categoryKey])
+    if (parentCfg?.subCategories) {
+      for (const sub of parentCfg.subCategories) keys.add(sub.key)
+    }
+    return keys
+  }, [categoryKey, parentCfg])
+
   const categoryTxns = useMemo(() =>
-    transactions.filter(t => (t.category || 'other') === categoryKey),
-    [transactions, categoryKey]
+    transactions.filter(t => matchKeys.has(t.category || 'other')),
+    [transactions, matchKeys]
   )
 
   const prevCategoryTxns = useMemo(() =>
-    (prevPeriodTransactions || []).filter(t => (t.category || 'other') === categoryKey && t.amount > 0),
-    [prevPeriodTransactions, categoryKey]
+    (prevPeriodTransactions || []).filter(t => matchKeys.has(t.category || 'other') && t.amount > 0),
+    [prevPeriodTransactions, matchKeys]
   )
 
   const total = useMemo(() => categoryTxns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0), [categoryTxns])
@@ -586,7 +625,7 @@ export default function CategoryExplorer({ transactions = [], onTransactionUpdat
           prevPeriodTransactions={prevPeriodTxns}
           onBack={handleBack}
           onTransactionClick={onTransactionUpdate ? handleTransactionClick : undefined}
-          categoryColor={STATEMENT_CATEGORIES.find(c => c.key === drillCategory)?.color}
+          categoryColor={findCategory(drillCategory)?.color}
         />
       ) : (
         <CategoryDonutChart

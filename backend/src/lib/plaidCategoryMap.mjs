@@ -1,5 +1,5 @@
 /**
- * Maps Plaid's personal_finance_category to the app's 14 statement categories.
+ * Maps Plaid's personal_finance_category to the app's statement categories.
  *
  * Plaid categories: https://plaid.com/docs/api/products/transactions/#transactionssync
  * App categories:   src/constants/categories.js
@@ -13,19 +13,20 @@ const PRIMARY_MAP = {
   GENERAL_MERCHANDISE:        'shopping',
   GENERAL_SERVICES:           'other',
   GOVERNMENT_AND_NON_PROFIT:  'other',
-  HOME_IMPROVEMENT:           'other',
+  HOME_IMPROVEMENT:           'homeImprovement',
   INCOME:                     'other',
   LOAN_PAYMENTS:              'fees',
   MEDICAL:                    'health',
   PERSONAL_CARE:              'personalCare',
   RENT_AND_UTILITIES:         'utilities',
-  TRANSFER_IN:                'other',
-  TRANSFER_OUT:               'other',
+  TRANSFER_IN:                'venmo',
+  TRANSFER_OUT:               'venmo',
   TRANSPORTATION:             'transportation',
   TRAVEL:                     'travel',
   BANK_FEES:                  'fees',
   ENTERTAINMENT:              'entertainment',
   RECREATION:                 'entertainment',
+  INVESTMENTS:                'investments',
 }
 
 const DETAILED_OVERRIDES = {
@@ -63,13 +64,22 @@ const DETAILED_OVERRIDES = {
   TRAVEL_FLIGHTS:                          'travel',
   TRAVEL_LODGING:                          'travel',
   TRAVEL_RENTAL_CARS:                      'travel',
+  INVESTMENTS_BROKERAGE:                   'investments_stocks',
+  INVESTMENTS_RETIREMENT:                  'investments_retirement',
+  INVESTMENTS_CRYPTO:                      'investments_crypto',
+  HOME_IMPROVEMENT_FURNITURE:              'homeImprovement',
+  HOME_IMPROVEMENT_HARDWARE:               'homeImprovement',
+  TRANSFER_IN_ACCOUNT_TRANSFER:            'venmo',
+  TRANSFER_OUT_ACCOUNT_TRANSFER:           'venmo',
+  TRANSFER_IN_THIRD_PARTY:                 'venmo',
+  TRANSFER_OUT_THIRD_PARTY:                'venmo',
 }
 
 /**
  * Map a Plaid personal_finance_category object to one of the app's 14 category keys.
  *
  * @param {object|null} personalFinanceCategory  - { primary: string, detailed: string }
- * @returns {string} One of the app category keys (e.g. 'dining', 'groceries', 'gas', etc.)
+ * @returns {string} One of the app category keys (e.g. 'dining', 'groceries', 'investments_crypto', etc.)
  */
 export function mapPlaidCategory(personalFinanceCategory) {
   if (!personalFinanceCategory) return 'other'
