@@ -10,7 +10,7 @@ import StatementImportStatus from '../components/statements/StatementImportStatu
 import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
 
-export default function CreditCardHubPage({ creditCards, people = [], plaid, savingsAccounts = [] }) {
+export default function CreditCardHubPage({ creditCards, people = [], plaid, savingsAccounts = [], onCreditCardsChange, onSavingsChange }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
   const [selectedCardId, setSelectedCardId] = useState(
@@ -149,6 +149,9 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
             selectedCardId={selectedCardId}
             onSelectCard={setSelectedCardId}
             people={people}
+            onCreditCardsChange={onCreditCardsChange}
+            onSavingsChange={onSavingsChange}
+            onStatementsRefresh={refreshIndex}
           />
         </SectionCard>
       ) : (

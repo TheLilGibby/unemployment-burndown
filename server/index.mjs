@@ -1455,6 +1455,50 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
   }
 })
 
+// DELETE /api/statements/by-account/:cardId — remove all statements for a given account
+app.delete('/api/statements/by-account/:cardId', orgMiddleware, async (req, res) => {
+  const orgId = req.user.orgId
+  const cardId = Number(req.params.cardId)
+  try {
+    let index
+    try {
+      index = await s3Get(statementsIndexKey(orgId))
+    } catch (e) {
+      if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) {
+        return res.json({ deleted: 0 })
+      }
+      throw e
+    }
+    const toRemove = (index.statements || []).filter(s => s.cardId === cardId)
+    if (toRemove.length === 0) return res.json({ deleted: 0 })
+
+    // Delete individual statement files
+    for (const stmt of toRemove) {
+      try {
+        if (USE_LOCAL_DATA) {
+          const { unlinkSync } = await import('fs')
+          const filePath = resolve(LOCAL_DATA_DIR, statementKey(orgId, stmt.id))
+          try { unlinkSync(filePath) } catch { /* ok if missing */ }
+        } else {
+          const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+          await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: statementKey(orgId, stmt.id) }))
+        }
+      } catch { /* best effort */ }
+    }
+
+    // Update the index
+    index.statements = (index.statements || []).filter(s => s.cardId !== cardId)
+    index.lastUpdated = new Date().toISOString()
+    await s3Put(statementsIndexKey(orgId), index)
+
+    req.log.info({ cardId, count: toRemove.length }, 'Deleted statements for account')
+    res.json({ deleted: toRemove.length })
+  } catch (err) {
+    req.log.error({ err }, 'DELETE /api/statements/by-account failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ═══════════════════════════════════════════════════════════════
 // FEEDBACK ROUTE
 // ═══════════════════════════════════════════════════════════════
