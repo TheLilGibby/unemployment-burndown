@@ -5,10 +5,39 @@ import html2canvas from 'html2canvas'
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
 const CATEGORIES = [
-  { label: 'Bug Report', value: 'bug_report' },
-  { label: 'Feature Request', value: 'feature_request' },
-  { label: 'Question', value: 'question' },
+  { label: 'Bug', value: 'bug' },
+  { label: 'Feature', value: 'feature' },
+  { label: 'Task', value: 'task' },
 ]
+
+/** Capture marker.io-style environment metadata at the moment the button is clicked */
+function collectMetadata() {
+  const ua = navigator.userAgent
+  let browser = 'Unknown'
+  if (ua.includes('Firefox/')) browser = 'Firefox ' + (ua.match(/Firefox\/([\d.]+)/)?.[1] || '')
+  else if (ua.includes('Edg/')) browser = 'Edge ' + (ua.match(/Edg\/([\d.]+)/)?.[1] || '')
+  else if (ua.includes('Chrome/')) browser = 'Chrome ' + (ua.match(/Chrome\/([\d.]+)/)?.[1] || '')
+  else if (ua.includes('Safari/')) browser = 'Safari ' + (ua.match(/Version\/([\d.]+)/)?.[1] || '')
+
+  let os = 'Unknown'
+  if (ua.includes('Win')) os = 'Windows'
+  else if (ua.includes('Mac')) os = 'macOS'
+  else if (ua.includes('Linux')) os = 'Linux'
+  else if (ua.includes('Android')) os = 'Android'
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS'
+
+  return {
+    url: window.location.href,
+    timestamp: new Date().toISOString(),
+    browser,
+    os,
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    screenResolution: `${screen.width}x${screen.height}`,
+    devicePixelRatio: window.devicePixelRatio,
+    language: navigator.language,
+    cookiesEnabled: navigator.cookieEnabled,
+  }
+}
 
 const DRAW_COLORS = ['#ef4444', '#3b82f6', '#111827', '#facc15']
 
@@ -21,8 +50,10 @@ export default function BugDropWidget() {
   const [step, setStep] = useState('idle') // idle | capturing | annotate | form
   const [screenshotUrl, setScreenshotUrl] = useState(null)
   const [annotatedUrl, setAnnotatedUrl] = useState(null)
+  const [metadata, setMetadata] = useState(null)
 
   const handleOpen = useCallback(async () => {
+    setMetadata(collectMetadata())
     setStep('capturing')
     try {
       const canvas = await html2canvas(document.body, {
@@ -55,6 +86,7 @@ export default function BugDropWidget() {
     setStep('idle')
     setScreenshotUrl(null)
     setAnnotatedUrl(null)
+    setMetadata(null)
   }, [])
 
   return (
@@ -108,6 +140,7 @@ export default function BugDropWidget() {
           isDark={isDark}
           onClose={handleClose}
           screenshotUrl={annotatedUrl || screenshotUrl}
+          metadata={metadata}
         />
       )}
     </div>
@@ -285,7 +318,7 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
 
 /* ─── Feedback form panel ─────────────────────────────────── */
 
-function FeedbackPanel({ isDark, onClose, screenshotUrl }) {
+function FeedbackPanel({ isDark, onClose, screenshotUrl, metadata }) {
   const [description, setDescription] = useState('')
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle') // idle | submitting | success | error
@@ -309,6 +342,7 @@ function FeedbackPanel({ isDark, onClose, screenshotUrl }) {
         description: description.trim(),
       }
       if (screenshotUrl) payload.screenshot = screenshotUrl
+      if (metadata) payload.metadata = metadata
 
       const res = await fetch(`${API_BASE}/api/feedback`, {
         method: 'POST',
@@ -333,7 +367,7 @@ function FeedbackPanel({ isDark, onClose, screenshotUrl }) {
         setErrorMsg(err.message || 'Something went wrong')
       }
     }
-  }, [description, selected, screenshotUrl])
+  }, [description, selected, screenshotUrl, metadata])
 
   return (
     <div

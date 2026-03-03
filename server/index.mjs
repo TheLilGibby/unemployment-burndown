@@ -1461,9 +1461,35 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 
 const FEEDBACK_REPO = 'RAG-Consulting-LLC/unemployment-burndown'
 const FEEDBACK_LABEL_MAP = {
-  bug_report: 'bug',
-  feature_request: 'enhancement',
-  question: 'question',
+  bug: 'bug',
+  feature: 'feature request',
+  task: 'question',
+}
+
+function formatFeedbackBody(description, screenshotMd, metadata) {
+  const parts = [description]
+  if (screenshotMd) parts.push(screenshotMd)
+  if (metadata) {
+    parts.push('')
+    parts.push('<details><summary>Environment</summary>')
+    parts.push('')
+    parts.push('| Field | Value |')
+    parts.push('|-------|-------|')
+    if (metadata.url) parts.push(`| Page URL | ${metadata.url} |`)
+    if (metadata.timestamp) parts.push(`| Timestamp | ${metadata.timestamp} |`)
+    if (metadata.browser) parts.push(`| Browser | ${metadata.browser} |`)
+    if (metadata.os) parts.push(`| OS | ${metadata.os} |`)
+    if (metadata.viewport) parts.push(`| Viewport | ${metadata.viewport} |`)
+    if (metadata.screenResolution) parts.push(`| Screen | ${metadata.screenResolution} |`)
+    if (metadata.devicePixelRatio) parts.push(`| DPR | ${metadata.devicePixelRatio} |`)
+    if (metadata.language) parts.push(`| Language | ${metadata.language} |`)
+    parts.push('')
+    parts.push('</details>')
+  }
+  parts.push('')
+  parts.push('---')
+  parts.push('*Submitted via in-app feedback widget*')
+  return parts.join('\n')
 }
 
 // POST /api/feedback — create a GitHub issue from in-app feedback
@@ -1474,7 +1500,7 @@ app.post('/api/feedback', async (req, res) => {
       return res.status(503).json({ error: 'Feedback service is not configured' })
     }
 
-    const { category, description, screenshot } = req.body
+    const { category, description, screenshot, metadata } = req.body
     if (!description || !description.trim()) {
       return res.status(400).json({ error: 'Description is required' })
     }
@@ -1510,17 +1536,12 @@ app.post('/api/feedback', async (req, res) => {
       }
     }
 
-    const labels = []
+    // Always tag as external; add category-specific label
+    const labels = ['external']
     if (category && FEEDBACK_LABEL_MAP[category]) labels.push(FEEDBACK_LABEL_MAP[category])
 
     const title = description.trim().slice(0, 100)
-    const issueBody = [
-      description.trim(),
-      screenshotMd,
-      '',
-      '---',
-      `*Submitted via in-app feedback widget*`,
-    ].join('\n')
+    const issueBody = formatFeedbackBody(description.trim(), screenshotMd, metadata)
 
     const ghRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/issues`, {
       method: 'POST',

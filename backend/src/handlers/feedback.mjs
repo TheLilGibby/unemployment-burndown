@@ -5,9 +5,9 @@ const REPO = 'RAG-Consulting-LLC/unemployment-burndown'
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
 
 const LABEL_MAP = {
-  bug_report: 'bug',
-  feature_request: 'enhancement',
-  question: 'question',
+  bug: 'bug',
+  feature: 'feature request',
+  task: 'question',
 }
 
 /**
@@ -49,12 +49,43 @@ async function uploadScreenshot(base64DataUrl, log) {
   }
 }
 
+/** Build the GitHub issue markdown body with metadata table */
+function formatIssueBody(description, screenshotMd, metadata) {
+  const parts = [description]
+
+  if (screenshotMd) parts.push(screenshotMd)
+
+  if (metadata) {
+    parts.push('')
+    parts.push('<details><summary>Environment</summary>')
+    parts.push('')
+    parts.push('| Field | Value |')
+    parts.push('|-------|-------|')
+    if (metadata.url) parts.push(`| Page URL | ${metadata.url} |`)
+    if (metadata.timestamp) parts.push(`| Timestamp | ${metadata.timestamp} |`)
+    if (metadata.browser) parts.push(`| Browser | ${metadata.browser} |`)
+    if (metadata.os) parts.push(`| OS | ${metadata.os} |`)
+    if (metadata.viewport) parts.push(`| Viewport | ${metadata.viewport} |`)
+    if (metadata.screenResolution) parts.push(`| Screen | ${metadata.screenResolution} |`)
+    if (metadata.devicePixelRatio) parts.push(`| DPR | ${metadata.devicePixelRatio} |`)
+    if (metadata.language) parts.push(`| Language | ${metadata.language} |`)
+    parts.push('')
+    parts.push('</details>')
+  }
+
+  parts.push('')
+  parts.push('---')
+  parts.push('*Submitted via in-app feedback widget*')
+  return parts.join('\n')
+}
+
 /**
  * POST /api/feedback
- * Body: { category?, description, screenshot? }
+ * Body: { category?, description, screenshot?, metadata? }
  *
  * Creates a GitHub issue in the project repo.
  * If a screenshot (base64 data-URL) is provided, uploads it to the repo first.
+ * Metadata (URL, browser, OS, viewport, etc.) is embedded in the issue body.
  */
 export async function handler(event) {
   const log = createRequestLogger('feedback', event)
@@ -65,7 +96,7 @@ export async function handler(event) {
     }
 
     const body = JSON.parse(event.body || '{}')
-    const { category, description, screenshot } = body
+    const { category, description, screenshot, metadata } = body
 
     if (!description || !description.trim()) {
       return err(400, 'Description is required')
@@ -77,17 +108,12 @@ export async function handler(event) {
       screenshotMd = await uploadScreenshot(screenshot, log)
     }
 
-    const labels = []
+    // Always tag as external; add category-specific label
+    const labels = ['external']
     if (category && LABEL_MAP[category]) labels.push(LABEL_MAP[category])
 
     const title = description.trim().slice(0, 100)
-    const issueBody = [
-      description.trim(),
-      screenshotMd,
-      '',
-      '---',
-      `*Submitted via in-app feedback widget*`,
-    ].join('\n')
+    const issueBody = formatIssueBody(description.trim(), screenshotMd, metadata)
 
     const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
       method: 'POST',

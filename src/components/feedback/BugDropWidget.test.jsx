@@ -113,9 +113,9 @@ describe('BugDropWidget', () => {
     await waitFor(() => screen.getByTestId('annotation-overlay'))
     fireEvent.click(screen.getByTestId('annotation-skip'))
 
-    expect(screen.getByText('Bug Report')).toBeTruthy()
-    expect(screen.getByText('Feature Request')).toBeTruthy()
-    expect(screen.getByText('Question')).toBeTruthy()
+    expect(screen.getByText('Bug')).toBeTruthy()
+    expect(screen.getByText('Feature')).toBeTruthy()
+    expect(screen.getByText('Task')).toBeTruthy()
   })
 
   it('submit button is disabled when description is empty', async () => {
@@ -141,7 +141,7 @@ describe('BugDropWidget', () => {
     await waitFor(() => screen.getByTestId('annotation-overlay'))
     fireEvent.click(screen.getByTestId('annotation-skip'))
 
-    fireEvent.click(screen.getByTestId('feedback-cat-bug_report'))
+    fireEvent.click(screen.getByTestId('feedback-cat-bug'))
     fireEvent.change(screen.getByTestId('feedback-description'), {
       target: { value: 'Something broke' },
     })
@@ -151,17 +151,21 @@ describe('BugDropWidget', () => {
       expect(screen.getByTestId('feedback-success')).toBeTruthy()
     })
 
+    // Verify the API was called with correct payload including metadata
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/feedback',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          category: 'bug_report',
-          description: 'Something broke',
-          screenshot: 'data:image/jpeg;base64,TESTDATA',
-        }),
-      }),
+      expect.objectContaining({ method: 'POST' }),
     )
+    const sentBody = JSON.parse(fetchSpy.mock.calls[0][1].body)
+    expect(sentBody.category).toBe('bug')
+    expect(sentBody.description).toBe('Something broke')
+    expect(sentBody.screenshot).toBe('data:image/jpeg;base64,TESTDATA')
+    expect(sentBody.metadata).toBeDefined()
+    expect(sentBody.metadata.url).toBeTruthy()
+    expect(sentBody.metadata.browser).toBeTruthy()
+    expect(sentBody.metadata.os).toBeTruthy()
+    expect(sentBody.metadata.viewport).toBeTruthy()
+    expect(sentBody.metadata.timestamp).toBeTruthy()
   })
 
   it('shows a friendly error when fetch fails with network error', async () => {
