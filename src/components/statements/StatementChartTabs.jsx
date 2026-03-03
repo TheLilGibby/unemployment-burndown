@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
-import CategoryDonutChart from './CategoryDonutChart'
+import CategoryExplorer from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
@@ -10,7 +10,7 @@ const CHART_DEFS = [
     id: 'categories',
     Icon: PieChart,
     label: 'Categories',
-    desc: 'Spending by category across all cards',
+    desc: 'Spending by category — click any category to drill down',
   },
   {
     id: 'monthly',
@@ -32,7 +32,7 @@ const CHART_DEFS = [
   },
 ]
 
-export default function StatementChartTabs({ transactions = [], creditCards = [], expenses = [], subscriptions = [], monthlyIncome = 0, monthlyBenefits = 0 }) {
+export default function StatementChartTabs({ transactions = [], creditCards = [], expenses = [], subscriptions = [], monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate }) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -115,7 +115,10 @@ export default function StatementChartTabs({ transactions = [], creditCards = []
       {/* Chart content */}
       <div className="p-4 sm:p-5">
         {activeId === 'categories' && (
-          <CategoryDonutChart transactions={transactions} />
+          <CategoryExplorer
+            transactions={transactions}
+            onTransactionUpdate={onTransactionUpdate}
+          />
         )}
         {activeId === 'monthly' && (
           <MonthlySpendingBarChart transactions={transactions} creditCards={creditCards} />

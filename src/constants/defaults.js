@@ -64,6 +64,7 @@ export const DEFAULTS = {
     mutedUntil: null,
   },
   transactionLinks: {},
+  transactionOverrides: {},
   plaidMeta: {},
   jobScenarios: [],
   retirement: {

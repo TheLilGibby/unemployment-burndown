@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { ChevronRight } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
 
@@ -28,11 +29,16 @@ function CustomTooltip({ active, payload }) {
           ))}
         </div>
       )}
+      {d.clickable && (
+        <p className="text-[10px] mt-1.5 pt-1" style={{ color: '#6b7280', borderTop: '1px solid #374151' }}>
+          Click to drill down
+        </p>
+      )}
     </div>
   )
 }
 
-export default function CategoryDonutChart({ transactions = [] }) {
+export default function CategoryDonutChart({ transactions = [], onCategoryClick }) {
   const [active, setActive] = useState(null)
 
   const slices = useMemo(() => {
@@ -52,12 +58,12 @@ export default function CategoryDonutChart({ transactions = [] }) {
         .sort(([, a], [, b]) => b - a)
         .slice(0, 4)
         .map(([name, amount]) => ({ name, amount }))
-      return { key, label: cfg.label, value: data.total, color: cfg.color, topItems }
+      return { key, label: cfg.label, value: data.total, color: cfg.color, topItems, clickable: !!onCategoryClick }
     }).sort((a, b) => b.value - a.value)
 
     const total = raw.reduce((s, x) => s + x.value, 0)
     return raw.map(s => ({ ...s, pct: total > 0 ? (s.value / total) * 100 : 0 }))
-  }, [transactions])
+  }, [transactions, onCategoryClick])
 
   const total = slices.reduce((s, x) => s + x.value, 0)
 
@@ -67,9 +73,13 @@ export default function CategoryDonutChart({ transactions = [] }) {
         className="flex items-center justify-center text-sm"
         style={{ height: 260, color: '#6b7280' }}
       >
-        No transaction data to display yet.
+        No transaction data for this period.
       </div>
     )
+  }
+
+  const handleSliceClick = (categoryKey) => {
+    if (onCategoryClick) onCategoryClick(categoryKey)
   }
 
   return (
@@ -89,12 +99,15 @@ export default function CategoryDonutChart({ transactions = [] }) {
               strokeWidth={0}
               onMouseEnter={(_, idx) => setActive(idx)}
               onMouseLeave={() => setActive(null)}
+              onClick={(_, idx) => handleSliceClick(slices[idx]?.key)}
+              style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
             >
               {slices.map((s, i) => (
                 <Cell
                   key={s.key}
                   fill={s.color}
                   opacity={active === null || active === i ? 1 : 0.45}
+                  style={{ cursor: onCategoryClick ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
                 />
               ))}
             </Pie>
@@ -122,14 +135,15 @@ export default function CategoryDonutChart({ transactions = [] }) {
           return (
             <div
               key={slice.key}
-              className="cursor-default"
+              className={onCategoryClick ? 'cursor-pointer group' : 'cursor-default'}
               onMouseEnter={() => setActive(i)}
               onMouseLeave={() => setActive(null)}
+              onClick={() => handleSliceClick(slice.key)}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span
-                    className="inline-block rounded-full flex-shrink-0 transition-transform"
+                    className="inline-block rounded-full flex-shrink-0 transition-transform duration-150"
                     style={{
                       width: 8, height: 8,
                       background: slice.color,
@@ -137,7 +151,7 @@ export default function CategoryDonutChart({ transactions = [] }) {
                     }}
                   />
                   <span
-                    className="text-sm font-medium"
+                    className="text-sm font-medium transition-colors duration-150"
                     style={{ color: isHovered ? '#f9fafb' : '#d1d5db' }}
                   >
                     {slice.label}
@@ -148,11 +162,21 @@ export default function CategoryDonutChart({ transactions = [] }) {
                     {Math.round(slice.pct)}%
                   </span>
                   <span
-                    className="text-sm font-semibold tabular-nums"
+                    className="text-sm font-semibold tabular-nums transition-colors duration-150"
                     style={{ color: isHovered ? slice.color : '#e5e7eb' }}
                   >
                     {formatCurrency(slice.value)}
                   </span>
+                  {onCategoryClick && (
+                    <ChevronRight
+                      size={14}
+                      className="transition-all duration-150"
+                      style={{
+                        color: isHovered ? slice.color : 'transparent',
+                        transform: isHovered ? 'translateX(0)' : 'translateX(-4px)',
+                      }}
+                    />
+                  )}
                 </div>
               </div>
 

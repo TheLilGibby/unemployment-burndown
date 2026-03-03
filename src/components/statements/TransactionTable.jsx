@@ -4,18 +4,55 @@ import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
 
+// Determine payment method label + color from transaction metadata
+function getPaymentMethod(txn) {
+  const desc = (txn.description || txn.merchantName || '').toUpperCase()
+  const isAchLike =
+    txn.paymentChannel === 'other' ||
+    /\b(ACH|WIRE|ZELLE|VENMO|PAYPAL|TRANSFER|DIRECT DEP)\b/.test(desc)
+
+  if (isAchLike) return { label: 'ACH', color: '#8b5cf6' }
+  if (txn.accountType === 'depository') return { label: 'Bank', color: '#06b6d4' }
+  return null // credit card — show last 4 only
+}
+
 export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [filterCategory, setFilterCategory] = useState('')
+  const [filterAccount, setFilterAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
 
   const hasLinking = !!onOpenLinkModal
 
+  // Build unique account list for the account filter
+  const uniqueAccounts = useMemo(() => {
+    const seen = new Map()
+    for (const txn of transactions) {
+      if (!txn.accountName) continue
+      const key = txn.accountName
+      if (!seen.has(key)) {
+        seen.set(key, {
+          name: txn.accountName,
+          lastFour: txn.cardLastFour,
+        })
+      }
+    }
+    return [...seen.values()]
+  }, [transactions])
+
   const sorted = useMemo(() => {
+    const min = minAmount !== '' ? parseFloat(minAmount) : null
+    const max = maxAmount !== '' ? parseFloat(maxAmount) : null
+
     let filtered = transactions
     if (filterCategory) {
       filtered = filtered.filter(t => t.category === filterCategory)
+    }
+    if (filterAccount) {
+      filtered = filtered.filter(t => t.accountName === filterAccount)
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -24,6 +61,13 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
         (t.description || '').toLowerCase().includes(term)
       )
     }
+    if (min !== null) {
+      filtered = filtered.filter(t => Math.abs(t.amount) >= min)
+    }
+    if (max !== null) {
+      filtered = filtered.filter(t => Math.abs(t.amount) <= max)
+    }
+
     return [...filtered].sort((a, b) => {
       let cmp = 0
       if (sortField === 'date') cmp = (a.date || '').localeCompare(b.date || '')
@@ -31,7 +75,7 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
       else if (sortField === 'merchant') cmp = (a.merchantName || '').localeCompare(b.merchantName || '')
       return sortDir === 'desc' ? -cmp : cmp
     })
-  }, [transactions, sortField, sortDir, filterCategory, searchTerm])
+  }, [transactions, sortField, sortDir, filterCategory, filterAccount, searchTerm, minAmount, maxAmount])
 
   function toggleSort(field) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -50,6 +94,16 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
     return STATEMENT_CATEGORIES.filter(c => cats.has(c.key))
   }, [transactions])
 
+  const hasActiveFilters = filterCategory || filterAccount || searchTerm || minAmount || maxAmount
+
+  function clearFilters() {
+    setFilterCategory('')
+    setFilterAccount('')
+    setSearchTerm('')
+    setMinAmount('')
+    setMaxAmount('')
+  }
+
   if (transactions.length === 0) {
     return (
       <div className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>
@@ -58,41 +112,95 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
     )
   }
 
+  const inputStyle = {
+    background: 'var(--bg-page)',
+    border: '1px solid var(--border-input)',
+    color: 'var(--text-primary)',
+  }
+
   return (
     <div className="space-y-3">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          placeholder="Search merchants..."
-          className="text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60"
-          style={{
-            background: 'var(--bg-page)',
-            border: '1px solid var(--border-input)',
-            color: 'var(--text-primary)',
-            minWidth: 160,
-          }}
-        />
-        <select
-          value={filterCategory}
-          onChange={e => setFilterCategory(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg outline-none"
-          style={{
-            background: 'var(--bg-page)',
-            border: '1px solid var(--border-input)',
-            color: 'var(--text-primary)',
-          }}
-        >
-          <option value="">All Categories</option>
-          {usedCategories.map(cat => (
-            <option key={cat.key} value={cat.key}>{cat.label}</option>
-          ))}
-        </select>
-        <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
-          {sorted.length} transaction{sorted.length !== 1 ? 's' : ''}
-        </span>
+      {/* Filter rows */}
+      <div className="space-y-2">
+        {/* Row 1: search + category + account */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search merchants..."
+            className="text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60"
+            style={{ ...inputStyle, minWidth: 160 }}
+          />
+          <select
+            value={filterCategory}
+            onChange={e => setFilterCategory(e.target.value)}
+            className="text-sm px-3 py-1.5 rounded-lg outline-none"
+            style={inputStyle}
+          >
+            <option value="">All Categories</option>
+            {usedCategories.map(cat => (
+              <option key={cat.key} value={cat.key}>{cat.label}</option>
+            ))}
+          </select>
+          {uniqueAccounts.length > 1 && (
+            <select
+              value={filterAccount}
+              onChange={e => setFilterAccount(e.target.value)}
+              className="text-sm px-3 py-1.5 rounded-lg outline-none"
+              style={inputStyle}
+            >
+              <option value="">All Accounts</option>
+              {uniqueAccounts.map(acc => (
+                <option key={acc.name} value={acc.name}>
+                  {acc.lastFour ? `${acc.name} ••••${acc.lastFour}` : acc.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Row 2: amount range + count + clear */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Amount:</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>$</span>
+            <input
+              type="number"
+              value={minAmount}
+              onChange={e => setMinAmount(e.target.value)}
+              placeholder="Min"
+              min="0"
+              className="text-sm px-2 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60 w-20"
+              style={inputStyle}
+            />
+          </div>
+          <span className="text-xs" style={{ color: 'var(--text-faint)' }}>–</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>$</span>
+            <input
+              type="number"
+              value={maxAmount}
+              onChange={e => setMaxAmount(e.target.value)}
+              placeholder="Max"
+              min="0"
+              className="text-sm px-2 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60 w-20"
+              style={inputStyle}
+            />
+          </div>
+          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+            {sorted.length} transaction{sorted.length !== 1 ? 's' : ''}
+          </span>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs px-2 py-1 rounded-lg ml-auto"
+              style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -121,6 +229,12 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                 Category
               </th>
               <th
+                className="text-left px-3 py-2"
+                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+              >
+                Payment
+              </th>
+              <th
                 className="text-right px-3 py-2 cursor-pointer select-none"
                 style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
                 onClick={() => toggleSort('amount')}
@@ -141,6 +255,7 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
             {sorted.slice(0, 100).map((txn, i) => {
               const cat = STATEMENT_CATEGORIES.find(c => c.key === txn.category)
               const linkedKey = hasLinking && txnToOverviewMap ? txnToOverviewMap[txn.id] : null
+              const payMethod = getPaymentMethod(txn)
               return (
                 <tr
                   key={txn.id || i}
@@ -181,6 +296,27 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                       </span>
                     )}
                   </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      {/* ACH / Bank badge */}
+                      {payMethod ? (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                          style={{ background: payMethod.color + '20', color: payMethod.color }}
+                        >
+                          {payMethod.label}
+                        </span>
+                      ) : null}
+                      {/* Card last four */}
+                      {txn.cardLastFour ? (
+                        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                          ••••{txn.cardLastFour}
+                        </span>
+                      ) : !payMethod ? (
+                        <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>—</span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td
                     className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap"
                     style={{ color: txn.amount < 0 ? 'var(--accent-emerald)' : 'var(--text-primary)' }}
@@ -210,6 +346,11 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
         {sorted.length > 100 && (
           <div className="text-center py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
             Showing first 100 of {sorted.length} transactions
+          </div>
+        )}
+        {sorted.length === 0 && transactions.length > 0 && (
+          <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+            No transactions match your filters
           </div>
         )}
       </div>

@@ -380,6 +380,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
   const [transactionLinks, setTransactionLinks] = useState(DEFAULTS.transactionLinks)
+  const [transactionOverrides, setTransactionOverrides] = useState(DEFAULTS.transactionOverrides)
   const [allTransactionsCache, setAllTransactionsCache] = useState([])
 
   const {
@@ -415,7 +416,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, transactionLinks }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, transactionLinks, transactionOverrides }
   }
 
   function applySnapshot(snapshot) {
@@ -439,6 +440,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
     if (snapshot.retirement) setRetirement({ ...DEFAULTS.retirement, ...snapshot.retirement })
     if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
+    if (snapshot.transactionOverrides) setTransactionOverrides(snapshot.transactionOverrides)
   }
 
   // Full state = live snapshot + saved templates (written to / read from file)
@@ -493,7 +495,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, transactionLinks]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, transactionLinks, transactionOverrides]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -628,6 +630,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       return updated
     })
     dirtySections.current.add('Transaction links')
+  }
+
+  function handleTransactionOverride(txnId, updates) {
+    setTransactionOverrides(prev => ({
+      ...prev,
+      [txnId]: { ...(prev[txnId] || {}), ...updates },
+    }))
+    dirtySections.current.add('Transaction overrides')
   }
 
   // Derived: total cash from all active accounts
@@ -1117,6 +1127,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             subscriptions={subscriptions}
             monthlyBenefits={current.monthlyBenefits}
             totalMonthlyIncome={current.totalMonthlyIncome}
+            transactionOverrides={transactionOverrides}
+            onTransactionOverride={handleTransactionOverride}
           />
         } />
 
