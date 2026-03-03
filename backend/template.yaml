@@ -600,6 +600,21 @@ Resources:
             Path: /api/statements/{statementId}
             Method: get
 
+  DeleteStatementsByAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteStatementsByAccount.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/by-account/{cardId}
+            Method: delete
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL

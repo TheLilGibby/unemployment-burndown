@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 const BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
 const REGION = process.env.S3_REGION || 'us-west-1'
@@ -96,5 +96,15 @@ export async function writeStatementIndex(orgId, index) {
     Key: statementsIndexKey(orgId),
     Body: JSON.stringify(index, null, 2),
     ContentType: 'application/json',
+  }))
+}
+
+/**
+ * Delete a single statement from S3, scoped to org.
+ */
+export async function deleteStatement(orgId, statementId) {
+  await getS3().send(new DeleteObjectCommand({
+    Bucket: BUCKET,
+    Key: statementKey(orgId, statementId),
   }))
 }
