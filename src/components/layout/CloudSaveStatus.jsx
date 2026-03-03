@@ -2,37 +2,39 @@ import { useState, useEffect } from 'react'
 
 function CloudIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M12.5 6.5a3.5 3.5 0 00-6.9-.8A2.5 2.5 0 104.5 11h8a2.5 2.5 0 000-5 2.5 2.5 0 00-.5.05" />
-      <path d="M8 11V7m-2 2l2-2 2 2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" />
     </svg>
   )
 }
 
-function CheckIcon() {
+function CloudCheckIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" />
+      <path d="M9 14l2 2 4-4" strokeWidth="2" />
     </svg>
   )
 }
 
-function SpinnerIcon() {
+function CloudSpinnerIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-      style={{ animation: 'spin 0.8s linear infinite' }}>
-      <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-      <path d="M12 2a10 10 0 010 20" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" />
+      <g style={{ transformOrigin: '13px 15px', animation: 'spin 0.8s linear infinite' }}>
+        <path d="M13 11v4" strokeWidth="2" strokeOpacity="0.4" />
+        <path d="M13 11a4 4 0 010 4" strokeWidth="2" />
+      </g>
     </svg>
   )
 }
 
-function WarnIcon() {
+function CloudErrorIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M8 2L1.5 14h13L8 2z" strokeLinejoin="round" />
-      <line x1="8" y1="7" x2="8" y2="10" strokeLinecap="round" />
-      <circle cx="8" cy="12" r="0.5" fill="currentColor" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" />
+      <path d="M13 13v2" strokeWidth="2" />
+      <circle cx="13" cy="17" r="0.5" fill="currentColor" />
     </svg>
   )
 }
@@ -67,9 +69,9 @@ export default function CloudSaveStatus({ storage }) {
     : status === 'error' ? (errorMsg || 'Cloud save failed')
     : lastSaved ? `Saved ${relativeTime(lastSaved)}` : 'Connected to cloud'
 
-  const icon = status === 'loading' || status === 'saving' ? <SpinnerIcon />
-    : status === 'error' ? <WarnIcon />
-    : lastSaved ? <CheckIcon /> : <CloudIcon />
+  const icon = status === 'loading' || status === 'saving' ? <CloudSpinnerIcon />
+    : status === 'error' ? <CloudErrorIcon />
+    : lastSaved ? <CloudCheckIcon /> : <CloudIcon />
 
   return (
     <span
