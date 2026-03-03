@@ -355,6 +355,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [comments, setComments] = useState({})
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
+  const [transactionLinks, setTransactionLinks] = useState(DEFAULTS.transactionLinks)
+  const [allTransactionsCache, setAllTransactionsCache] = useState([])
 
   const {
     templates,
@@ -386,7 +388,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, transactionLinks }
   }
 
   function applySnapshot(snapshot) {
@@ -409,6 +411,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.creditCards) setCreditCards(snapshot.creditCards)
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
     if (snapshot.retirement) setRetirement({ ...DEFAULTS.retirement, ...snapshot.retirement })
+    if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
   }
 
   // Full state = live snapshot + saved templates (written to / read from file)
@@ -462,7 +465,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, transactionLinks]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -554,6 +557,47 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const onCreditCardsChange  = track(() => creditCards,     setCreditCards,     'Credit cards',       summarizeCCs,          diffArray)
   const onJobScenariosChange = track(() => jobScenarios,    setJobScenarios,    'Job scenarios',      summarizeJobScenarios, diffArray)
   const onRetirementChange   = track(() => retirement,      setRetirement,      'Retirement plan',    summarizeRetirement,   diffObject)
+
+  // Transaction linking handlers
+  const txnToOverviewMap = useMemo(() => {
+    const map = {}
+    for (const [overviewKey, links] of Object.entries(transactionLinks)) {
+      for (const link of links) {
+        map[link.transactionId] = overviewKey
+      }
+    }
+    return map
+  }, [transactionLinks])
+
+  function handleLinkTransaction(overviewKey, txnSnapshot) {
+    // Enforce: each transaction links to at most one overview item
+    if (txnToOverviewMap[txnSnapshot.id || txnSnapshot.transactionId]) return
+    setTransactionLinks(prev => ({
+      ...prev,
+      [overviewKey]: [
+        ...(prev[overviewKey] || []),
+        {
+          transactionId: txnSnapshot.id || txnSnapshot.transactionId,
+          linkedAt: new Date().toISOString(),
+          amount: txnSnapshot.amount,
+          date: txnSnapshot.date,
+          merchantName: txnSnapshot.merchantName,
+          description: txnSnapshot.description,
+        }
+      ]
+    }))
+    dirtySections.current.add('Transaction links')
+  }
+
+  function handleUnlinkTransaction(overviewKey, transactionId) {
+    setTransactionLinks(prev => {
+      const updated = { ...prev }
+      updated[overviewKey] = (updated[overviewKey] || []).filter(l => l.transactionId !== transactionId)
+      if (updated[overviewKey].length === 0) delete updated[overviewKey]
+      return updated
+    })
+    dirtySections.current.add('Transaction links')
+  }
 
   // Derived: total cash from all active accounts
   const totalSavings = savingsAccounts
@@ -874,6 +918,11 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               plaid={plaid}
               filterPersonId={filterPersonId}
               onFilterPersonChange={setFilterPersonId}
+              allTransactions={allTransactionsCache}
+              transactionLinks={transactionLinks}
+              txnToOverviewMap={txnToOverviewMap}
+              onLinkTransaction={handleLinkTransaction}
+              onUnlinkTransaction={handleUnlinkTransaction}
             />
             <ErrorBoundary level="component">
               <FinancialSidebar
@@ -951,13 +1000,32 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}
                 onRetirementChange={onRetirementChange}
+                allTransactions={allTransactionsCache}
+                transactionLinks={transactionLinks}
+                txnToOverviewMap={txnToOverviewMap}
+                onLinkTransaction={handleLinkTransaction}
+                onUnlinkTransaction={handleUnlinkTransaction}
               />
             </ErrorBoundary>
           </>
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} onCreditCardsChange={onCreditCardsChange} onSavingsChange={onSavingsChange} />
+          <CreditCardHubPage
+            creditCards={creditCards}
+            people={people}
+            plaid={plaid}
+            savingsAccounts={savingsAccounts}
+            onCreditCardsChange={onCreditCardsChange}
+            onSavingsChange={onSavingsChange}
+            oneTimePurchases={oneTimePurchases}
+            oneTimeExpenses={oneTimeExpenses}
+            oneTimeIncome={oneTimeIncome}
+            transactionLinks={transactionLinks}
+            onLinkTransaction={handleLinkTransaction}
+            onUnlinkTransaction={handleUnlinkTransaction}
+            onAllTransactionsChange={setAllTransactionsCache}
+          />
         } />
 
         <Route path="/job-scenarios" element={

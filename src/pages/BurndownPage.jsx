@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SectionCard from '../components/layout/SectionCard'
 import RunwayBanner from '../components/dashboard/RunwayBanner'
 import ChartTabsSection from '../components/chart/ChartTabsSection'
@@ -15,6 +16,7 @@ import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
+import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 
 export default function BurndownPage({
   current,
@@ -63,7 +65,19 @@ export default function BurndownPage({
   templateResults,
   jobScenarioResults,
   plaid,
+  // Transaction linking
+  allTransactions = [],
+  transactionLinks = {},
+  txnToOverviewMap = {},
+  onLinkTransaction,
+  onUnlinkTransaction,
 }) {
+  const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
+
+  function handleOpenLookup(overviewKey, overviewItem) {
+    setLookupState({ overviewKey, overviewItem })
+  }
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
@@ -229,21 +243,42 @@ export default function BurndownPage({
       {/* One-time expenses — full width */}
       {viewSettings.sections.onetimes && (
         <SectionCard id="sec-onetimes" title="One-Time Expenses" className="scroll-mt-20">
-          <OneTimeExpensePanel expenses={oneTimeExpenses} onChange={onOneTimeExpChange} people={people} />
+          <OneTimeExpensePanel
+            expenses={oneTimeExpenses}
+            onChange={onOneTimeExpChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
       {/* One-time purchases (losses) — full width */}
       {viewSettings.sections.onetimePurchases && (
         <SectionCard id="sec-onetimepurchases" title="One-Time Purchases" className="scroll-mt-20">
-          <OneTimePurchasePanel purchases={oneTimePurchases} onChange={onOneTimePurchChange} people={people} />
+          <OneTimePurchasePanel
+            purchases={oneTimePurchases}
+            onChange={onOneTimePurchChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
       {/* One-time income injections — full width */}
       {viewSettings.sections.onetimeIncome && (
         <SectionCard id="sec-onetimeincome" title="One-Time Income Injections" className="scroll-mt-20">
-          <OneTimeIncomePanel items={oneTimeIncome} onChange={onOneTimeIncChange} people={people} />
+          <OneTimeIncomePanel
+            items={oneTimeIncome}
+            onChange={onOneTimeIncChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
@@ -259,6 +294,21 @@ export default function BurndownPage({
         <SectionCard id="sec-assets" title="Sellable Assets" className="scroll-mt-20">
           <AssetsPanel assets={assets} onChange={onAssetsChange} people={people} />
         </SectionCard>
+      )}
+
+      {/* Transaction lookup modal */}
+      {lookupState && (
+        <TransactionLookupModal
+          open={true}
+          overviewKey={lookupState.overviewKey}
+          overviewItem={lookupState.overviewItem}
+          allTransactions={allTransactions}
+          linkedTransactions={transactionLinks[lookupState.overviewKey] || []}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={onLinkTransaction}
+          onUnlink={onUnlinkTransaction}
+          onClose={() => setLookupState(null)}
+        />
       )}
 
       <p className="text-center text-xs text-faint pb-4">
