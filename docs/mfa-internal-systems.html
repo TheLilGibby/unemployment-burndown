@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFA for Critical Systems — RAG Consulting LLC</title>
+  <style>
+    @page { margin: 0.75in 1in; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 7.5in;
+      margin: 0 auto;
+      padding: 0.5in;
+    }
+    h1 { font-size: 20pt; margin-bottom: 4pt; }
+    h2 { font-size: 14pt; margin-top: 24pt; margin-bottom: 8pt; border-bottom: 1px solid #e0e0e0; padding-bottom: 4pt; }
+    h3 { font-size: 12pt; font-weight: 600; margin-top: 16pt; margin-bottom: 4pt; }
+    .subtitle { font-size: 10pt; color: #666; margin-bottom: 24pt; }
+    ul, ol { padding-left: 20pt; }
+    li { margin-bottom: 4pt; }
+    a { color: #2563eb; }
+    .footer { margin-top: 36pt; padding-top: 12pt; border-top: 1px solid #e0e0e0; font-size: 9pt; color: #999; }
+    strong { font-weight: 600; }
+    .company { font-size: 12pt; color: #444; font-weight: 500; margin-bottom: 2pt; }
+    table { border-collapse: collapse; width: 100%; margin: 12pt 0; font-size: 10pt; }
+    th, td { border: 1px solid #ddd; padding: 8pt 10pt; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6pt; padding: 12pt 16pt; margin: 12pt 0; font-size: 10pt; }
+    .callout-title { font-weight: 600; color: #1e40af; margin-bottom: 4pt; }
+    .yes-badge { display: inline-block; background: #dcfce7; color: #166534; font-weight: 600; padding: 2pt 8pt; border-radius: 4pt; font-size: 9pt; }
+  </style>
+</head>
+<body>
+
+<p class="company">RAG Consulting LLC</p>
+<h1>Multi-Factor Authentication for Critical Systems</h1>
+<p class="subtitle">
+  Plaid Security Questionnaire — Question 5 Supporting Documentation<br>
+  Prepared: March 3, 2026 &middot; Application: Financial Burndown Tracker
+</p>
+
+<div class="callout">
+  <div class="callout-title">Summary</div>
+  Multi-factor authentication (MFA) is required for all personnel accessing critical systems
+  that store or process consumer financial data. This includes the AWS Console, GitHub source
+  code repositories, and production infrastructure. This requirement is mandated by
+  Section 6.2 of the RAG Consulting LLC Information Security Policy (v1.0, effective February 27, 2026).
+</div>
+
+<h2>1. MFA Requirements by System</h2>
+
+<table>
+  <tr>
+    <th>System</th>
+    <th>MFA Required</th>
+    <th>MFA Method</th>
+    <th>Data Stored/Processed</th>
+  </tr>
+  <tr>
+    <td>AWS Management Console</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>Virtual MFA device (TOTP) or hardware security key</td>
+    <td>DynamoDB (Plaid tokens, user data), S3 (financial data, statements), Lambda (backend logic), API Gateway, SES</td>
+  </tr>
+  <tr>
+    <td>AWS CLI / Programmatic Access</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>IAM roles with scoped policies; temporary credentials via STS where possible</td>
+    <td>Same as console — programmatic access to DynamoDB, S3, Lambda</td>
+  </tr>
+  <tr>
+    <td>GitHub (Source Code Repository)</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>TOTP authenticator app or hardware security key (WebAuthn/FIDO2)</td>
+    <td>Application source code, infrastructure-as-code (SAM templates), CI/CD workflows</td>
+  </tr>
+  <tr>
+    <td>Production API Gateway</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>Access via AWS Console (MFA required) or scoped IAM roles</td>
+    <td>API endpoints processing consumer financial data and Plaid API calls</td>
+  </tr>
+  <tr>
+    <td>Plaid Dashboard</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>Plaid's built-in authentication with MFA</td>
+    <td>Plaid API keys, integration configuration, connected item monitoring</td>
+  </tr>
+  <tr>
+    <td>SendGrid (Email Service)</td>
+    <td><span class="yes-badge">Yes</span></td>
+    <td>SendGrid account MFA (TOTP)</td>
+    <td>Transactional email (password resets, notifications)</td>
+  </tr>
+</table>
+
+<h2>2. Policy Basis</h2>
+
+<p>The MFA requirement is defined in the <strong>RAG Consulting LLC Information Security Policy</strong>, Section 6.2 — Authentication:</p>
+
+<blockquote style="border-left: 3px solid #3b82f6; padding-left: 12pt; margin: 12pt 0; color: #374151; font-style: italic;">
+  "Multi-factor authentication (MFA) is required for:
+  <ul>
+    <li>AWS Console access</li>
+    <li>GitHub repository access</li>
+    <li>Production infrastructure access</li>
+  </ul>
+  Service accounts use scoped IAM roles with temporary credentials where possible."
+</blockquote>
+
+<h2>3. AWS Infrastructure Security</h2>
+
+<h3>3.1 IAM and Access Control</h3>
+<ul>
+  <li><strong>Least Privilege:</strong> All IAM users and roles are granted only the minimum permissions required for their function.</li>
+  <li><strong>Role-Based Access Control (RBAC):</strong> Access is assigned based on job function through AWS IAM roles and policies.</li>
+  <li><strong>Scoped Lambda Execution Roles:</strong> Each Lambda function has a dedicated IAM role with policies limited to the specific DynamoDB tables, S3 buckets, and AWS services it requires (e.g., <code>DynamoDBCrudPolicy</code>, <code>S3CrudPolicy</code>).</li>
+  <li><strong>No Wildcard Policies:</strong> IAM policies specify explicit resource ARNs rather than wildcard (<code>*</code>) permissions.</li>
+</ul>
+
+<h3>3.2 Production Data Stores</h3>
+
+<table>
+  <tr><th>Service</th><th>Data</th><th>Encryption</th><th>Access Control</th></tr>
+  <tr>
+    <td>DynamoDB</td>
+    <td>Plaid access tokens (AES-256-GCM encrypted), user records, organization data, sync metadata</td>
+    <td>AWS-managed encryption at rest + application-layer AES-256-GCM for Plaid tokens</td>
+    <td>IAM-based; accessible only by authorized Lambda execution roles</td>
+  </tr>
+  <tr>
+    <td>S3</td>
+    <td>Financial state data, account balances, transaction history, parsed statements</td>
+    <td>SSE-S3 (AES-256)</td>
+    <td>All public access blocked; bucket policy restricts access to authorized Lambda roles only</td>
+  </tr>
+  <tr>
+    <td>API Gateway</td>
+    <td>REST API processing consumer financial requests</td>
+    <td>TLS 1.2+ (HTTPS enforced)</td>
+    <td>Lambda authorizer; CORS restricted</td>
+  </tr>
+</table>
+
+<h3>3.3 Secrets Management</h3>
+<ul>
+  <li>Application secrets (Plaid API keys, JWT secret, encryption keys, SendGrid API key) are stored as encrypted environment variables in AWS Lambda using <code>NoEcho</code> CloudFormation parameters.</li>
+  <li>Secrets are never committed to source code repositories.</li>
+  <li>API keys and tokens are rotated on a defined schedule or immediately upon suspected compromise.</li>
+</ul>
+
+<h2>4. Access Review Process</h2>
+
+<p>Per Section 6.3 of the Information Security Policy:</p>
+
+<ul>
+  <li><strong>Quarterly Reviews:</strong> Access to production systems and sensitive data stores is reviewed quarterly.</li>
+  <li><strong>Prompt Revocation:</strong> Unused or excessive permissions are revoked promptly upon identification.</li>
+  <li><strong>Separation of Duties:</strong> Critical operations require multiple approvals where feasible.</li>
+</ul>
+
+<h2>5. CI/CD Pipeline Security</h2>
+
+<ul>
+  <li>All code changes require <strong>pull request review</strong> before merging to the <code>main</code> branch.</li>
+  <li>CI pipeline (GitHub Actions) runs automated checks: linting, tests, and production build verification on every push and pull request.</li>
+  <li>GitHub Dependabot performs <strong>weekly automated dependency scanning</strong> across all package ecosystems.</li>
+  <li>GitHub access requires MFA, ensuring that only authenticated and MFA-verified personnel can approve or merge code changes.</li>
+</ul>
+
+<h2>6. Incident Response</h2>
+
+<p>In the event of unauthorized access or credential compromise:</p>
+
+<table>
+  <tr><th>Severity</th><th>Description</th><th>Response Time</th></tr>
+  <tr><td>Critical</td><td>Active data breach, credential compromise</td><td>Immediate (within 1 hour)</td></tr>
+  <tr><td>High</td><td>Vulnerability actively exploited, unauthorized access detected</td><td>Within 4 hours</td></tr>
+  <tr><td>Medium</td><td>New vulnerability identified, suspicious activity</td><td>Within 24 hours</td></tr>
+</table>
+
+<p>
+  Compromised credentials are revoked immediately. Affected parties and partners (including Plaid)
+  are notified as required by applicable law and contractual obligations.
+</p>
+
+<div class="footer">
+  Prepared March 3, 2026 &middot; RAG Consulting LLC &middot; Confidential
+</div>
+
+</body>
+</html>
