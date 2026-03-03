@@ -36,7 +36,7 @@ function decryptItem(item) {
 /**
  * Store a Plaid item (access_token encrypted at-rest + metadata).
  */
-export async function putPlaidItem({ userId, itemId, accessToken, institutionId, institutionName, cursor }) {
+export async function putPlaidItem({ userId, itemId, accessToken, institutionId, institutionName, cursor, connectedBy }) {
   await getDocClient().send(new PutCommand({
     TableName: TABLE,
     Item: {
@@ -46,6 +46,7 @@ export async function putPlaidItem({ userId, itemId, accessToken, institutionId,
       institutionId:   institutionId || null,
       institutionName: institutionName || null,
       cursor:          cursor || null,
+      connectedBy:     connectedBy || null,
       createdAt:       new Date().toISOString(),
       updatedAt:       new Date().toISOString(),
     },

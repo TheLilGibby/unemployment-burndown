@@ -6,7 +6,7 @@ import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
  * Displays connected Plaid institutions and their accounts.
  *
  * Props:
- *   linkedItems  – array of { itemId, institutionName, accounts[], lastSync, error? }
+ *   linkedItems  – array of { itemId, institutionName, accounts[], lastSync, connectedBy?, error? }
  *   syncing      – boolean
  *   lastSync     – ISO timestamp of last successful sync
  *   error        – string or null
@@ -130,9 +130,29 @@ export default function ConnectedAccountsPanel({
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base flex-shrink-0">🏛️</span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                  {item.institutionName || 'Connected Bank'}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                    {item.institutionName || 'Connected Bank'}
+                  </p>
+                  {item.connectedBy && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{
+                        background: 'color-mix(in srgb, var(--accent-blue) 12%, transparent)',
+                        color: 'var(--accent-blue)',
+                        border: '1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)',
+                        maxWidth: '10rem',
+                      }}
+                      title={`Connected by ${item.connectedBy}`}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      <span className="truncate">{item.connectedBy}</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Synced {formatTime(item.lastSync || lastSync)}
                 </p>

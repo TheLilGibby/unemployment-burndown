@@ -45,6 +45,7 @@ export async function handler(event) {
           itemId:          item.itemId,
           institutionName: item.institutionName,
           institutionId:   item.institutionId,
+          connectedBy:     item.connectedBy || null,
           accounts,
           lastSync:        item.updatedAt || item.createdAt,
         })
@@ -56,6 +57,7 @@ export async function handler(event) {
           itemId:          item.itemId,
           institutionName: item.institutionName,
           institutionId:   item.institutionId,
+          connectedBy:     item.connectedBy || null,
           accounts:        [],
           error:           acctErr.response?.data?.error_message || acctErr.message,
           lastSync:        item.updatedAt || item.createdAt,
