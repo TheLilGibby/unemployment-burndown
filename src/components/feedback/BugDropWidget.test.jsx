@@ -271,6 +271,24 @@ describe('BugDropWidget', () => {
     expect(screen.queryByTestId('feedback-panel')).toBeNull()
   })
 
+  it('passes onclone and allowTaint options to html2canvas for DOM sanitization', async () => {
+    const { default: html2canvas } = await import('html2canvas')
+    html2canvas.mockClear()
+
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('annotation-overlay')).toBeTruthy()
+    })
+
+    const callArgs = html2canvas.mock.calls[0]
+    expect(callArgs[1]).toHaveProperty('onclone')
+    expect(typeof callArgs[1].onclone).toBe('function')
+    expect(callArgs[1]).toHaveProperty('allowTaint', true)
+    expect(callArgs[1]).toHaveProperty('backgroundColor')
+  })
+
   it('closes the panel when close button is clicked', async () => {
     render(<BugDropWidget />)
     fireEvent.click(screen.getByTestId('feedback-button'))

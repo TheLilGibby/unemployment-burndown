@@ -59,9 +59,30 @@ export default function BugDropWidget() {
       const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(document.body, {
         useCORS: true,
+        allowTaint: true,
         logging: false,
         scale: 1,
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
         ignoreElements: (el) => el === widgetRef.current,
+        onclone: (clonedDoc) => {
+          // Strip backdrop-filter from all elements — html2canvas cannot render it
+          // and it's the primary cause of capture failures on this app
+          clonedDoc.querySelectorAll('*').forEach((el) => {
+            const s = el.style
+            if (s) {
+              s.backdropFilter = 'none'
+              s.webkitBackdropFilter = 'none'
+            }
+          })
+          // Give the header a solid background so it renders visibly
+          const header = clonedDoc.querySelector('header')
+          if (header) {
+            const liveHeader = document.querySelector('header')
+            if (liveHeader) {
+              header.style.backgroundColor = getComputedStyle(liveHeader).backgroundColor
+            }
+          }
+        },
       })
 
       const MAX_W = 1280
