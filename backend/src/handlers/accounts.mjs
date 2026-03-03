@@ -1,5 +1,6 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItemsByUser } from '../lib/dynamo.mjs'
+import { readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
@@ -9,6 +10,12 @@ import { createRequestLogger } from '../lib/logger.mjs'
  *
  * Lists all connected Plaid items and their accounts with current balances.
  * Scoped to the user's org.
+ *
+ * Serves from an S3 cache (written by sync and exchange handlers) to avoid
+ * burning Plaid API calls on every page load. Falls back to a live Plaid call
+ * only when no cache exists (i.e. right after the very first bank connection).
+ *
+ * Add ?force=true to bypass the cache and refresh from Plaid directly.
  */
 export async function handler(event) {
   try {
@@ -16,9 +23,22 @@ export async function handler(event) {
     if (authErr) return err(authErr.statusCode, authErr.message)
 
     const userId = user.orgId
-    const client = getPlaidClient()
+    const force  = event.queryStringParameters?.force === 'true'
 
-    const items = await getPlaidItemsByUser(userId)
+    // ── Try S3 cache first (unless caller forces a refresh) ──
+    if (!force) {
+      const cache = await readAccountsCache(userId)
+      if (cache?.items) {
+        return ok({ items: cache.items, cachedAt: cache.cachedAt, fromCache: true })
+      }
+    }
+
+    // ── Cache miss or forced refresh: call Plaid and populate cache ──
+    const log = createRequestLogger('accounts', event)
+    log.info({ force }, 'accounts cache miss — fetching live from Plaid')
+
+    const client = getPlaidClient()
+    const items  = await getPlaidItemsByUser(userId)
 
     if (items.length === 0) {
       return ok({ items: [] })
@@ -28,7 +48,7 @@ export async function handler(event) {
 
     for (const item of items) {
       try {
-        const acctRes = await client.accountsGet({ access_token: item.accessToken })
+        const acctRes  = await client.accountsGet({ access_token: item.accessToken })
         const accounts = acctRes.data.accounts.map(acct => ({
           id:               acct.account_id,
           name:             acct.name,
@@ -50,8 +70,6 @@ export async function handler(event) {
           lastSync:        item.updatedAt || item.createdAt,
         })
       } catch (acctErr) {
-        // If a single item fails (e.g. token expired), include it with error
-        const log = createRequestLogger('accounts', event)
         log.warn({ err: acctErr, itemId: item.itemId }, 'failed to fetch accounts for item')
         result.push({
           itemId:          item.itemId,
@@ -65,7 +83,10 @@ export async function handler(event) {
       }
     }
 
-    return ok({ items: result })
+    // Persist so subsequent calls are free
+    await writeAccountsCache(userId, result)
+
+    return ok({ items: result, fromCache: false })
   } catch (error) {
     const log = createRequestLogger('accounts', event)
     log.error({ err: error, plaidError: error.response?.data }, 'accounts fetch failed')

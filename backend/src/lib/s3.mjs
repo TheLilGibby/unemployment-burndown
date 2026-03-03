@@ -108,3 +108,32 @@ export async function deleteStatement(orgId, statementId) {
     Key: statementKey(orgId, statementId),
   }))
 }
+
+// ── Plaid accounts cache ──
+// Stores the last-known accounts response so /plaid/accounts never needs to
+// call Plaid directly. Written by sync and exchange handlers; read by accounts handler.
+
+function accountsCacheKey(orgId) {
+  return orgId ? `orgs/${orgId}/plaid-accounts-cache.json` : 'plaid-accounts-cache.json'
+}
+
+/**
+ * Read the cached Plaid accounts response from S3.
+ * Returns null if no cache exists yet.
+ */
+export async function readAccountsCache(orgId) {
+  return s3Get(accountsCacheKey(orgId))
+}
+
+/**
+ * Write the Plaid accounts cache to S3.
+ * Shape: { cachedAt: ISO, items: [...] }
+ */
+export async function writeAccountsCache(orgId, items) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: accountsCacheKey(orgId),
+    Body: JSON.stringify({ cachedAt: new Date().toISOString(), items }, null, 2),
+    ContentType: 'application/json',
+  }))
+}

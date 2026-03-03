@@ -1,5 +1,6 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItem, deletePlaidItem } from '../lib/dynamo.mjs'
+import { readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
@@ -42,6 +43,18 @@ export async function handler(event) {
 
     // Delete from DynamoDB
     await deletePlaidItem(userId, itemId)
+
+    // Remove the disconnected item from the accounts cache
+    try {
+      const existing = await readAccountsCache(userId)
+      if (existing?.items) {
+        const pruned = existing.items.filter(ci => ci.itemId !== itemId)
+        await writeAccountsCache(userId, pruned)
+      }
+    } catch (cacheErr) {
+      const log = createRequestLogger('disconnect', event)
+      log.warn({ err: cacheErr, itemId }, 'failed to prune accounts cache after disconnect')
+    }
 
     return ok({ success: true, itemId })
   } catch (error) {
