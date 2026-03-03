@@ -53,13 +53,14 @@ export async function handler(event) {
       }
     }
 
-    // Store in DynamoDB
+    // Store in DynamoDB (track which user connected the account)
     await putPlaidItem({
       userId,
       itemId: item_id,
       accessToken: access_token,
       institutionId,
       institutionName,
+      connectedBy: user.sub,
     })
 
     // Fetch initial accounts
@@ -81,6 +82,7 @@ export async function handler(event) {
       itemId: item_id,
       institutionName,
       institutionId,
+      connectedBy: user.sub,
       accounts,
     })
   } catch (error) {
