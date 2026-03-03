@@ -354,7 +354,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [jobScenarios, setJobScenarios] = useState(DEFAULTS.jobScenarios)
   const [retirement, setRetirement] = useState(DEFAULTS.retirement)
   const [comments, setComments] = useState({})
-  const [defaultPersonId, setDefaultPersonId] = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
 
@@ -422,7 +421,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       templates,
       activeTemplateId,
       comments,
-      defaultPersonId,
       activityLog: logEntries,
       notificationPreferences,
     }
@@ -434,7 +432,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (Array.isArray(data.templates)) bulkLoad(data.templates)
     if (data.activeTemplateId != null) setActiveTemplateId(data.activeTemplateId)
     if (data.comments && typeof data.comments === 'object') setComments(data.comments)
-    if (data.defaultPersonId != null) setDefaultPersonId(data.defaultPersonId)
     if (Array.isArray(data.activityLog)) loadEntries(data.activityLog)
     if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
   }
@@ -466,7 +463,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments, defaultPersonId]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -694,9 +691,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     <CommentsProvider
       comments={comments}
       onCommentsChange={setComments}
-      people={people}
-      defaultPersonId={defaultPersonId}
-      onDefaultPersonChange={setDefaultPersonId}
+      user={user}
     >
     <CommentsPanel />
     <NotificationPanel />
