@@ -1,22 +1,13 @@
 import { useState, useCallback } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 
-const REPO = 'RAG-Consulting-LLC/unemployment-burndown'
-const NEW_ISSUE_URL = `https://github.com/${REPO}/issues/new`
+const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
 const CATEGORIES = [
-  { label: 'Bug Report', template: 'bug_report' },
-  { label: 'Feature Request', template: 'feature_request' },
-  { label: 'Question', template: 'question' },
+  { label: 'Bug Report', value: 'bug_report' },
+  { label: 'Feature Request', value: 'feature_request' },
+  { label: 'Question', value: 'question' },
 ]
-
-function buildIssueUrl(category, description) {
-  const params = new URLSearchParams()
-  if (category) params.set('template', category.template)
-  if (description) params.set('body', description)
-  const qs = params.toString()
-  return qs ? `${NEW_ISSUE_URL}?${qs}` : NEW_ISSUE_URL
-}
 
 export default function BugDropWidget() {
   const { resolved } = useTheme()
@@ -24,12 +15,6 @@ export default function BugDropWidget() {
   const isDark = resolved === 'dark'
 
   const toggle = useCallback(() => setOpen(prev => !prev), [])
-
-  const handleSubmit = useCallback((category, description) => {
-    const url = buildIssueUrl(category, description)
-    window.open(url, '_blank', 'noopener,noreferrer')
-    setOpen(false)
-  }, [])
 
   return (
     <>
@@ -58,14 +43,13 @@ export default function BugDropWidget() {
           lineHeight: 1,
         }}
       >
-        {open ? '✕' : '💬'}
+        {open ? '\u2715' : '\uD83D\uDCAC'}
       </button>
 
       {/* Feedback panel */}
       {open && (
         <FeedbackPanel
           isDark={isDark}
-          onSubmit={handleSubmit}
           onClose={toggle}
         />
       )}
@@ -73,15 +57,47 @@ export default function BugDropWidget() {
   )
 }
 
-function FeedbackPanel({ isDark, onSubmit, onClose }) {
+function FeedbackPanel({ isDark, onClose }) {
   const [description, setDescription] = useState('')
   const [selected, setSelected] = useState(null)
+  const [status, setStatus] = useState('idle') // idle | submitting | success | error
+  const [errorMsg, setErrorMsg] = useState('')
 
   const bg = isDark ? '#1f2937' : '#ffffff'
   const text = isDark ? '#f9fafb' : '#111827'
   const textSecondary = isDark ? '#9ca3af' : '#4b5563'
   const border = isDark ? '#374151' : '#d1d5db'
   const inputBg = isDark ? '#111827' : '#f9fafb'
+
+  const handleSubmit = useCallback(async () => {
+    if (!description.trim()) return
+
+    setStatus('submitting')
+    setErrorMsg('')
+
+    try {
+      const res = await fetch(`${API_BASE}/api/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: selected?.value || null,
+          description: description.trim(),
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to submit feedback')
+      }
+
+      setStatus('success')
+      setDescription('')
+      setSelected(null)
+    } catch (err) {
+      setStatus('error')
+      setErrorMsg(err.message || 'Something went wrong')
+    }
+  }, [description, selected])
 
   return (
     <div
@@ -117,77 +133,111 @@ function FeedbackPanel({ isDark, onSubmit, onClose }) {
             lineHeight: 1,
           }}
         >
-          ✕
+          {'\u2715'}
         </button>
       </div>
 
-      <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: textSecondary }}>
-        Choose a category and describe the issue:
-      </p>
-
-      {/* Category buttons */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        {CATEGORIES.map(cat => (
+      {status === 'success' ? (
+        <div data-testid="feedback-success">
+          <p style={{ margin: '1rem 0', fontSize: '0.9rem', textAlign: 'center', color: '#14b8a6' }}>
+            Thanks! Your feedback has been submitted.
+          </p>
           <button
-            key={cat.template}
-            onClick={() => setSelected(cat)}
-            data-testid={`feedback-cat-${cat.template}`}
+            onClick={onClose}
             style={{
-              padding: '0.35rem 0.75rem',
+              width: '100%',
+              padding: '0.5rem',
               borderRadius: '6px',
-              border: `1px solid ${selected === cat ? '#14b8a6' : border}`,
-              background: selected === cat ? '#14b8a6' : 'transparent',
-              color: selected === cat ? '#fff' : text,
+              border: `1px solid ${border}`,
+              background: 'transparent',
+              color: text,
               cursor: 'pointer',
-              fontSize: '0.8rem',
-              fontWeight: 500,
+              fontSize: '0.85rem',
             }}
           >
-            {cat.label}
+            Close
           </button>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <>
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: textSecondary }}>
+            Choose a category and describe the issue:
+          </p>
 
-      {/* Description textarea */}
-      <textarea
-        value={description}
-        onChange={e => setDescription(e.target.value)}
-        placeholder="Describe your feedback..."
-        data-testid="feedback-description"
-        rows={4}
-        style={{
-          width: '100%',
-          padding: '0.5rem',
-          borderRadius: '6px',
-          border: `1px solid ${border}`,
-          background: inputBg,
-          color: text,
-          fontSize: '0.85rem',
-          resize: 'vertical',
-          fontFamily: 'inherit',
-          boxSizing: 'border-box',
-        }}
-      />
+          {/* Category buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.value}
+                onClick={() => setSelected(cat)}
+                data-testid={`feedback-cat-${cat.value}`}
+                style={{
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  border: `1px solid ${selected === cat ? '#14b8a6' : border}`,
+                  background: selected === cat ? '#14b8a6' : 'transparent',
+                  color: selected === cat ? '#fff' : text,
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                }}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Submit */}
-      <button
-        onClick={() => onSubmit(selected, description)}
-        data-testid="feedback-submit"
-        style={{
-          marginTop: '0.75rem',
-          width: '100%',
-          padding: '0.5rem',
-          borderRadius: '6px',
-          border: 'none',
-          background: '#14b8a6',
-          color: '#fff',
-          cursor: 'pointer',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-        }}
-      >
-        Open on GitHub
-      </button>
+          {/* Description textarea */}
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Describe your feedback..."
+            data-testid="feedback-description"
+            rows={4}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              borderRadius: '6px',
+              border: `1px solid ${border}`,
+              background: inputBg,
+              color: text,
+              fontSize: '0.85rem',
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+
+          {/* Error message */}
+          {status === 'error' && (
+            <p data-testid="feedback-error" style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#f87171' }}>
+              {errorMsg}
+            </p>
+          )}
+
+          {/* Submit */}
+          <button
+            onClick={handleSubmit}
+            disabled={status === 'submitting' || !description.trim()}
+            data-testid="feedback-submit"
+            style={{
+              marginTop: '0.75rem',
+              width: '100%',
+              padding: '0.5rem',
+              borderRadius: '6px',
+              border: 'none',
+              background: status === 'submitting' || !description.trim() ? '#5eead4' : '#14b8a6',
+              color: '#fff',
+              cursor: status === 'submitting' || !description.trim() ? 'not-allowed' : 'pointer',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              opacity: status === 'submitting' ? 0.7 : 1,
+            }}
+          >
+            {status === 'submitting' ? 'Submitting...' : 'Submit'}
+          </button>
+        </>
+      )}
     </div>
   )
 }
