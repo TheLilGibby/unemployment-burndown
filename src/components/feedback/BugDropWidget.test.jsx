@@ -1,58 +1,95 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render } from '../../test/test-utils'
+import { render, screen, fireEvent } from '../../test/test-utils'
 import BugDropWidget from './BugDropWidget'
 
 describe('BugDropWidget', () => {
+  let openSpy
+
   beforeEach(() => {
-    // Remove any script tags from previous tests
-    document.querySelectorAll('script[src*="bugdrop"]').forEach(s => s.remove())
+    // Ensure matchMedia mock is present (setup.js provides it, but guard against clearing)
+    if (!window.matchMedia || !window.matchMedia('').addEventListener) {
+      window.matchMedia = vi.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+    }
+    openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
   })
 
   afterEach(() => {
-    document.querySelectorAll('script[src*="bugdrop"]').forEach(s => s.remove())
+    openSpy.mockRestore()
   })
 
-  it('injects the BugDrop script into the document', () => {
+  it('renders the floating feedback button', () => {
     render(<BugDropWidget />)
-
-    const script = document.querySelector('script[src*="bugdrop"]')
-    expect(script).toBeTruthy()
-    expect(script.getAttribute('data-repo')).toBe('RAG-Consulting-LLC/unemployment-burndown')
+    expect(screen.getByTestId('feedback-button')).toBeTruthy()
   })
 
-  it('sets data-theme based on resolved theme', () => {
+  it('opens the feedback panel when button is clicked', () => {
     render(<BugDropWidget />)
-
-    const script = document.querySelector('script[src*="bugdrop"]')
-    // Default resolved theme from matchMedia mock is 'light' (matches: false)
-    expect(script.getAttribute('data-theme')).toBe('light')
+    fireEvent.click(screen.getByTestId('feedback-button'))
+    expect(screen.getByTestId('feedback-panel')).toBeTruthy()
+    expect(screen.getByText('Send Feedback')).toBeTruthy()
   })
 
-  it('sets position and color attributes', () => {
+  it('closes the panel when close button is clicked', () => {
     render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+    expect(screen.getByTestId('feedback-panel')).toBeTruthy()
 
-    const script = document.querySelector('script[src*="bugdrop"]')
-    expect(script.getAttribute('data-position')).toBe('bottom-right')
-    expect(script.getAttribute('data-color')).toBe('#14b8a6')
+    fireEvent.click(screen.getByTestId('feedback-close'))
+    expect(screen.queryByTestId('feedback-panel')).toBeNull()
   })
 
-  it('does not inject duplicate scripts', () => {
-    const { unmount } = render(<BugDropWidget />)
-    unmount()
-
-    // Re-add a script to simulate it already being present
-    const existing = document.createElement('script')
-    existing.src = 'https://bugdrop.neonwatty.workers.dev/widget.v1.js'
-    document.body.appendChild(existing)
-
+  it('shows category buttons', () => {
     render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
 
-    const scripts = document.querySelectorAll('script[src*="bugdrop"]')
-    expect(scripts.length).toBe(1)
+    expect(screen.getByText('Bug Report')).toBeTruthy()
+    expect(screen.getByText('Feature Request')).toBeTruthy()
+    expect(screen.getByText('Question')).toBeTruthy()
   })
 
-  it('renders nothing visible', () => {
-    const { container } = render(<BugDropWidget />)
-    expect(container.innerHTML).toBe('')
+  it('opens GitHub issue URL on submit', () => {
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+
+    // Select a category
+    fireEvent.click(screen.getByTestId('feedback-cat-bug_report'))
+
+    // Type a description
+    fireEvent.change(screen.getByTestId('feedback-description'), {
+      target: { value: 'Something broke' },
+    })
+
+    // Submit
+    fireEvent.click(screen.getByTestId('feedback-submit'))
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('github.com/RAG-Consulting-LLC/unemployment-burndown/issues/new'),
+      '_blank',
+      'noopener,noreferrer',
+    )
+
+    // Panel should close after submit
+    expect(screen.queryByTestId('feedback-panel')).toBeNull()
+  })
+
+  it('submits without a category or description', () => {
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+    fireEvent.click(screen.getByTestId('feedback-submit'))
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://github.com/RAG-Consulting-LLC/unemployment-burndown/issues/new',
+      '_blank',
+      'noopener,noreferrer',
+    )
   })
 })
