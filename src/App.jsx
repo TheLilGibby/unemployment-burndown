@@ -281,7 +281,6 @@ const DEFAULT_VIEW = {
     assets:          true,
     plaidAccounts:   true,
     transactions:    true,
-    retirement:      true,
   },
 }
 
@@ -875,8 +874,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               plaid={plaid}
               filterPersonId={filterPersonId}
               onFilterPersonChange={setFilterPersonId}
-              retirement={retirement}
-              onRetirementChange={onRetirementChange}
             />
             <ErrorBoundary level="component">
               <FinancialSidebar
