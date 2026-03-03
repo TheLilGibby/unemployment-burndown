@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '../../test/test-utils'
+import { render, screen, fireEvent, waitFor } from '../../test/test-utils'
 import BugDropWidget from './BugDropWidget'
 
 describe('BugDropWidget', () => {
-  let openSpy
+  let fetchSpy
 
   beforeEach(() => {
-    // Ensure matchMedia mock is present (setup.js provides it, but guard against clearing)
+    // Ensure matchMedia mock is present
     if (!window.matchMedia || !window.matchMedia('').addEventListener) {
       window.matchMedia = vi.fn().mockImplementation(query => ({
         matches: false,
@@ -19,11 +19,11 @@ describe('BugDropWidget', () => {
         dispatchEvent: vi.fn(),
       }))
     }
-    openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    fetchSpy = vi.spyOn(globalThis, 'fetch')
   })
 
   afterEach(() => {
-    openSpy.mockRestore()
+    fetchSpy.mockRestore()
   })
 
   it('renders the floating feedback button', () => {
@@ -56,40 +56,60 @@ describe('BugDropWidget', () => {
     expect(screen.getByText('Question')).toBeTruthy()
   })
 
-  it('opens GitHub issue URL on submit', () => {
+  it('submit button is disabled when description is empty', () => {
     render(<BugDropWidget />)
     fireEvent.click(screen.getByTestId('feedback-button'))
 
-    // Select a category
-    fireEvent.click(screen.getByTestId('feedback-cat-bug_report'))
+    const submit = screen.getByTestId('feedback-submit')
+    expect(submit.disabled).toBe(true)
+  })
 
-    // Type a description
+  it('submits feedback via API and shows success', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ created: true, issueNumber: 42, url: 'https://github.com/test/42' }),
+    })
+
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+
+    fireEvent.click(screen.getByTestId('feedback-cat-bug_report'))
     fireEvent.change(screen.getByTestId('feedback-description'), {
       target: { value: 'Something broke' },
     })
-
-    // Submit
     fireEvent.click(screen.getByTestId('feedback-submit'))
 
-    expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining('github.com/RAG-Consulting-LLC/unemployment-burndown/issues/new'),
-      '_blank',
-      'noopener,noreferrer',
-    )
+    await waitFor(() => {
+      expect(screen.getByTestId('feedback-success')).toBeTruthy()
+    })
 
-    // Panel should close after submit
-    expect(screen.queryByTestId('feedback-panel')).toBeNull()
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/feedback',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ category: 'bug_report', description: 'Something broke' }),
+      }),
+    )
   })
 
-  it('submits without a category or description', () => {
+  it('shows error message when API fails', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ error: 'Feedback service is not configured' }),
+    })
+
     render(<BugDropWidget />)
     fireEvent.click(screen.getByTestId('feedback-button'))
+
+    fireEvent.change(screen.getByTestId('feedback-description'), {
+      target: { value: 'Some feedback' },
+    })
     fireEvent.click(screen.getByTestId('feedback-submit'))
 
-    expect(openSpy).toHaveBeenCalledWith(
-      'https://github.com/RAG-Consulting-LLC/unemployment-burndown/issues/new',
-      '_blank',
-      'noopener,noreferrer',
-    )
+    await waitFor(() => {
+      expect(screen.getByTestId('feedback-error')).toBeTruthy()
+    })
+
+    expect(screen.getByText('Feedback service is not configured')).toBeTruthy()
   })
 })
