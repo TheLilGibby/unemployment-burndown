@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback } from 'react'
 
 const CommentsContext = createContext(null)
 
-export function CommentsProvider({ children, comments, onCommentsChange, people, defaultPersonId, onDefaultPersonChange }) {
+export function CommentsProvider({ children, comments, onCommentsChange, user }) {
   const [open, setOpen] = useState(false)
   const [activeItem, setActiveItem] = useState({ id: null, label: '' })
 
@@ -21,11 +21,12 @@ export function CommentsProvider({ children, comments, onCommentsChange, people,
   }
 
   function addComment(itemId, text) {
-    if (!text.trim()) return
+    if (!text.trim() || !user) return
     const newComment = {
       id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       text: text.trim(),
-      authorPersonId: defaultPersonId,
+      authorEmail: user.email,
+      authorUserId: user.userId,
       timestamp: new Date().toISOString(),
       replies: [],
     }
@@ -36,11 +37,12 @@ export function CommentsProvider({ children, comments, onCommentsChange, people,
   }
 
   function addReply(itemId, commentId, text) {
-    if (!text.trim()) return
+    if (!text.trim() || !user) return
     const newReply = {
       id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       text: text.trim(),
-      authorPersonId: defaultPersonId,
+      authorEmail: user.email,
+      authorUserId: user.userId,
       timestamp: new Date().toISOString(),
     }
     onCommentsChange({
@@ -76,8 +78,7 @@ export function CommentsProvider({ children, comments, onCommentsChange, people,
       open, activeItem,
       openComments, closeComments,
       commentCount, addComment, addReply, deleteComment, deleteReply,
-      comments,
-      people, defaultPersonId, onDefaultPersonChange,
+      comments, user,
     }}>
       {children}
     </CommentsContext.Provider>

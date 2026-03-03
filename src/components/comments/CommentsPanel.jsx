@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useComments } from '../../context/CommentsContext'
 
-// ── Color helpers (same as PeopleManager) ─────────────────────────────────
+// ── Color helpers ────────────────────────────────────────────────────────
 const COLOR_CLASSES = {
   blue:    'bg-blue-500',
   purple:  'bg-purple-500',
@@ -13,6 +13,15 @@ const COLOR_CLASSES = {
 
 function getInitials(name = '') {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+}
+
+function getEmailInitials(email = '') {
+  const local = email.split('@')[0]
+  return local.slice(0, 2).toUpperCase() || '?'
+}
+
+function getDisplayName(email = '') {
+  return email.split('@')[0]
 }
 
 function relTime(iso) {
@@ -29,39 +38,35 @@ function relTime(iso) {
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────────
-function Avatar({ personId, people, size = 7 }) {
-  const person = people.find(p => p.id === personId)
+function UserAvatar({ email, color, size = 7 }) {
   const sizeClass = size === 6 ? 'w-6 h-6 text-[9px]' : 'w-7 h-7 text-xs'
-  if (!person) {
-    return (
-      <div className={`${sizeClass} rounded-full bg-gray-600 flex items-center justify-center font-bold text-gray-400 flex-shrink-0`}>
-        ?
-      </div>
-    )
-  }
+  const bgClass = COLOR_CLASSES[color] ?? 'bg-blue-500'
   return (
     <div
-      className={`${sizeClass} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 ${COLOR_CLASSES[person.color] ?? 'bg-gray-500'}`}
-      title={person.name}
+      className={`${sizeClass} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 ${bgClass}`}
+      title={email}
     >
-      {getInitials(person.name)}
+      {getEmailInitials(email)}
     </div>
   )
 }
 
 // ── Reply row ──────────────────────────────────────────────────────────────
-function ReplyRow({ reply, people, itemId, commentId, defaultPersonId }) {
+function ReplyRow({ reply, itemId, commentId, currentUser }) {
   const { deleteReply } = useComments()
-  const isOwn = reply.authorPersonId === defaultPersonId || defaultPersonId === null
-  const person = people.find(p => p.id === reply.authorPersonId)
+  const isOwn = reply.authorUserId === currentUser?.userId || reply.authorEmail === currentUser?.email
 
   return (
     <div className="flex gap-2 pl-3 border-l-2 border-blue-500/20 group">
-      <Avatar personId={reply.authorPersonId} people={people} size={6} />
+      <UserAvatar
+        email={reply.authorEmail || '?'}
+        color={reply.authorUserId === currentUser?.userId ? currentUser?.profileColor : 'blue'}
+        size={6}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5 flex-wrap">
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {person?.name ?? 'Unknown'}
+            {reply.authorEmail ? getDisplayName(reply.authorEmail) : 'Unknown'}
           </span>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{relTime(reply.timestamp)}</span>
         </div>
@@ -86,14 +91,13 @@ function ReplyRow({ reply, people, itemId, commentId, defaultPersonId }) {
 }
 
 // ── Comment row ────────────────────────────────────────────────────────────
-function CommentRow({ comment, people, itemId, defaultPersonId }) {
+function CommentRow({ comment, itemId, currentUser }) {
   const { addReply, deleteComment } = useComments()
   const [replyOpen, setReplyOpen] = useState(false)
   const [replyText, setReplyText] = useState('')
   const replyRef = useRef(null)
 
-  const person = people.find(p => p.id === comment.authorPersonId)
-  const isOwn = comment.authorPersonId === defaultPersonId || defaultPersonId === null
+  const isOwn = comment.authorUserId === currentUser?.userId || comment.authorEmail === currentUser?.email
 
   function submitReply() {
     if (!replyText.trim()) return
@@ -118,11 +122,14 @@ function CommentRow({ comment, people, itemId, defaultPersonId }) {
     >
       {/* Top: avatar + author + time + delete */}
       <div className="flex items-start gap-2">
-        <Avatar personId={comment.authorPersonId} people={people} />
+        <UserAvatar
+          email={comment.authorEmail || '?'}
+          color={isOwn ? currentUser?.profileColor : 'blue'}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {person?.name ?? 'Unknown'}
+              {comment.authorEmail ? getDisplayName(comment.authorEmail) : 'Unknown'}
             </span>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{relTime(comment.timestamp)}</span>
           </div>
@@ -151,10 +158,9 @@ function CommentRow({ comment, people, itemId, defaultPersonId }) {
             <ReplyRow
               key={reply.id}
               reply={reply}
-              people={people}
               itemId={itemId}
               commentId={comment.id}
-              defaultPersonId={defaultPersonId}
+              currentUser={currentUser}
             />
           ))}
         </div>
@@ -163,7 +169,7 @@ function CommentRow({ comment, people, itemId, defaultPersonId }) {
       {/* Reply input */}
       {replyOpen ? (
         <div className="flex gap-2 items-start ml-1">
-          <Avatar personId={defaultPersonId} people={people} size={6} />
+          <UserAvatar email={currentUser?.email || '?'} color={currentUser?.profileColor} size={6} />
           <div className="flex-1 flex gap-1">
             <input
               ref={replyRef}
@@ -214,8 +220,7 @@ function CommentRow({ comment, people, itemId, defaultPersonId }) {
 export default function CommentsPanel() {
   const {
     open, activeItem, closeComments,
-    comments, addComment,
-    people, defaultPersonId, onDefaultPersonChange,
+    comments, addComment, user,
   } = useComments()
 
   const [text, setText] = useState('')
@@ -250,7 +255,6 @@ export default function CommentsPanel() {
 
   if (!open) return null
 
-  const currentPerson = people.find(p => p.id === defaultPersonId)
   const totalCount = itemComments.reduce((s, c) => s + 1 + (c.replies?.length || 0), 0)
 
   return (
@@ -303,49 +307,6 @@ export default function CommentsPanel() {
           </button>
         </div>
 
-        {/* "Commenting as" bar */}
-        <div
-          className="flex items-center gap-2 px-4 py-2 flex-shrink-0"
-          style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-input)' }}
-        >
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Commenting as:</span>
-          {people.length === 0 ? (
-            <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No household members — add people first</span>
-          ) : (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {people.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => onDefaultPersonChange(p.id)}
-                  title={`Comment as ${p.name}`}
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-all"
-                  style={{
-                    background: defaultPersonId === p.id
-                      ? `color-mix(in srgb, var(--accent-blue) 20%, transparent)`
-                      : 'transparent',
-                    border: defaultPersonId === p.id
-                      ? '1px solid color-mix(in srgb, var(--accent-blue) 50%, transparent)'
-                      : '1px solid transparent',
-                    color: defaultPersonId === p.id ? 'var(--text-primary)' : 'var(--text-muted)',
-                  }}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${COLOR_CLASSES[p.color] ?? 'bg-gray-500'}`}
-                  >
-                    {getInitials(p.name)}
-                  </span>
-                  {p.name}
-                  {defaultPersonId === p.id && (
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M2 6l3 3 5-5" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Comment list */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {itemComments.length === 0 ? (
@@ -364,9 +325,8 @@ export default function CommentsPanel() {
               <CommentRow
                 key={comment.id}
                 comment={comment}
-                people={people}
                 itemId={activeItem.id}
-                defaultPersonId={defaultPersonId}
+                currentUser={user}
               />
             ))
           )}
@@ -377,15 +337,11 @@ export default function CommentsPanel() {
           className="flex-shrink-0 px-4 py-3 space-y-2"
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
-          {currentPerson && (
+          {user && (
             <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 ${COLOR_CLASSES[currentPerson.color] ?? 'bg-gray-500'}`}
-              >
-                {getInitials(currentPerson.name)}
-              </span>
+              <UserAvatar email={user.email} color={user.profileColor} size={6} />
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {currentPerson.name}
+                {getDisplayName(user.email)}
               </span>
             </div>
           )}
@@ -397,13 +353,11 @@ export default function CommentsPanel() {
               onKeyDown={handleKey}
               rows={2}
               placeholder={
-                people.length === 0
-                  ? 'Add household members to comment…'
-                  : !defaultPersonId
-                  ? 'Select who you are above, then write a comment…'
+                !user
+                  ? 'Sign in to comment…'
                   : 'Add a comment… (Enter to send, Shift+Enter for new line)'
               }
-              disabled={people.length === 0 || !defaultPersonId}
+              disabled={!user}
               className="flex-1 text-sm px-3 py-2 rounded-xl resize-none outline-none disabled:opacity-40"
               style={{
                 background: 'var(--bg-input)',
@@ -416,7 +370,7 @@ export default function CommentsPanel() {
             />
             <button
               onClick={submit}
-              disabled={!text.trim() || !defaultPersonId}
+              disabled={!text.trim() || !user}
               className="px-3 py-2 rounded-xl text-sm font-medium transition-opacity disabled:opacity-40 flex-shrink-0"
               style={{ background: 'var(--accent-blue)', color: '#fff' }}
               title="Send comment (Enter)"
