@@ -63,6 +63,7 @@ export const DEFAULTS = {
     dismissedIds: [],
     mutedUntil: null,
   },
+  transactionLinks: {},
   plaidMeta: {},
   jobScenarios: [],
   retirement: {

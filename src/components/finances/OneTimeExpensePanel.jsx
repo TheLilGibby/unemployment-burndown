@@ -4,6 +4,7 @@ import { useDragReorder } from '../../hooks/useDragReorder'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
+import TransactionLinkButton from '../linking/TransactionLinkButton'
 import CurrencyInput from './CurrencyInput'
 
 function TrashIcon() {
@@ -14,7 +15,7 @@ function TrashIcon() {
   )
 }
 
-export default function OneTimeExpensePanel({ expenses, onChange, people = [], filterPersonId = null }) {
+export default function OneTimeExpensePanel({ expenses, onChange, people = [], filterPersonId = null, allTransactions = [], transactionLinks = {}, onOpenTransactionLookup }) {
   // Note: one-time expenses support manual drag reorder (overrides date sort for display)
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(expenses, onChange)
 
@@ -34,6 +35,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
   }
 
   const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+  const showLinkCol = allTransactions.length > 0 || Object.keys(transactionLinks).some(k => k.startsWith('ote_'))
 
   return (
     <div className="space-y-3">
@@ -46,7 +48,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
           {/* Column headers — desktop only */}
           <div
             className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 130px 110px 32px 32px 32px' }}
+            style={{ gridTemplateColumns: showLinkCol ? '20px 1fr 130px 110px 32px 32px 32px 32px' : '20px 1fr 130px 110px 32px 32px 32px' }}
           >
             <span></span>
             <span>Description</span>
@@ -54,6 +56,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
             <span>Amount</span>
             <span></span>
             <span></span>
+            {showLinkCol && <span></span>}
             <span></span>
           </div>
 
@@ -61,6 +64,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
           <div className="space-y-2">
             {expenses.map(expense => {
               const dimmed = filterPersonId && !matchesPersonFilter(expense.assignedTo, filterPersonId)
+              const overviewKey = `ote_${expense.id}`
               return (
               <div
                 key={expense.id}
@@ -89,7 +93,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
                     placeholder="Description"
                   />
                 </div>
-                {/* Subrow 2: date · amount · assignee · trash */}
+                {/* Subrow 2: date · amount · assignee · comment · link · trash */}
                 <div className="flex items-center gap-2 sm:contents">
                   <input
                     type="date"
@@ -111,7 +115,16 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
                     value={expense.assignedTo ?? null}
                     onChange={val => updateExpense(expense.id, 'assignedTo', val)}
                   />
-                  <CommentButton itemId={`ote_${expense.id}`} label={expense.description || 'One-Time Expense'} />
+                  <CommentButton itemId={overviewKey} label={expense.description || 'One-Time Expense'} />
+                  {showLinkCol && (
+                    <TransactionLinkButton
+                      overviewKey={overviewKey}
+                      overviewItem={expense}
+                      linkedTransactions={transactionLinks[overviewKey] || []}
+                      allTransactions={allTransactions}
+                      onOpenLookup={onOpenTransactionLookup}
+                    />
+                  )}
                   <button
                     onClick={() => deleteExpense(expense.id)}
                     className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
@@ -146,7 +159,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
       )}
 
       <p className="text-xs text-gray-600">
-        One-time expenses are deducted on their specific date. Drag <span className="text-gray-500">⠿</span> to reorder.
+        One-time expenses are deducted on their specific date. Drag <span className="text-gray-500">&#x2800;&#x283F;</span> to reorder.
       </p>
     </div>
   )

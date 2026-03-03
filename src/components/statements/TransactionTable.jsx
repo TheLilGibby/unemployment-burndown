@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2 } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
 
-export default function TransactionTable({ transactions = [] }) {
+export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [filterCategory, setFilterCategory] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+
+  const hasLinking = !!onOpenLinkModal
 
   const sorted = useMemo(() => {
     let filtered = transactions
@@ -124,11 +126,20 @@ export default function TransactionTable({ transactions = [] }) {
               >
                 Amount <SortIcon field="amount" />
               </th>
+              {hasLinking && (
+                <th
+                  className="px-2 py-2 text-center"
+                  style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: 40 }}
+                >
+                  <Link2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {sorted.slice(0, 100).map((txn, i) => {
               const cat = STATEMENT_CATEGORIES.find(c => c.key === txn.category)
+              const linkedKey = hasLinking && txnToOverviewMap ? txnToOverviewMap[txn.id] : null
               return (
                 <tr
                   key={txn.id || i}
@@ -165,6 +176,21 @@ export default function TransactionTable({ transactions = [] }) {
                   >
                     {txn.amount < 0 ? '-' : ''}{formatCurrency(Math.abs(txn.amount))}
                   </td>
+                  {hasLinking && (
+                    <td className="px-2 py-2 text-center" style={{ width: 40 }}>
+                      <button
+                        onClick={() => onOpenLinkModal(txn)}
+                        title={linkedKey ? 'Linked — click to manage' : 'Link to overview item'}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors"
+                        style={{
+                          color: linkedKey ? 'var(--accent-blue)' : 'var(--text-muted)',
+                          background: linkedKey ? 'color-mix(in srgb, var(--accent-blue) 12%, transparent)' : 'transparent',
+                        }}
+                      >
+                        <Link2 size={13} strokeWidth={linkedKey ? 2.2 : 1.5} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               )
             })}

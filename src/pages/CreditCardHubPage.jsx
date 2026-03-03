@@ -9,13 +9,21 @@ import TransactionTable from '../components/statements/TransactionTable'
 import StatementImportStatus from '../components/statements/StatementImportStatus'
 import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
+import TransactionLinkModal from '../components/linking/TransactionLinkModal'
 
-export default function CreditCardHubPage({ creditCards, people = [], plaid, savingsAccounts = [], onCreditCardsChange, onSavingsChange, user }) {
+export default function CreditCardHubPage({
+  creditCards, people = [], plaid, savingsAccounts = [],
+  onCreditCardsChange, onSavingsChange, user,
+  oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
+  transactionLinks = {}, onLinkTransaction, onUnlinkTransaction,
+  onAllTransactionsChange,
+}) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
   const [selectedCardId, setSelectedCardId] = useState(
     initialCardId ? Number(initialCardId) : null
   )
+  const [linkModalTxn, setLinkModalTxn] = useState(null)
 
   const { index, statements, loading, error, loadStatement, refreshIndex } = useStatementStorage()
 
@@ -52,6 +60,37 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
     return txns
   }, [index, statements, selectedCardId])
 
+  // Collect ALL transactions across all accounts (unfiltered, for linking)
+  const allTransactionsUnfiltered = useMemo(() => {
+    const txns = []
+    for (const stmtMeta of (index?.statements || [])) {
+      const full = statements[stmtMeta.id]
+      if (!full?.transactions) continue
+      for (const txn of full.transactions) {
+        txns.push({ ...txn, cardId: full.cardId })
+      }
+    }
+    return txns
+  }, [index, statements])
+
+  // Propagate allTransactions to parent for overview usage
+  useEffect(() => {
+    if (onAllTransactionsChange && allTransactionsUnfiltered.length > 0) {
+      onAllTransactionsChange(allTransactionsUnfiltered)
+    }
+  }, [allTransactionsUnfiltered]) // eslint-disable-line
+
+  // Reverse-lookup map: transactionId → overviewKey
+  const txnToOverviewMap = useMemo(() => {
+    const map = {}
+    for (const [overviewKey, links] of Object.entries(transactionLinks)) {
+      for (const link of links) {
+        map[link.transactionId] = overviewKey
+      }
+    }
+    return map
+  }, [transactionLinks])
+
   // Build unified account list: credit cards + Plaid-linked bank accounts with statements
   const allAccounts = useMemo(() => {
     const accounts = [...creditCards]
@@ -78,6 +117,8 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
 
   // Show skeleton while statement index is loading
   if (loading && !index) return <CreditCardHubSkeleton />
+
+  const hasOneTimeItems = oneTimePurchases.length > 0 || oneTimeExpenses.length > 0 || oneTimeIncome.length > 0
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
@@ -206,8 +247,34 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
 
       {/* Transaction table */}
       <SectionCard title="Transactions">
-        <TransactionTable transactions={allTransactions} />
+        <TransactionTable
+          transactions={allTransactions}
+          txnToOverviewMap={hasOneTimeItems ? txnToOverviewMap : undefined}
+          onOpenLinkModal={hasOneTimeItems ? setLinkModalTxn : undefined}
+        />
       </SectionCard>
+
+      {/* Transaction link modal */}
+      {linkModalTxn && (
+        <TransactionLinkModal
+          open={true}
+          transaction={linkModalTxn}
+          oneTimePurchases={oneTimePurchases}
+          oneTimeExpenses={oneTimeExpenses}
+          oneTimeIncome={oneTimeIncome}
+          transactionLinks={transactionLinks}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={(overviewKey, txn) => {
+            onLinkTransaction(overviewKey, txn)
+            setLinkModalTxn(null)
+          }}
+          onUnlink={(overviewKey, txnId) => {
+            onUnlinkTransaction(overviewKey, txnId)
+            setLinkModalTxn(null)
+          }}
+          onClose={() => setLinkModalTxn(null)}
+        />
+      )}
 
       <p className="text-center text-xs text-faint pb-4">
         Statement data is stored separately and loaded on demand from S3.
