@@ -200,6 +200,21 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
       const ctx = canvas.getContext('2d')
       if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
     }
+    img.onerror = () => {
+      console.error('[BugDropWidget] Failed to load screenshot data URL into canvas')
+      const canvas = canvasRef.current
+      if (!canvas) return
+      canvas.width = 900
+      canvas.height = 500
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.fillStyle = '#f3f4f6'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = '#9ca3af'
+      ctx.font = 'bold 16px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Screenshot unavailable — annotate or describe your issue below', canvas.width / 2, canvas.height / 2)
+    }
     img.src = screenshotUrl
   }, [screenshotUrl])
 
