@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import dayjs from 'dayjs'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { formatCurrency, formatMonths } from '../../utils/formatters'
 import { US_STATES, getStateTaxRate, computeMonthlyTakeHome, computeAllocationAmount, computeMinimumGrossSalary } from '../../utils/stateTaxRates'
 import CurrencyInput from '../finances/CurrencyInput'
@@ -131,10 +132,12 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
               className="w-full text-left px-5 py-3 flex items-center gap-3 transition-colors rounded-xl"
               style={{ cursor: 'pointer' }}
             >
-              <span
-                className="flex-shrink-0 text-xs"
-                style={{ color: 'var(--text-muted)', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-              >&#9654;</span>
+              <ChevronRight
+                size={14}
+                strokeWidth={2.5}
+                className="flex-shrink-0 transition-transform duration-200"
+                style={{ color: 'var(--text-muted)', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              />
               <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
               <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
               <span className="flex-shrink-0 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -204,7 +207,7 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                 <select
                   value={s.usState || ''}
                   onChange={e => handleStateChange(s.id, s, e.target.value)}
-                  className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                  className="w-full text-sm rounded px-2 py-1.5 pr-7 focus:outline-none themed-select"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 >
                   <option value="">Select state...</option>
@@ -356,7 +359,12 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                 className="flex items-center gap-1.5 text-xs font-medium w-full"
                 style={{ color: 'var(--text-muted)' }}
               >
-                <span style={{ display: 'inline-block', transform: showCompPkg[s.id] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+                <ChevronRight
+                  size={12}
+                  strokeWidth={2.5}
+                  className="transition-transform duration-200"
+                  style={{ transform: showCompPkg[s.id] ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                />
                 Compensation Package
                 {(s.signingBonus > 0 || s.annualBonusPct > 0 || s.employerBenefitsMonthly > 0 ||
                   s.employer401kMatchPct > 0 || s.equityAnnual > 0 || s.commuteMonthly > 0) && (
@@ -577,7 +585,7 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
                   setNewState(e.target.value)
                   setNewTaxRate(getStateTaxRate(e.target.value))
                 }}
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
+                className="w-full text-sm rounded px-2 py-1.5 pr-7 focus:outline-none themed-select"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
               >
                 <option value="">Select state...</option>
@@ -635,7 +643,12 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
               className="flex items-center gap-1.5 text-xs font-medium w-full"
               style={{ color: 'var(--text-muted)' }}
             >
-              <span style={{ display: 'inline-block', transform: showNewCompPkg ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+              <ChevronRight
+                size={12}
+                strokeWidth={2.5}
+                className="transition-transform duration-200"
+                style={{ transform: showNewCompPkg ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              />
               Compensation Package
               {(newSigningBonus > 0 || newAnnualBonusPct > 0 || newBenefitsMonthly > 0 ||
                 newEmployerMatch > 0 || newEquityAnnual > 0 || newCommuteMonthly > 0) && (
