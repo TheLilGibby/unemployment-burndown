@@ -23,6 +23,7 @@ import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import { useS3Storage } from './hooks/useS3Storage'
+import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { CommentsProvider } from './context/CommentsContext'
@@ -376,7 +377,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const dirtySections = useRef(new Set())
 
   const s3Storage = useS3Storage()
+  const snapshots = useSnapshots()
   const [dataReady, setDataReady] = useState(false)
+  const [historicalDate, setHistoricalDate] = useState(null)
+  const [historicalSnapshot, setHistoricalSnapshot] = useState(null)
 
   // Plaid integration — auto-updates savings & credit card balances from bank data
   const handlePlaidSync = (updatedFullState) => {
@@ -459,6 +463,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       s3Storage.save(buildFullState())
+      snapshots.saveSnapshot(buildSnapshot()) // idempotent — server only writes once per day
       if (dirtySections.current.size > 0) {
         addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
         dirtySections.current.clear()
@@ -709,6 +714,54 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     )
     return results
   }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, oneTimePurchases, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
+
+  // Compute burndown for a historical snapshot so users can compare past projections
+  const historicalBurndown = useMemo(() => {
+    if (!historicalSnapshot || !historicalDate) return null
+    const s = historicalSnapshot
+    const hSavings = (s.savingsAccounts || [])
+      .filter(a => a.active !== false)
+      .reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
+    const hAssetProceeds = (s.assets || [])
+      .filter(a => a.includedInWhatIf)
+      .reduce((sum, a) => sum + (Number(a.estimatedValue) || 0), 0)
+    const hExpenses = [
+      ...(s.expenses || []),
+      ...(s.subscriptions || [])
+        .filter(sub => sub.active !== false)
+        .map(sub => ({ id: `sub_${sub.id}`, category: sub.name, monthlyAmount: sub.monthlyAmount, essential: false })),
+      ...(s.creditCards || [])
+        .filter(c => (Number(c.minimumPayment) || 0) > 0)
+        .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+    ]
+    const hWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
+    const hUnemployment = s.unemployment || DEFAULTS.unemployment
+    const hInvestments  = s.investments  || []
+    const hOneTime      = s.oneTimeExpenses || []
+    const hOneTimeIncome = s.oneTimeIncome || []
+    const hMonthlyIncome = s.monthlyIncome || []
+    const hJobs = s.jobs || []
+    const hOneTimePurchases = s.oneTimePurchases || []
+    return computeBurndown(
+      hSavings, hUnemployment, hExpenses, hWhatIf,
+      hOneTime, hAssetProceeds, hInvestments,
+      hOneTimeIncome, hMonthlyIncome, historicalDate,
+      hJobs, hOneTimePurchases
+    )
+  }, [historicalSnapshot, historicalDate])
+
+  const handleHistoricalDateSelect = async (date) => {
+    if (!date) {
+      setHistoricalDate(null)
+      setHistoricalSnapshot(null)
+      return
+    }
+    const data = await snapshots.loadSnapshot(date)
+    if (data?.state) {
+      setHistoricalDate(date)
+      setHistoricalSnapshot(data.state)
+    }
+  }
 
   const hasWhatIf =
     whatIf.expenseReductionPct > 0 ||
@@ -1005,6 +1058,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 txnToOverviewMap={txnToOverviewMap}
                 onLinkTransaction={handleLinkTransaction}
                 onUnlinkTransaction={handleUnlinkTransaction}
+                snapshots={snapshots}
+                historicalDate={historicalDate}
+                historicalBurndown={historicalBurndown}
+                onHistoricalDateSelect={handleHistoricalDateSelect}
               />
             </ErrorBoundary>
           </>
@@ -1018,6 +1075,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             savingsAccounts={savingsAccounts}
             onCreditCardsChange={onCreditCardsChange}
             onSavingsChange={onSavingsChange}
+            user={user}
             oneTimePurchases={oneTimePurchases}
             oneTimeExpenses={oneTimeExpenses}
             oneTimeIncome={oneTimeIncome}

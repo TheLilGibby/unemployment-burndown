@@ -71,6 +71,11 @@ export default function BurndownPage({
   txnToOverviewMap = {},
   onLinkTransaction,
   onUnlinkTransaction,
+  // Historical snapshot comparison
+  snapshots,
+  historicalDate,
+  historicalBurndown,
+  onHistoricalDateSelect,
 }) {
   const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
 
@@ -106,6 +111,11 @@ export default function BurndownPage({
         creditCards={creditCards}
         investments={investments}
         monthlyBenefits={current.monthlyBenefits}
+        availableDates={snapshots?.availableDates || []}
+        selectedHistoricalDate={historicalDate}
+        historicalBurndown={historicalBurndown}
+        snapshotLoading={snapshots?.snapshotLoading || false}
+        onHistoricalDateSelect={onHistoricalDateSelect}
       />
 
       {/* Jobs / Employment */}

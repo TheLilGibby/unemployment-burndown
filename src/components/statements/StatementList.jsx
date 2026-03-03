@@ -1,5 +1,6 @@
-import { FileText, Landmark } from 'lucide-react'
+import { Landmark } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
+import { PROFILE_COLORS } from '../profile/ProfileBubble'
 
 const COLOR_MAP = {
   blue:    '#3b82f6',
@@ -20,7 +21,6 @@ function getInitials(name) {
 }
 
 function PersonAvatar({ person }) {
-  if (!person) return <FileText size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
   const bg = COLOR_MAP[person.color] ?? '#6b7280'
   return (
     <div
@@ -33,7 +33,24 @@ function PersonAvatar({ person }) {
   )
 }
 
-export default function StatementList({ statementIndex, creditCards, savingsAccounts = [], people = [], selectedCardId, onLoadStatement }) {
+function UserBadge({ user }) {
+  const color = PROFILE_COLORS[user?.profileColor] || PROFILE_COLORS.blue
+  const initials = user?.email ? user.email[0].toUpperCase() : '?'
+  const avatar = user?.avatarDataUrl
+  return (
+    <div
+      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 overflow-hidden"
+      style={{ border: `2px solid ${color}`, background: avatar ? 'none' : color + '22', color }}
+      title="Your account"
+    >
+      {avatar
+        ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials}
+    </div>
+  )
+}
+
+export default function StatementList({ statementIndex, creditCards, savingsAccounts = [], people = [], selectedCardId, onLoadStatement, user }) {
   const stmts = (statementIndex?.statements || [])
     .filter(s => selectedCardId === null || s.cardId === selectedCardId)
     .sort((a, b) => (b.closingDate || '').localeCompare(a.closingDate || ''))
@@ -83,7 +100,7 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
               ) : isPlaid && stmt.accountType === 'depository' ? (
                 <Landmark size={18} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
               ) : (
-                <PersonAvatar person={null} />
+                <UserBadge user={user} />
               )}
               <div className="text-left min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>

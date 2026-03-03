@@ -13,7 +13,7 @@ import TransactionLinkModal from '../components/linking/TransactionLinkModal'
 
 export default function CreditCardHubPage({
   creditCards, people = [], plaid, savingsAccounts = [],
-  onCreditCardsChange, onSavingsChange,
+  onCreditCardsChange, onSavingsChange, user,
   oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
   transactionLinks = {}, onLinkTransaction, onUnlinkTransaction,
   onAllTransactionsChange,
@@ -123,14 +123,32 @@ export default function CreditCardHubPage({
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
-      {/* Page title */}
-      <div>
-        <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-          Transaction Hub
-        </h2>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+      {/* Hero banner — mirrors RunwayBanner / JobScenariosPage structure */}
+      <div className="theme-card rounded-xl border p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-block w-2 h-2 rounded-full" style={{ background: 'var(--accent-blue)' }} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Transaction Hub
+          </h2>
+        </div>
+
+        <p className="text-2xl sm:text-3xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+          {allAccounts.length} {allAccounts.length === 1 ? 'Account' : 'Accounts'}
+        </p>
+        <p className="text-sm mt-1 mb-5" style={{ color: 'var(--text-muted)' }}>
           Unified view of spending across all your accounts
         </p>
+
+        <div className="flex flex-wrap gap-6 sm:gap-10 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Statements</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--accent-blue)' }}>{index?.statements?.length || 0}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Transactions</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{allTransactions.length}</p>
+          </div>
+        </div>
       </div>
 
       {/* Plaid connection bar */}
@@ -193,6 +211,7 @@ export default function CreditCardHubPage({
             onCreditCardsChange={onCreditCardsChange}
             onSavingsChange={onSavingsChange}
             onStatementsRefresh={refreshIndex}
+            user={user}
           />
         </SectionCard>
       ) : (
@@ -222,6 +241,7 @@ export default function CreditCardHubPage({
           people={people}
           selectedCardId={selectedCardId}
           onLoadStatement={loadStatement}
+          user={user}
         />
       </SectionCard>
 

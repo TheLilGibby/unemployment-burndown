@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { CreditCard, Landmark, Settings, X, Pencil, Check } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
+import { PROFILE_COLORS } from '../profile/ProfileBubble'
 
 const COLOR_MAP = {
   blue:    '#3b82f6',
@@ -9,6 +10,23 @@ const COLOR_MAP = {
   amber:   '#fbbf24',
   rose:    '#f43f5e',
   cyan:    '#06b6d4',
+}
+
+function UserBadge({ user }) {
+  const color = PROFILE_COLORS[user?.profileColor] || PROFILE_COLORS.blue
+  const initials = user?.email ? user.email[0].toUpperCase() : '?'
+  const avatar = user?.avatarDataUrl
+  return (
+    <div
+      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 overflow-hidden"
+      style={{ border: `2px solid ${color}`, background: avatar ? 'none' : color + '22', color }}
+      title="Your account"
+    >
+      {avatar
+        ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials}
+    </div>
+  )
 }
 
 function getInitials(name) {
@@ -29,7 +47,7 @@ function authHeaders() {
 
 export default function CardOverviewBanner({
   creditCards, savingsAccounts = [], statementIndex, selectedCardId, onSelectCard, people = [],
-  onCreditCardsChange, onSavingsChange, onStatementsRefresh,
+  onCreditCardsChange, onSavingsChange, onStatementsRefresh, user,
 }) {
   const [managing, setManaging] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
@@ -171,7 +189,7 @@ export default function CardOverviewBanner({
                 ) : item.isDepository ? (
                   <Landmark size={16} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
                 ) : (
-                  <CreditCard size={16} strokeWidth={1.75} />
+                  <UserBadge user={user} />
                 )}
                 <div className="text-left">
                   {isEditing ? (
