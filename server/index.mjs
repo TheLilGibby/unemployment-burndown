@@ -1549,43 +1549,14 @@ app.post('/api/feedback', async (req, res) => {
       return res.status(400).json({ error: 'Description is required' })
     }
 
-    // Upload screenshot to repo (best-effort)
-    let screenshotMd = ''
-    if (screenshot) {
-      try {
-        const base64 = screenshot.replace(/^data:image\/\w+;base64,/, '')
-        const ext = screenshot.startsWith('data:image/png') ? 'png' : 'jpg'
-        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-        const path = `.github/feedback-screenshots/${filename}`
-
-        const uploadRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/contents/${path}`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${githubToken}`,
-            Accept: 'application/vnd.github+json',
-            'Content-Type': 'application/json',
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
-          body: JSON.stringify({ message: `feedback screenshot: ${filename}`, content: base64 }),
-        })
-
-        if (uploadRes.ok) {
-          const data = await uploadRes.json()
-          screenshotMd = `\n\n![Screenshot](${data.content.download_url})`
-        } else {
-          req.log.warn({ status: uploadRes.status }, 'screenshot upload failed')
-        }
-      } catch (uploadErr) {
-        req.log.warn({ err: uploadErr }, 'screenshot upload error')
-      }
-    }
-
     // Always tag as external; add category-specific label
     const labels = ['external']
     if (category && FEEDBACK_LABEL_MAP[category]) labels.push(FEEDBACK_LABEL_MAP[category])
 
     const title = description.trim().slice(0, 100)
-    const issueBody = formatFeedbackBody(description.trim(), screenshotMd, metadata)
+
+    // Step 1: Create the issue WITHOUT screenshot (guarantees creation)
+    const issueBody = formatFeedbackBody(description.trim(), '', metadata)
 
     const ghRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/issues`, {
       method: 'POST',
@@ -1606,6 +1577,52 @@ app.post('/api/feedback', async (req, res) => {
 
     const issue = await ghRes.json()
     req.log.info({ issueNumber: issue.number }, 'feedback issue created')
+
+    // Step 2: If screenshot provided, upload and update the issue body
+    if (screenshot) {
+      try {
+        const base64 = screenshot.replace(/^data:image\/\w+;base64,/, '')
+        const ext = screenshot.startsWith('data:image/png') ? 'png' : 'jpg'
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+        const path = `.github/feedback-screenshots/${filename}`
+
+        const uploadRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/contents/${path}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${githubToken}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+          body: JSON.stringify({ message: `feedback screenshot: ${filename}`, content: base64 }),
+        })
+
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          const imageUrl = data.content?.download_url
+            || `https://raw.githubusercontent.com/${FEEDBACK_REPO}/main/${path}`
+          const screenshotMd = `\n\n![Screenshot](${imageUrl})`
+          const updatedBody = formatFeedbackBody(description.trim(), screenshotMd, metadata)
+
+          await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/issues/${issue.number}`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${githubToken}`,
+              Accept: 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+              'X-GitHub-Api-Version': '2022-11-28',
+            },
+            body: JSON.stringify({ body: updatedBody }),
+          })
+          req.log.info({ issueNumber: issue.number }, 'issue updated with screenshot')
+        } else {
+          req.log.warn({ status: uploadRes.status }, 'screenshot upload failed')
+        }
+      } catch (uploadErr) {
+        req.log.warn({ err: uploadErr }, 'screenshot upload error')
+      }
+    }
+
     res.json({ created: true, issueNumber: issue.number, url: issue.html_url })
   } catch (err) {
     req.log.error({ err }, 'feedback submission failed')
