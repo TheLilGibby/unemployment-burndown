@@ -1,6 +1,6 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { getPlaidItemsByUser, getPlaidItem, updateCursor } from '../lib/dynamo.mjs'
-import { readDataJson, writeDataJson } from '../lib/s3.mjs'
+import { readDataJson, writeDataJson, readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
@@ -199,6 +199,42 @@ export async function handler(event) {
     // Record cooldown for each synced item
     for (const item of items) {
       await recordSyncTime(item.itemId)
+    }
+
+    // ── Refresh accounts cache so /plaid/accounts never needs to call Plaid ──
+    // We already have the fresh account data from accountsGet() above; persist it.
+    // If only a subset of items was synced, we need to merge with the existing
+    // cached items for the items we didn't touch in this sync.
+    const syncedItemIds = new Set(items.map(i => i.itemId))
+    try {
+      const existing = await readAccountsCache(user.orgId)
+      const existingItems = (existing?.items || []).filter(ci => !syncedItemIds.has(ci.itemId))
+
+      // Build fresh entries for the items we just synced
+      const freshItems = itemSyncData.map(({ item, plaidAccounts }) => ({
+        itemId:          item.itemId,
+        institutionName: item.institutionName,
+        institutionId:   item.institutionId,
+        connectedBy:     item.connectedBy || null,
+        lastSync:        data.plaidMeta.lastSync,
+        accounts: plaidAccounts.map(acct => ({
+          id:               acct.account_id,
+          name:             acct.name,
+          officialName:     acct.official_name,
+          type:             acct.type,
+          subtype:          acct.subtype,
+          mask:             acct.mask,
+          currentBalance:   acct.balances.current,
+          availableBalance: acct.balances.available,
+          limit:            acct.balances.limit,
+        })),
+      }))
+
+      await writeAccountsCache(user.orgId, [...existingItems, ...freshItems])
+    } catch (cacheErr) {
+      // Non-fatal: cache write failure shouldn't abort the sync response
+      const log = createRequestLogger('sync', event)
+      log.warn({ err: cacheErr }, 'failed to update accounts cache after sync')
     }
 
     return ok({

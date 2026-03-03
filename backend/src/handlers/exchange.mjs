@@ -1,5 +1,6 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
 import { putPlaidItem } from '../lib/dynamo.mjs'
+import { readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
@@ -77,6 +78,25 @@ export async function handler(event) {
       limit:          acct.balances.limit,
       isoCurrencyCode: acct.balances.iso_currency_code,
     }))
+
+    // ── Update accounts cache so /plaid/accounts stays free ──
+    // Merge the new item into any existing cached items for this org.
+    try {
+      const existing = await readAccountsCache(userId)
+      const otherItems = (existing?.items || []).filter(ci => ci.itemId !== item_id)
+      const newItem = {
+        itemId:          item_id,
+        institutionName,
+        institutionId,
+        connectedBy:     user.sub,
+        lastSync:        new Date().toISOString(),
+        accounts,
+      }
+      await writeAccountsCache(userId, [...otherItems, newItem])
+    } catch (cacheErr) {
+      const log = createRequestLogger('exchange', event)
+      log.warn({ err: cacheErr }, 'failed to update accounts cache after exchange')
+    }
 
     return ok({
       itemId: item_id,
