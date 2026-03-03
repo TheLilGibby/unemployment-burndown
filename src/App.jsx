@@ -375,6 +375,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const dirtySections = useRef(new Set())
 
   const s3Storage = useS3Storage()
+  const [dataReady, setDataReady] = useState(false)
 
   // Plaid integration — auto-updates savings & credit card balances from bank data
   const handlePlaidSync = (updatedFullState) => {
@@ -437,14 +438,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
   }
 
-  // When S3 storage loads data on mount, apply it
+  // When S3 storage loads data on mount, apply it.
+  // Mark dataReady once restore has been applied (or confirmed absent) so the
+  // page never renders with DEFAULTS before the real user data is in place.
   useEffect(() => {
     if (s3Storage.restoreData) {
       applyFullState(s3Storage.restoreData)
       s3Storage.clearRestoreData()
       addEntry('load', 'Data loaded from cloud')
+      setDataReady(true)
+    } else if (s3Storage.status === 'connected' || s3Storage.status === 'error') {
+      setDataReady(true)
     }
-  }, [s3Storage.restoreData]) // eslint-disable-line
+  }, [s3Storage.restoreData, s3Storage.status]) // eslint-disable-line
 
   // Auto-save to S3 on every state change (debounced 1.5 s)
   const autoSaveTimer = useRef(null)
@@ -788,9 +794,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         }
       />
 
+      {!dataReady ? <BurndownPageSkeleton /> :
       <Routes>
         <Route path="/" element={
-          s3Storage.status === 'loading' ? <BurndownPageSkeleton /> :
           <>
             <TableOfContents visibleSections={viewSettings.sections} />
             <div className="max-w-5xl mx-auto px-4 pt-4 flex items-center justify-between gap-3">
@@ -984,7 +990,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         )}
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes>}
     </div>
     </CommentsProvider>
     </NotificationsProvider>
