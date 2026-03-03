@@ -1,4 +1,5 @@
 import express from 'express'
+import http from 'node:http'
 import https from 'node:https'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -1518,17 +1519,22 @@ app.post('/api/feedback', async (req, res) => {
 
 const PORT = process.env.PLAID_SERVER_PORT || 3001
 
-// ── HTTPS with TLS 1.2+ ──
+// ── HTTPS with TLS 1.2+ (falls back to HTTP if openssl unavailable) ──
 const tlsCreds = getDevTlsCredentials()
-const server = https.createServer(
-  {
-    key: tlsCreds.key,
-    cert: tlsCreds.cert,
-    minVersion: 'TLSv1.2',
-  },
-  app,
-)
+const dataMode = { dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }
 
-server.listen(PORT, () => {
-  log.info({ port: PORT, tls: true, minTlsVersion: 'TLSv1.2', dataMode: USE_LOCAL_DATA ? 'local' : 's3', ...(USE_LOCAL_DATA ? { localDir: LOCAL_DATA_DIR } : { bucket: S3_BUCKET }) }, 'dev server started (HTTPS)')
-})
+let server
+if (tlsCreds) {
+  server = https.createServer(
+    { key: tlsCreds.key, cert: tlsCreds.cert, minVersion: 'TLSv1.2' },
+    app,
+  )
+  server.listen(PORT, () => {
+    log.info({ port: PORT, tls: true, minTlsVersion: 'TLSv1.2', ...dataMode }, 'dev server started (HTTPS)')
+  })
+} else {
+  server = http.createServer(app)
+  server.listen(PORT, () => {
+    log.info({ port: PORT, tls: false, ...dataMode }, 'dev server started (HTTP — openssl not found, TLS disabled)')
+  })
+}
