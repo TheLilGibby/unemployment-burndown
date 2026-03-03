@@ -1,5 +1,5 @@
 /**
- * Maps Plaid's personal_finance_category to the app's 14 statement categories.
+ * Maps Plaid's personal_finance_category to the app's statement categories.
  *
  * Plaid categories: https://plaid.com/docs/api/products/transactions/#transactionssync
  * App categories:   src/constants/categories.js
@@ -26,6 +26,7 @@ const PRIMARY_MAP = {
   BANK_FEES:                  'fees',
   ENTERTAINMENT:              'entertainment',
   RECREATION:                 'entertainment',
+  INVESTMENTS:                'investments',
 }
 
 const DETAILED_OVERRIDES = {
@@ -63,13 +64,16 @@ const DETAILED_OVERRIDES = {
   TRAVEL_FLIGHTS:                          'travel',
   TRAVEL_LODGING:                          'travel',
   TRAVEL_RENTAL_CARS:                      'travel',
+  INVESTMENTS_BROKERAGE:                   'investments_stocks',
+  INVESTMENTS_RETIREMENT:                  'investments_retirement',
+  INVESTMENTS_CRYPTO:                      'investments_crypto',
 }
 
 /**
  * Map a Plaid personal_finance_category object to one of the app's 14 category keys.
  *
  * @param {object|null} personalFinanceCategory  - { primary: string, detailed: string }
- * @returns {string} One of the app category keys (e.g. 'dining', 'groceries', 'gas', etc.)
+ * @returns {string} One of the app category keys (e.g. 'dining', 'groceries', 'investments_crypto', etc.)
  */
 export function mapPlaidCategory(personalFinanceCategory) {
   if (!personalFinanceCategory) return 'other'

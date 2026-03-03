@@ -10,7 +10,8 @@ const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240
 const CATEGORIES = [
   'dining', 'groceries', 'gas', 'travel', 'entertainment', 'shopping',
   'subscriptions', 'health', 'utilities', 'transportation', 'education',
-  'personalCare', 'fees', 'other',
+  'personalCare', 'fees', 'investments', 'investments_crypto',
+  'investments_retirement', 'investments_stocks', 'other',
 ]
 
 const SYSTEM_PROMPT = `You are a credit card statement parser. Given the raw text of a credit card statement (from an email body or PDF), extract structured data.
@@ -53,6 +54,10 @@ Category guidelines:
 - education: tuition, books, courses, school supplies
 - personalCare: salon, spa, cosmetics, clothing care
 - fees: late fees, annual fees, interest charges, finance charges
+- investments: general investment transactions
+- investments_crypto: cryptocurrency purchases, exchanges (Coinbase, Binance, etc.)
+- investments_retirement: 401k, IRA, pension contributions
+- investments_stocks: stock/ETF purchases, brokerage transactions (Fidelity, Schwab, etc.)
 - other: anything that doesn't fit above
 
 Important:

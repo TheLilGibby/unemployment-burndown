@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
 
 // Determine payment method label + color from transaction metadata
@@ -91,7 +91,16 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
 
   const usedCategories = useMemo(() => {
     const cats = new Set(transactions.map(t => t.category).filter(Boolean))
-    return STATEMENT_CATEGORIES.filter(c => cats.has(c.key))
+    const result = []
+    for (const c of STATEMENT_CATEGORIES) {
+      if (cats.has(c.key)) result.push(c)
+      if (c.subCategories) {
+        for (const sub of c.subCategories) {
+          if (cats.has(sub.key)) result.push(sub)
+        }
+      }
+    }
+    return result
   }, [transactions])
 
   const hasActiveFilters = filterCategory || filterAccount || searchTerm || minAmount || maxAmount
@@ -253,7 +262,7 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
           </thead>
           <tbody>
             {sorted.slice(0, 100).map((txn, i) => {
-              const cat = STATEMENT_CATEGORIES.find(c => c.key === txn.category)
+              const cat = findCategory(txn.category)
               const linkedKey = hasLinking && txnToOverviewMap ? txnToOverviewMap[txn.id] : null
               const payMethod = getPaymentMethod(txn)
               return (

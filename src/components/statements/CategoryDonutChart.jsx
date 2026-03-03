@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { ChevronRight } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
@@ -42,18 +42,19 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
   const [active, setActive] = useState(null)
 
   const slices = useMemo(() => {
+    // Group by parent category so sub-categories roll up into their parent slice
     const byCategory = {}
     for (const txn of transactions) {
       if (txn.amount <= 0) continue
-      const cat = txn.category || 'other'
-      if (!byCategory[cat]) byCategory[cat] = { total: 0, merchants: {} }
-      byCategory[cat].total += txn.amount
+      const parentKey = getParentCategoryKey(txn.category || 'other')
+      if (!byCategory[parentKey]) byCategory[parentKey] = { total: 0, merchants: {} }
+      byCategory[parentKey].total += txn.amount
       const merchant = txn.merchantName || txn.description || 'Unknown'
-      byCategory[cat].merchants[merchant] = (byCategory[cat].merchants[merchant] || 0) + txn.amount
+      byCategory[parentKey].merchants[merchant] = (byCategory[parentKey].merchants[merchant] || 0) + txn.amount
     }
 
     const raw = Object.entries(byCategory).map(([key, data]) => {
-      const cfg = STATEMENT_CATEGORIES.find(c => c.key === key) || { key, label: key, color: '#6b7280' }
+      const cfg = findCategory(key) || { key, label: key, color: '#6b7280' }
       const topItems = Object.entries(data.merchants)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 4)
