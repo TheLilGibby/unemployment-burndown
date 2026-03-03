@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
-import html2canvas from 'html2canvas'
+// html2canvas is loaded dynamically in handleOpen to reduce bundle size
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
@@ -25,6 +25,7 @@ export default function BugDropWidget() {
   const handleOpen = useCallback(async () => {
     setStep('capturing')
     try {
+      const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(document.body, {
         useCORS: true,
         logging: false,
