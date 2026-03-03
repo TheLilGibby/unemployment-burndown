@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+
+const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
 // ---------------------------------------------------------------------------
 // AWS service cost model based on actual infrastructure (template.yaml)
@@ -296,9 +298,324 @@ function ProjectionChart({ months }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Impersonation Panel — orgs & users with impersonate action
+// ---------------------------------------------------------------------------
+
+function ImpersonationPanel({ getToken, impersonate }) {
+  const [activeTab, setActiveTab] = useState('orgs')
+  const [orgs, setOrgs] = useState([])
+  const [allUsers, setAllUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [search, setSearch] = useState('')
+  const [expandedOrg, setExpandedOrg] = useState(null)
+  const [orgMembers, setOrgMembers] = useState({})
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const token = getToken()
+    try {
+      const endpoint = activeTab === 'orgs' ? '/api/admin/orgs' : '/api/admin/users'
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to load data')
+      const data = await res.json()
+      if (activeTab === 'orgs') {
+        setOrgs(data.orgs || [])
+      } else {
+        setAllUsers(data.users || [])
+      }
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [activeTab, getToken])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const toggleOrg = useCallback(async (orgId) => {
+    if (expandedOrg === orgId) {
+      setExpandedOrg(null)
+      return
+    }
+    setExpandedOrg(orgId)
+    if (!orgMembers[orgId]) {
+      const token = getToken()
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/orgs/${orgId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setOrgMembers(prev => ({ ...prev, [orgId]: data.members || [] }))
+        }
+      } catch { /* ignore */ }
+    }
+  }, [expandedOrg, orgMembers, getToken])
+
+  const handleImpersonate = useCallback(async (userId) => {
+    const ok = await impersonate(userId)
+    if (ok) {
+      window.location.href = '/'
+    }
+  }, [impersonate])
+
+  const filteredOrgs = orgs.filter(o =>
+    o.name.toLowerCase().includes(search.toLowerCase()) ||
+    o.orgId.toLowerCase().includes(search.toLowerCase()) ||
+    (o.ownerId || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const filteredUsers = allUsers.filter(u =>
+    u.email.toLowerCase().includes(search.toLowerCase()) ||
+    u.userId.toLowerCase().includes(search.toLowerCase()) ||
+    (u.orgId || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div>
+      {/* Sub-tabs: Orgs / Users */}
+      <div className="flex gap-1 mb-4">
+        <button
+          onClick={() => { setActiveTab('orgs'); setSearch('') }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+          style={{
+            background: activeTab === 'orgs' ? 'var(--accent-blue)' : 'transparent',
+            color: activeTab === 'orgs' ? '#fff' : 'var(--text-secondary)',
+            borderColor: activeTab === 'orgs' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+          }}
+        >
+          Organizations
+          {orgs.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full"
+              style={{ background: activeTab === 'orgs' ? 'rgba(255,255,255,0.2)' : 'var(--bg-input)', color: activeTab === 'orgs' ? '#fff' : 'var(--text-muted)' }}>
+              {orgs.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setActiveTab('users'); setSearch('') }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+          style={{
+            background: activeTab === 'users' ? 'var(--accent-blue)' : 'transparent',
+            color: activeTab === 'users' ? '#fff' : 'var(--text-secondary)',
+            borderColor: activeTab === 'users' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+          }}
+        >
+          Users
+          {allUsers.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full"
+              style={{ background: activeTab === 'users' ? 'rgba(255,255,255,0.2)' : 'var(--bg-input)', color: activeTab === 'users' ? '#fff' : 'var(--text-muted)' }}>
+              {allUsers.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={activeTab === 'orgs' ? 'Search organizations...' : 'Search users...'}
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+        />
+      </div>
+
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+        </div>
+      ) : error ? (
+        <div className="text-center py-16">
+          <p className="text-sm mb-3" style={{ color: '#ef4444' }}>{error}</p>
+          <button onClick={fetchData} className="text-xs font-medium" style={{ color: 'var(--accent-blue)' }}>Retry</button>
+        </div>
+      ) : activeTab === 'orgs' ? (
+        <ImpersonationOrgsTable
+          orgs={filteredOrgs}
+          expandedOrg={expandedOrg}
+          orgMembers={orgMembers}
+          onToggle={toggleOrg}
+          onImpersonate={handleImpersonate}
+        />
+      ) : (
+        <ImpersonationUsersTable users={filteredUsers} onImpersonate={handleImpersonate} />
+      )}
+    </div>
+  )
+}
+
+function ImpersonationOrgsTable({ orgs, expandedOrg, orgMembers, onToggle, onImpersonate }) {
+  if (orgs.length === 0) {
+    return <div className="text-center py-16 text-sm" style={{ color: 'var(--text-muted)' }}>No organizations found</div>
+  }
+
+  return (
+    <div className="space-y-2">
+      {orgs.map(org => (
+        <div key={org.orgId} className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <button
+            onClick={() => onToggle(org.orgId)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-input)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--accent-blue)' }}>
+                  <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{org.name}</div>
+                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {org.orgId} &middot; Owner: {org.ownerId}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {org.memberCount} {org.memberCount === 1 ? 'member' : 'members'}
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className="transition-transform" style={{ color: 'var(--text-muted)', transform: expandedOrg === org.orgId ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {expandedOrg === org.orgId && (
+            <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+              {orgMembers[org.orgId] ? (
+                <div className="space-y-1">
+                  {orgMembers[org.orgId].map(member => (
+                    <div key={member.userId} className="flex items-center justify-between py-2 px-3 rounded-lg transition-colors"
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium"
+                          style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+                          {(member.email || member.userId).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{member.email}</div>
+                          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            {member.role} &middot; Joined {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onImpersonate(member.userId)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors"
+                        style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                        </svg>
+                        Impersonate
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-5 w-5" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ImpersonationUsersTable({ users, onImpersonate }) {
+  if (users.length === 0) {
+    return <div className="text-center py-16 text-sm" style={{ color: 'var(--text-muted)' }}>No users found</div>
+  }
+
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>User</th>
+            <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Organization</th>
+            <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>MFA</th>
+            <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map(u => (
+            <tr key={u.userId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              <td className="px-4 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+                    {u.email.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{u.email}</div>
+                    {u.orgRole && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{u.orgRole}</span>}
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-2.5 hidden sm:table-cell">
+                {u.orgId ? (
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{u.orgId}</span>
+                ) : (
+                  <span className="text-[11px] italic" style={{ color: 'var(--text-muted)' }}>None</span>
+                )}
+              </td>
+              <td className="px-4 py-2.5 hidden md:table-cell">
+                {u.mfaEnabled ? (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>Enabled</span>
+                ) : (
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Off</span>
+                )}
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <button
+                  onClick={() => onImpersonate(u.userId)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors"
+                  style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                  </svg>
+                  Impersonate
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
 export default function SuperAdminToolsPage() {
-  const { user } = useAuth()
+  const { user, getToken, impersonate } = useAuth()
   const navigate = useNavigate()
+  const [activeSection, setActiveSection] = useState(user?.isSuperAdmin ? 'impersonation' : 'costs')
   const [usageProfile, setUsageProfile] = useState('minimal')
   const [growthRate, setGrowthRate] = useState(10)
   const [expandedService, setExpandedService] = useState(null)
@@ -357,7 +674,7 @@ export default function SuperAdminToolsPage() {
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
   }, [serviceCosts])
 
-  if (user?.orgRole !== 'owner') {
+  if (user?.orgRole !== 'owner' && !user?.isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
         <div className="text-center">
@@ -399,10 +716,52 @@ export default function SuperAdminToolsPage() {
               Superadmin Tools
             </h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              AWS infrastructure cost analysis & projections
+              {activeSection === 'impersonation' ? 'View as any user to debug and support' : 'AWS infrastructure cost analysis & projections'}
             </p>
           </div>
         </div>
+
+        {/* Section Tabs */}
+        <div className="flex gap-2 mb-6">
+          {user?.isSuperAdmin && (
+            <button
+              onClick={() => setActiveSection('impersonation')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
+              style={{
+                background: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'transparent',
+                color: activeSection === 'impersonation' ? '#fff' : 'var(--text-secondary)',
+                borderColor: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+              </svg>
+              User Impersonation
+            </button>
+          )}
+          <button
+            onClick={() => setActiveSection('costs')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
+            style={{
+              background: activeSection === 'costs' ? 'var(--accent-blue)' : 'transparent',
+              color: activeSection === 'costs' ? '#fff' : 'var(--text-secondary)',
+              borderColor: activeSection === 'costs' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            Cost Analysis
+          </button>
+        </div>
+
+        {/* Impersonation Panel */}
+        {activeSection === 'impersonation' && user?.isSuperAdmin && (
+          <ImpersonationPanel getToken={getToken} impersonate={impersonate} />
+        )}
+
+        {/* Cost Analysis Content */}
+        {activeSection === 'costs' && (<>
 
         {/* Usage Profile Selector */}
         <div className="rounded-xl border p-5 mb-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
@@ -696,6 +1055,8 @@ export default function SuperAdminToolsPage() {
             </div>
           </div>
         </div>
+
+        </>)}
       </div>
     </div>
   )
