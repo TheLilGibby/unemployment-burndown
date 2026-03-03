@@ -745,7 +745,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
           <div className="flex items-center gap-0.5">
-            <CloudSaveStatus storage={s3Storage} />
+            <span className="hidden sm:flex"><CloudSaveStatus storage={s3Storage} /></span>
             {import.meta.env.VITE_PLAID_API_URL && (
               <PlaidLinkButton
                 createLinkToken={plaid.createLinkToken}
