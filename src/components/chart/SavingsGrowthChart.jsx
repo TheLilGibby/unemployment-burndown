@@ -5,6 +5,7 @@ import {
 import { formatCurrency } from '../../utils/formatters'
 
 const ZOOM_OPTIONS = [
+  { label: '6M', months: 6 },
   { label: '1Y', months: 12 },
   { label: '2Y', months: 24 },
   { label: '5Y', months: 60 },

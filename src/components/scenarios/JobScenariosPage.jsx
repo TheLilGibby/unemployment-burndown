@@ -83,7 +83,7 @@ export default function JobScenariosPage({
               <WaterfallChart scenarios={jobScenarios} />
             </SectionCard>
 
-            <SectionCard title="5-Year Savings Growth">
+            <SectionCard title="Savings Growth">
               <SavingsGrowthChart
                 scenarios={jobScenarios}
                 scenarioResults={jobScenarioResults}
@@ -113,9 +113,9 @@ export default function JobScenariosPage({
                   <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>No Job (Baseline)</p>
                 </div>
                 <MetricRow label="Runway" value={baselineResult.runoutDate ? formatMonths(baselineResult.totalRunwayMonths) : 'Beyond 10 yrs'} />
+                <MetricRow label="6 Months" value={formatCurrency(baselineResult.dataPoints[6]?.balance ?? 0)} />
                 <MetricRow label="Year 1" value={formatCurrency(baselineResult.dataPoints[12]?.balance ?? 0)} />
-                <MetricRow label="Year 3" value={formatCurrency(baselineResult.dataPoints[36]?.balance ?? 0)} />
-                <MetricRow label="Year 5" value={formatCurrency(baselineResult.dataPoints[Math.min(60, baselineResult.dataPoints.length - 1)]?.balance ?? 0)} />
+                <MetricRow label="Year 2" value={formatCurrency(baselineResult.dataPoints[24]?.balance ?? 0)} />
               </div>
             )}
 
@@ -202,8 +202,9 @@ export default function JobScenariosPage({
                     valueColor={surplus >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)'}
                   />
                   <MetricRow label="Runway" value={result.runoutDate ? formatMonths(result.totalRunwayMonths) : 'Beyond 10 yrs'} />
+                  <MetricRow label="6 Months" value={formatCurrency(result.dataPoints[6]?.balance ?? 0)} />
                   <MetricRow label="Year 1" value={formatCurrency(result.dataPoints[12]?.balance ?? 0)} />
-                  <MetricRow label="Year 5" value={formatCurrency(result.dataPoints[Math.min(60, result.dataPoints.length - 1)]?.balance ?? 0)} />
+                  <MetricRow label="Year 2" value={formatCurrency(result.dataPoints[24]?.balance ?? 0)} />
                 </div>
               )
             })}
