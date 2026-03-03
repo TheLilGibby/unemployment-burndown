@@ -38,6 +38,7 @@ function transformTransaction(plaidTxn) {
     isRefund:           plaidTxn.amount < 0,
     pending:            plaidTxn.pending || false,
     plaidTransactionId: plaidTxn.transaction_id,
+    paymentChannel:     plaidTxn.payment_channel || null, // "online", "in store", "other"
   }
 }
 

@@ -56,7 +56,15 @@ export default function CreditCardHubPage({
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
         const override = transactionOverrides[txn.id]
-        txns.push({ ...txn, cardId: full.cardId, ...(override || {}) })
+        txns.push({
+          ...txn,
+          cardId: full.cardId,
+          cardLastFour: full.cardLastFour || null,
+          accountType: full.accountType || null,
+          accountSubtype: full.accountSubtype || null,
+          accountName: full.accountName || null,
+          ...(override || {}),
+        })
       }
     }
     return txns
@@ -69,7 +77,14 @@ export default function CreditCardHubPage({
       const full = statements[stmtMeta.id]
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
-        txns.push({ ...txn, cardId: full.cardId })
+        txns.push({
+          ...txn,
+          cardId: full.cardId,
+          cardLastFour: full.cardLastFour || null,
+          accountType: full.accountType || null,
+          accountSubtype: full.accountSubtype || null,
+          accountName: full.accountName || null,
+        })
       }
     }
     return txns
