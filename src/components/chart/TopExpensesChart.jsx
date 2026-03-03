@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { getEffectivePayment } from '../../utils/ccPayment'
 
 const TYPE_CONFIG = {
   essential:     { label: 'Essential',     color: '#3b82f6' },
@@ -49,10 +50,10 @@ export default function TopExpensesChart({ expenses, subscriptions, creditCards,
           type: 'subscription',
         })),
       ...creditCards
-        .filter(c => (Number(c.minimumPayment) || 0) > 0)
+        .filter(c => getEffectivePayment(c) > 0)
         .map(c => ({
-          label: `${c.name || 'Card'} (min)`,
-          amount: Number(c.minimumPayment) || 0,
+          label: `${c.name || 'Card'} (pmt)`,
+          amount: getEffectivePayment(c),
           type: 'cc',
         })),
       ...investments

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import { matchesPersonFilter } from '../../utils/personFilter'
+import { getEffectivePayment } from '../../utils/ccPayment'
 
 const COLOR_HEX = {
   blue:    '#3b82f6',
@@ -238,8 +239,8 @@ function MobileFinancialDrawer({
           )}
 
           {totalCCPayments > 0 && (
-            <Section label="CC Min. Payments" total={totalCCPayments} sign="-" color="var(--accent-amber)"
-              items={activeCCPayments.map(c => ({ label: c.name || 'Card', amount: Number(c.minimumPayment) || 0, personColor: getPersonColor(people, c.assignedTo) }))} />
+            <Section label="CC Payments" total={totalCCPayments} sign="-" color="var(--accent-amber)"
+              items={activeCCPayments.map(c => ({ label: c.name || 'Card', amount: getEffectivePayment(c), personColor: getPersonColor(people, c.assignedTo) }))} />
           )}
 
           {monthlyInvestments > 0 && (
@@ -319,12 +320,12 @@ export default function FinancialSidebar({
 
   const activeAccounts = filteredAccounts.filter(a => a.active !== false)
   const activeSubscriptions = filteredSubscriptions.filter(s => s.active !== false)
-  const activeCCPayments = filteredCreditCards.filter(c => (Number(c.minimumPayment) || 0) > 0)
+  const activeCCPayments = filteredCreditCards.filter(c => getEffectivePayment(c) > 0)
   const activeInvestments = filteredInvestments.filter(inv => inv.active !== false && (Number(inv.monthlyAmount) || 0) > 0)
 
   const fTotalSavings = activeAccounts.reduce((s, a) => s + (Number(a.amount) || 0), 0)
   const totalSubsCost = activeSubscriptions.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)
-  const totalCCPayments = activeCCPayments.reduce((s, c) => s + (Number(c.minimumPayment) || 0), 0)
+  const totalCCPayments = activeCCPayments.reduce((s, c) => s + getEffectivePayment(c), 0)
   const totalExpensesOnly = filteredExpenses.reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0)
   const totalMonthlyIncome = filteredMonthlyIncome.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)
   const fMonthlyInvestments = activeInvestments.reduce((s, inv) => s + (Number(inv.monthlyAmount) || 0), 0)
@@ -538,11 +539,11 @@ export default function FinancialSidebar({
         {/* Credit Cards */}
         {totalCCPayments > 0 && (
           <Section
-            label="CC Min. Payments"
+            label="CC Payments"
             total={totalCCPayments}
             sign="-"
             color="var(--accent-amber)"
-            items={activeCCPayments.map(c => ({ label: c.name || 'Card', amount: Number(c.minimumPayment) || 0, personColor: getPersonColor(people, c.assignedTo) }))}
+            items={activeCCPayments.map(c => ({ label: c.name || 'Card', amount: getEffectivePayment(c), personColor: getPersonColor(people, c.assignedTo) }))}
           />
         )}
 

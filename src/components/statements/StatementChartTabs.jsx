@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { PieChart, BarChart3, Store } from 'lucide-react'
+import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
+import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
 
 const CHART_DEFS = [
   {
@@ -23,9 +24,15 @@ const CHART_DEFS = [
     label: 'Top Merchants',
     desc: 'Where you spend the most',
   },
+  {
+    id: 'paymentflow',
+    Icon: GitMerge,
+    label: 'Payment Flow',
+    desc: 'How income flows through expenses and credit card payments — the full money story',
+  },
 ]
 
-export default function StatementChartTabs({ transactions = [], creditCards = [] }) {
+export default function StatementChartTabs({ transactions = [], creditCards = [], expenses = [], subscriptions = [], monthlyIncome = 0, monthlyBenefits = 0 }) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -115,6 +122,25 @@ export default function StatementChartTabs({ transactions = [], creditCards = []
         )}
         {activeId === 'merchants' && (
           <TopMerchantsChart transactions={transactions} />
+        )}
+        {activeId === 'paymentflow' && (
+          <CashFlowWaterfallChart
+            expenses={expenses}
+            subscriptions={subscriptions}
+            creditCards={creditCards}
+            monthlyIncome={monthlyIncome}
+            monthlyBenefits={monthlyBenefits}
+            ccTransactionsByCard={(() => {
+              // Group transactions by cardId for the waterfall breakdown
+              const byCard = {}
+              for (const t of transactions) {
+                if (!t.cardId) continue
+                if (!byCard[t.cardId]) byCard[t.cardId] = []
+                byCard[t.cardId].push(t)
+              }
+              return byCard
+            })()}
+          />
         )}
       </div>
     </div>

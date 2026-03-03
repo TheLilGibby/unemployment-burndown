@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { getEffectivePayment } from '../../utils/ccPayment'
 
 const SLICE_CONFIG = [
   { key: 'essential',     label: 'Essential',     color: '#3b82f6' },
@@ -47,7 +48,7 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
     const essential = expenses.filter(e => e.essential)
     const discretionary = expenses.filter(e => !e.essential)
     const activeSubs = subscriptions.filter(s => s.active !== false)
-    const ccItems = creditCards.filter(c => (Number(c.minimumPayment) || 0) > 0)
+    const ccItems = creditCards.filter(c => getEffectivePayment(c) > 0)
     const activeInvest = investments.filter(i => i.active !== false)
 
     const raw = [
@@ -75,9 +76,9 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
       {
         key: 'ccPayments',
         label: 'CC Payments',
-        value: ccItems.reduce((s, c) => s + (Number(c.minimumPayment) || 0), 0),
-        topItems: ccItems.sort((a, b) => b.minimumPayment - a.minimumPayment).slice(0, 4)
-          .map(c => ({ name: c.name || 'Card', amount: Number(c.minimumPayment) })),
+        value: ccItems.reduce((s, c) => s + getEffectivePayment(c), 0),
+        topItems: [...ccItems].sort((a, b) => getEffectivePayment(b) - getEffectivePayment(a)).slice(0, 4)
+          .map(c => ({ name: c.name || 'Card', amount: getEffectivePayment(c) })),
       },
       {
         key: 'investments',

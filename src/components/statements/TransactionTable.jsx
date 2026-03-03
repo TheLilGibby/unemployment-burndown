@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2 } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
 
 export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal }) {
   const [sortField, setSortField] = useState('date')
@@ -156,6 +157,16 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                     {txn.pending && (
                       <span className="ml-1 text-[10px] italic" style={{ color: 'var(--text-muted)' }}>
                         pending
+                      </span>
+                    )}
+                    {isCCPaymentTransaction(txn) && (
+                      <span
+                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}
+                        title="Credit card payment detected"
+                      >
+                        <CreditCard size={9} strokeWidth={2} />
+                        CC Pmt
                       </span>
                     )}
                   </td>
