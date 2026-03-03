@@ -157,12 +157,18 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
   const historyRef = useRef([])
   const [color, setColor] = useState('#ef4444')
   const colorRef = useRef('#ef4444')
+  const [tool, setTool] = useState('pen') // pen | text
+  const toolRef = useRef('pen')
+  const [textInput, setTextInput] = useState('')
+  const [textPos, setTextPos] = useState(null)
+  const textInputRef = useRef(null)
 
   const bg = isDark ? '#1f2937' : '#ffffff'
   const text = isDark ? '#f9fafb' : '#111827'
   const border = isDark ? '#374151' : '#d1d5db'
 
   useEffect(() => { colorRef.current = color }, [color])
+  useEffect(() => { toolRef.current = tool }, [tool])
 
   /* Load the screenshot into the canvas */
   useEffect(() => {
@@ -184,6 +190,11 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     img.src = screenshotUrl
   }, [screenshotUrl])
 
+  /* Focus the text input when it appears */
+  useEffect(() => {
+    if (textPos && textInputRef.current) textInputRef.current.focus()
+  }, [textPos])
+
   /* Map pointer coordinates to canvas space */
   const getPos = useCallback((e) => {
     const canvas = canvasRef.current
@@ -196,12 +207,19 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     }
   }, [])
 
+  /* --- Pen tool handlers --- */
   const onPointerDown = useCallback((e) => {
     e.preventDefault()
+    if (toolRef.current === 'text') {
+      // Place text cursor
+      const pos = getPos(e)
+      setTextPos(pos)
+      setTextInput('')
+      return
+    }
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    // Save snapshot for undo
     historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height))
     drawingRef.current = true
     lastPosRef.current = getPos(e)
@@ -229,6 +247,31 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     drawingRef.current = false
   }, [])
 
+  /* --- Text stamp --- */
+  const commitText = useCallback(() => {
+    if (!textPos || !textInput.trim()) { setTextPos(null); return }
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) { setTextPos(null); return }
+    // Save snapshot for undo
+    historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height))
+    const fontSize = Math.max(14, Math.round(canvas.height / 30))
+    ctx.font = `bold ${fontSize}px system-ui, sans-serif`
+    ctx.fillStyle = colorRef.current
+    // Draw text with a slight shadow for readability
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+    ctx.shadowBlur = 3
+    ctx.shadowOffsetX = 1
+    ctx.shadowOffsetY = 1
+    ctx.fillText(textInput.trim(), textPos.x, textPos.y)
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    setTextPos(null)
+    setTextInput('')
+  }, [textPos, textInput])
+
   const handleUndo = useCallback(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
@@ -246,8 +289,17 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
   }, [])
 
   const handleDone = useCallback(() => {
+    if (textPos) commitText() // commit any pending text
     onDone(canvasRef.current.toDataURL('image/jpeg', 0.7))
-  }, [onDone])
+  }, [onDone, textPos, commitText])
+
+  const toolBtnStyle = (active) => ({
+    padding: '0.25rem 0.6rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem',
+    fontWeight: active ? 600 : 400,
+    background: active ? '#14b8a6' : 'transparent',
+    color: active ? '#fff' : text,
+    border: active ? '1px solid #14b8a6' : `1px solid ${border}`,
+  })
 
   return (
     <div data-testid="annotation-overlay" style={{
@@ -261,7 +313,13 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
         padding: '0.5rem 1rem', background: bg, borderRadius: '8px', border: `1px solid ${border}`,
         flexWrap: 'wrap', justifyContent: 'center',
       }}>
-        <span style={{ fontSize: '0.8rem', color: text, marginRight: '0.25rem' }}>Draw:</span>
+        {/* Tool selection */}
+        <button onClick={() => { setTool('pen'); setTextPos(null) }} data-testid="annotation-tool-pen" style={toolBtnStyle(tool === 'pen')}>Pen</button>
+        <button onClick={() => setTool('text')} data-testid="annotation-tool-text" style={toolBtnStyle(tool === 'text')}>Text</button>
+
+        <div style={{ width: '1px', height: '20px', background: border, margin: '0 0.25rem' }} />
+
+        {/* Color selection */}
         {DRAW_COLORS.map(c => (
           <button key={c} onClick={() => setColor(c)} aria-label={`Color ${c}`} style={{
             width: '24px', height: '24px', borderRadius: '50%', padding: 0,
@@ -269,7 +327,9 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
             cursor: 'pointer',
           }} />
         ))}
+
         <div style={{ width: '1px', height: '20px', background: border, margin: '0 0.25rem' }} />
+
         <button onClick={handleUndo} data-testid="annotation-undo" style={{
           background: 'none', border: `1px solid ${border}`, borderRadius: '6px',
           padding: '0.25rem 0.5rem', cursor: 'pointer', color: text, fontSize: '0.75rem',
@@ -280,22 +340,59 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
         }}>Clear</button>
       </div>
 
-      {/* Canvas */}
-      <canvas
-        ref={canvasRef}
-        data-testid="annotation-canvas"
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
-        style={{
-          borderRadius: '8px', border: `2px solid ${border}`, cursor: 'crosshair',
-          maxWidth: '100%', touchAction: 'none',
-        }}
-      />
+      {/* Canvas container (relative for text input overlay) */}
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <canvas
+          ref={canvasRef}
+          data-testid="annotation-canvas"
+          onMouseDown={onPointerDown}
+          onMouseMove={onPointerMove}
+          onMouseUp={onPointerUp}
+          onMouseLeave={onPointerUp}
+          onTouchStart={onPointerDown}
+          onTouchMove={onPointerMove}
+          onTouchEnd={onPointerUp}
+          style={{
+            borderRadius: '8px', border: `2px solid ${border}`,
+            cursor: tool === 'text' ? 'text' : 'crosshair',
+            maxWidth: '100%', touchAction: 'none', display: 'block',
+          }}
+        />
+
+        {/* Floating text input when text tool is active and a position is picked */}
+        {textPos && canvasRef.current && (() => {
+          const rect = canvasRef.current.getBoundingClientRect()
+          const scaleX = rect.width / canvasRef.current.width
+          const scaleY = rect.height / canvasRef.current.height
+          return (
+            <input
+              ref={textInputRef}
+              data-testid="annotation-text-input"
+              type="text"
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') commitText(); if (e.key === 'Escape') setTextPos(null) }}
+              onBlur={commitText}
+              placeholder="Type here..."
+              style={{
+                position: 'absolute',
+                left: `${textPos.x * scaleX}px`,
+                top: `${textPos.y * scaleY - 20}px`,
+                background: 'rgba(255,255,255,0.9)',
+                border: `2px solid ${color}`,
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+                color: color,
+                outline: 'none',
+                minWidth: '80px',
+                zIndex: 1,
+              }}
+            />
+          )
+        })()}
+      </div>
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
