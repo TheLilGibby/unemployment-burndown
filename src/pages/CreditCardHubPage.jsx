@@ -10,6 +10,9 @@ import StatementImportStatus from '../components/statements/StatementImportStatu
 import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
 import TransactionLinkModal from '../components/linking/TransactionLinkModal'
+import CCPaymentPicklistModal from '../components/linking/CCPaymentPicklistModal'
+import { detectCCPayments } from '../utils/ccPaymentDetector'
+import { picklistForCCPayment } from '../utils/ccStatementPicklist'
 
 export default function CreditCardHubPage({
   creditCards, people = [], plaid, savingsAccounts = [],
@@ -26,6 +29,7 @@ export default function CreditCardHubPage({
     initialCardId ? Number(initialCardId) : null
   )
   const [linkModalTxn, setLinkModalTxn] = useState(null)
+  const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
 
   const { index, statements, loading, error, loadStatement, refreshIndex } = useStatementStorage()
 
@@ -132,6 +136,40 @@ export default function CreditCardHubPage({
     }
     return accounts
   }, [creditCards, savingsAccounts, index])
+
+  // When a CC payment is clicked, detect which card it matches and load the statement
+  const handleOpenCCPicklist = useCallback(async (bankTxn) => {
+    if (!index?.statements?.length) return
+    const detected = detectCCPayments([bankTxn], creditCards, index.statements)
+    const match = detected[0]
+    if (!match?.matchedCardId) {
+      // Still show the modal even without a match — user sees "no match found"
+      setCCPicklistTxn({ bankTxn, matchedCardId: null, matchedCardName: null })
+      return
+    }
+    // Ensure the matched statement is loaded
+    const picklist = picklistForCCPayment({
+      bankTxn,
+      matchedCardId: match.matchedCardId,
+      statementIndex: index.statements,
+      statements,
+    })
+    if (picklist.statement && !statements[picklist.statement.id]) {
+      await loadStatement(picklist.statement.id)
+    }
+    setCCPicklistTxn({ bankTxn, matchedCardId: match.matchedCardId, matchedCardName: match.matchedCardName })
+  }, [index, creditCards, statements, loadStatement])
+
+  // Compute picklist data reactively (re-runs when statements load)
+  const ccPicklistData = useMemo(() => {
+    if (!ccPicklistTxn?.matchedCardId) return null
+    return picklistForCCPayment({
+      bankTxn: ccPicklistTxn.bankTxn,
+      matchedCardId: ccPicklistTxn.matchedCardId,
+      statementIndex: index?.statements || [],
+      statements,
+    })
+  }, [ccPicklistTxn, index, statements])
 
   // Show skeleton while statement index is loading
   if (loading && !index) return <CreditCardHubSkeleton />
@@ -274,6 +312,7 @@ export default function CreditCardHubPage({
           transactions={allTransactions}
           txnToOverviewMap={hasOneTimeItems ? txnToOverviewMap : undefined}
           onOpenLinkModal={hasOneTimeItems ? setLinkModalTxn : undefined}
+          onOpenCCPicklist={creditCards.length > 0 ? handleOpenCCPicklist : undefined}
         />
       </SectionCard>
 
@@ -296,6 +335,18 @@ export default function CreditCardHubPage({
             setLinkModalTxn(null)
           }}
           onClose={() => setLinkModalTxn(null)}
+        />
+      )}
+
+      {/* CC Payment → Statement breakdown modal */}
+      {ccPicklistTxn && (
+        <CCPaymentPicklistModal
+          open={true}
+          bankTxn={ccPicklistTxn.bankTxn}
+          matchedCardName={ccPicklistTxn.matchedCardName}
+          coverage={ccPicklistData?.coverage || null}
+          transactions={ccPicklistData?.transactions || []}
+          onClose={() => setCCPicklistTxn(null)}
         />
       )}
 

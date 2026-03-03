@@ -16,7 +16,7 @@ function getPaymentMethod(txn) {
   return null // credit card — show last 4 only
 }
 
-export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal }) {
+export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal, onOpenCCPicklist }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [filterCategory, setFilterCategory] = useState('')
@@ -284,14 +284,26 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                       </span>
                     )}
                     {isCCPaymentTransaction(txn) && (
-                      <span
-                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}
-                        title="Credit card payment detected"
-                      >
-                        <CreditCard size={9} strokeWidth={2} />
-                        CC Pmt
-                      </span>
+                      onOpenCCPicklist ? (
+                        <button
+                          onClick={e => { e.stopPropagation(); onOpenCCPicklist(txn) }}
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full transition-colors cursor-pointer"
+                          style={{ background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}
+                          title="View statement breakdown for this CC payment"
+                        >
+                          <CreditCard size={9} strokeWidth={2} />
+                          CC Pmt
+                        </button>
+                      ) : (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'rgba(251, 146, 60, 0.15)', color: '#fb923c' }}
+                          title="Credit card payment detected"
+                        >
+                          <CreditCard size={9} strokeWidth={2} />
+                          CC Pmt
+                        </span>
+                      )
                     )}
                   </td>
                   <td className="px-3 py-2">
