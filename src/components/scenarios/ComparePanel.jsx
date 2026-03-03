@@ -27,7 +27,8 @@ export default function ComparePanel({ templates, currentResult, currentLabel })
         <select
           value={selectedId ?? ''}
           onChange={e => setSelectedId(e.target.value ? Number(e.target.value) : null)}
-          className="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500"
+          className="flex-1 rounded px-2 py-1 pr-7 text-xs focus:outline-none themed-select"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
         >
           <option value="">Select template...</option>
           {templates.map(t => (

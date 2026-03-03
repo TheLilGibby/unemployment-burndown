@@ -173,31 +173,39 @@ export default function TemplateManager({
   }
 
   return (
-    <div className="flex items-center gap-2" ref={dropdownRef}>
-      {/* Save button */}
-      <button
-        onClick={handleSaveClick}
-        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
-          savedFlash
-            ? 'text-emerald-400'
-            : 'hover:bg-white/10'
-        }`}
-        style={!savedFlash ? { color: activeTemplateId ? 'var(--accent-blue, #3b82f6)' : 'var(--text-muted)' } : undefined}
-        title={savedFlash ? 'Saved!' : activeTemplateId ? `Save to "${activeTemplate?.name}"` : 'Save as new template'}
-      >
-        {savedFlash ? <CheckIcon /> : <SaveIcon />}
-      </button>
-
-      {/* Templates dropdown trigger */}
-      <div className="relative">
-        <button
-          onClick={() => { setOpen(o => !o); setMode('idle'); setConfirmDeleteId(null) }}
-          className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors hover:bg-white/10"
-          style={{ color: 'var(--text-muted)' }}
-          title={activeTemplate ? `Templates: ${activeTemplate.name}` : 'Templates'}
+    <div className="flex items-center gap-0" ref={dropdownRef}>
+      {/* Combined template name + save + dropdown trigger */}
+      <div className="relative flex items-center">
+        <div className="flex items-center h-8 rounded-lg"
+          style={{ border: activeTemplateId ? '1px solid var(--border-subtle, rgba(255,255,255,0.08))' : 'none' }}
         >
-          <ChevronDownIcon />
-        </button>
+          {/* Save button */}
+          <button
+            onClick={handleSaveClick}
+            className={`h-8 flex items-center justify-center rounded-l-lg transition-all px-2 ${
+              savedFlash
+                ? 'text-emerald-400'
+                : 'hover:bg-white/10'
+            }`}
+            style={!savedFlash ? { color: activeTemplateId ? 'var(--accent-blue, #3b82f6)' : 'var(--text-muted)' } : undefined}
+            title={savedFlash ? 'Saved!' : activeTemplateId ? `Save to "${activeTemplate?.name}"` : 'Save as new template'}
+          >
+            {savedFlash ? <CheckIcon /> : <SaveIcon />}
+          </button>
+
+          {/* Template name + dropdown toggle */}
+          <button
+            onClick={() => { setOpen(o => !o); setMode('idle'); setConfirmDeleteId(null) }}
+            className="h-8 flex items-center gap-1 rounded-r-lg transition-colors hover:bg-white/10 pr-1.5"
+            style={{ color: activeTemplateId ? 'var(--text-primary, #e5e7eb)' : 'var(--text-muted)' }}
+            title={activeTemplate ? `Templates: ${activeTemplate.name}` : 'Templates'}
+          >
+            {activeTemplate && (
+              <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[180px]">{activeTemplate.name}</span>
+            )}
+            <ChevronDownIcon />
+          </button>
+        </div>
 
         {open && (
           <div className="absolute right-0 top-full mt-1 w-72 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-50 overflow-hidden">
