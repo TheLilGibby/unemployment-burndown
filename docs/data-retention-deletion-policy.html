@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Retention and Deletion Policy — RAG Consulting LLC</title>
+  <style>
+    @page { margin: 0.75in 1in; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 7.5in;
+      margin: 0 auto;
+      padding: 0.5in;
+    }
+    h1 { font-size: 20pt; margin-bottom: 4pt; }
+    h2 { font-size: 14pt; margin-top: 24pt; margin-bottom: 8pt; border-bottom: 1px solid #e0e0e0; padding-bottom: 4pt; }
+    h3 { font-size: 12pt; font-weight: 600; margin-top: 16pt; margin-bottom: 4pt; }
+    .subtitle { font-size: 10pt; color: #666; margin-bottom: 24pt; }
+    ul, ol { padding-left: 20pt; }
+    li { margin-bottom: 4pt; }
+    a { color: #2563eb; }
+    .footer { margin-top: 36pt; padding-top: 12pt; border-top: 1px solid #e0e0e0; font-size: 9pt; color: #999; }
+    strong { font-weight: 600; }
+    .company { font-size: 12pt; color: #444; font-weight: 500; margin-bottom: 2pt; }
+    table { border-collapse: collapse; width: 100%; margin: 12pt 0; font-size: 10pt; }
+    th, td { border: 1px solid #ddd; padding: 8pt 10pt; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6pt; padding: 12pt 16pt; margin: 12pt 0; font-size: 10pt; }
+    .callout-title { font-weight: 600; color: #1e40af; margin-bottom: 4pt; }
+    .flow-step { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6pt; padding: 10pt 14pt; margin: 6pt 0; }
+    .flow-step-num { display: inline-block; background: #3b82f6; color: white; width: 20pt; height: 20pt; line-height: 20pt; text-align: center; border-radius: 50%; font-size: 9pt; font-weight: 600; margin-right: 8pt; }
+  </style>
+</head>
+<body>
+
+<p class="company">RAG Consulting LLC</p>
+<h1>Data Retention and Deletion Policy</h1>
+<p class="subtitle">
+  Plaid Security Questionnaire — Question 11 Supporting Documentation<br>
+  Version 1.1 &middot; Effective Date: February 27, 2026 &middot; Last Reviewed: March 2, 2026
+</p>
+
+<div class="callout">
+  <div class="callout-title">Summary</div>
+  RAG Consulting LLC maintains a defined and enforced data retention and deletion policy that
+  complies with applicable data privacy laws, including CCPA/CPRA. The policy covers all
+  consumer financial data collected through the Financial Burndown Tracker application,
+  including data received through the Plaid API. The policy is reviewed periodically and was
+  last reviewed on March 2, 2026.
+</div>
+
+<h2>1. Purpose</h2>
+<p>
+  This policy defines how RAG Consulting LLC ("the Company") retains, archives, and deletes
+  consumer financial data collected through the Financial Burndown Tracker application,
+  including data received through the Plaid API.
+</p>
+
+<h2>2. Scope</h2>
+<p>This policy applies to all consumer data stored in:</p>
+<ul>
+  <li><strong>Amazon S3</strong> — application state, transaction data, parsed statements</li>
+  <li><strong>Amazon DynamoDB</strong> — Plaid access tokens, user records, sync metadata, consent records</li>
+  <li><strong>Any temporary storage or caches</strong> used during processing</li>
+</ul>
+
+<h2>3. Data Categories and Retention Periods</h2>
+
+<table>
+  <tr>
+    <th>Data Category</th>
+    <th>Storage Location</th>
+    <th>Retention Period</th>
+    <th>Deletion Trigger</th>
+  </tr>
+  <tr>
+    <td>Plaid access tokens</td>
+    <td>DynamoDB (AES-256-GCM encrypted)</td>
+    <td>Until user disconnects or deletes account</td>
+    <td>User-initiated disconnect or account deletion</td>
+  </tr>
+  <tr>
+    <td>Account balances</td>
+    <td>S3 (data.json, SSE-S3 encrypted)</td>
+    <td>Duration of active account</td>
+    <td>Account deletion or user request</td>
+  </tr>
+  <tr>
+    <td>Transaction history</td>
+    <td>S3 (data.json, SSE-S3 encrypted)</td>
+    <td>Duration of active account</td>
+    <td>Account deletion or user request</td>
+  </tr>
+  <tr>
+    <td>Parsed credit card statements</td>
+    <td>S3 (statements/, SSE-S3 encrypted)</td>
+    <td>Duration of active account</td>
+    <td>Account deletion or user request</td>
+  </tr>
+  <tr>
+    <td>User-entered financial data</td>
+    <td>S3 (data.json, SSE-S3 encrypted)</td>
+    <td>Duration of active account</td>
+    <td>Account deletion or user request</td>
+  </tr>
+  <tr>
+    <td>Sync cursors / metadata</td>
+    <td>DynamoDB</td>
+    <td>Until user disconnects</td>
+    <td>User-initiated disconnect</td>
+  </tr>
+  <tr>
+    <td>Consent records</td>
+    <td>DynamoDB (on user record)</td>
+    <td>Duration of active account</td>
+    <td>Account deletion</td>
+  </tr>
+  <tr>
+    <td>Raw ingested emails</td>
+    <td>S3 (emails/raw/)</td>
+    <td>90 days after processing</td>
+    <td>Automatic S3 lifecycle rule</td>
+  </tr>
+</table>
+
+<h2>4. Data Deletion Procedures</h2>
+
+<h3>4.1 Bank Account Disconnection</h3>
+<p>When a user disconnects a linked bank account through the application:</p>
+<ol>
+  <li>The Plaid access token for that institution is revoked via <code>client.itemRemove()</code> at Plaid.</li>
+  <li>The encrypted access token is deleted from DynamoDB.</li>
+  <li>The sync cursor for that item is deleted from DynamoDB.</li>
+  <li>No further data is fetched from that institution.</li>
+</ol>
+
+<h3>4.2 Full Account Deletion</h3>
+<p>When a user requests account deletion, the following steps are executed:</p>
+
+<div class="flow-step"><span class="flow-step-num">1</span> All linked Plaid items are revoked via Plaid's <code>itemRemove()</code> API.</div>
+<div class="flow-step"><span class="flow-step-num">2</span> All Plaid access tokens are deleted from DynamoDB.</div>
+<div class="flow-step"><span class="flow-step-num">3</span> All S3 objects under the user's organization prefix (<code>orgs/{orgId}/</code>) are permanently deleted — including <code>data.json</code>, statements, and any associated files.</div>
+<div class="flow-step"><span class="flow-step-num">4</span> All DynamoDB records for the user (tokens, cursors, metadata, consent records) are removed.</div>
+<div class="flow-step"><span class="flow-step-num">5</span> The user record itself is deleted from the DynamoDB users table.</div>
+<div class="flow-step"><span class="flow-step-num">6</span> Deletion is completed within <strong>30 calendar days</strong> of the request.</div>
+<div class="flow-step"><span class="flow-step-num">7</span> A confirmation is sent to the user upon completion.</div>
+
+<h3>4.3 Deletion Request Methods</h3>
+<p>Users may request data deletion by:</p>
+<ul>
+  <li><strong>In-App:</strong> Using the "Delete Account" feature on the Settings page within the application.</li>
+  <li><strong>Email:</strong> Sending a request to <a href="mailto:privacy@rag-consulting.com">privacy@rag-consulting.com</a> with the subject "Data Deletion Request."</li>
+</ul>
+<p>All deletion requests are logged and tracked to completion.</p>
+
+<h3>4.4 Consent Records</h3>
+<p>
+  When a user provides consent (e.g., for Plaid data access, privacy policy acceptance, or account
+  registration), a timestamped consent record is stored on their user profile. These records include
+  the consent type, policy version, timestamp, and user-agent. Consent records are retained for the
+  duration of the user's active account and are permanently deleted upon account deletion.
+</p>
+
+<h2>5. Automated Cleanup</h2>
+
+<table>
+  <tr><th>Process</th><th>Mechanism</th><th>Schedule</th></tr>
+  <tr>
+    <td>Raw email deletion</td>
+    <td>S3 lifecycle rules on <code>emails/raw/</code> prefix</td>
+    <td>Deleted 90 days after processing</td>
+  </tr>
+  <tr>
+    <td>Session token cleanup</td>
+    <td>Browser <code>sessionStorage</code></td>
+    <td>Cleared automatically on logout or tab close</td>
+  </tr>
+</table>
+
+<h2>6. Data Backup and Recovery</h2>
+<ul>
+  <li>Data stored in DynamoDB benefits from AWS point-in-time recovery (PITR) when enabled.</li>
+  <li>Backups are retained for the minimum period required for disaster recovery.</li>
+  <li>When a user requests data deletion, the deletion is applied to all backup copies within the backup retention window.</li>
+</ul>
+
+<h2>7. Compliance</h2>
+<p>This policy supports compliance with:</p>
+<ul>
+  <li><strong>Plaid's data handling requirements</strong> — consumer financial data is treated as Confidential and handled per Plaid's contractual obligations.</li>
+  <li><strong>California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA)</strong> — consumers can request access, deletion, and portability of their data; we do not sell personal information.</li>
+  <li><strong>Applicable state and federal data privacy laws.</strong></li>
+  <li>The Company's <strong>Information Security Policy</strong> and published <strong>Privacy Policy</strong>.</li>
+</ul>
+
+<h2>8. Policy Review</h2>
+<p>This policy is reviewed annually and updated as necessary to reflect changes in:</p>
+<ul>
+  <li>Data processing activities</li>
+  <li>Regulatory requirements</li>
+  <li>Infrastructure changes</li>
+</ul>
+
+<table>
+  <tr><th>Version</th><th>Date</th><th>Author</th><th>Changes</th></tr>
+  <tr><td>1.0</td><td>2026-02-27</td><td>RAG Consulting LLC</td><td>Initial release</td></tr>
+  <tr><td>1.1</td><td>2026-03-02</td><td>RAG Consulting LLC</td><td>Added in-app account deletion, consent tracking records, periodic review note</td></tr>
+</table>
+
+<div class="footer">
+  Version 1.1 &middot; Last Reviewed: March 2, 2026 &middot; RAG Consulting LLC &middot; Confidential
+</div>
+
+</body>
+</html>
