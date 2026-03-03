@@ -957,7 +957,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} onCreditCardsChange={onCreditCardsChange} onSavingsChange={onSavingsChange} />
+          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} onCreditCardsChange={onCreditCardsChange} onSavingsChange={onSavingsChange} user={user} />
         } />
 
         <Route path="/job-scenarios" element={
