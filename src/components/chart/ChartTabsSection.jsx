@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import dayjs from 'dayjs'
 import { TrendingDown, Flame, ArrowLeftRight, PieChart, BarChart2, BarChart3 } from 'lucide-react'
 import BurndownChart from './BurndownChart'
+import SnapshotDatePicker from './SnapshotDatePicker'
 import BurnRateChart from './BurnRateChart'
 import IncomeVsExpensesChart from './IncomeVsExpensesChart'
 import ExpenseDonutChart from './ExpenseDonutChart'
@@ -65,6 +67,12 @@ export default function ChartTabsSection({
   investments,
   // Derived income
   monthlyBenefits,
+  // Historical snapshot comparison
+  availableDates,
+  selectedHistoricalDate,
+  historicalBurndown,
+  snapshotLoading,
+  onHistoricalDateSelect,
 }) {
   const [activeId, setActiveId] = useState('burndown')
   const [hoveredId, setHoveredId] = useState(null)
@@ -151,16 +159,44 @@ export default function ChartTabsSection({
       {/* ── Chart content ── */}
       <div className="p-4 sm:p-5">
         {activeId === 'burndown' && (
-          <BurndownChart
-            dataPoints={dataPoints}
-            runoutDate={runoutDate}
-            baseDataPoints={baseDataPoints}
-            benefitStart={benefitStart}
-            benefitEnd={benefitEnd}
-            emergencyFloor={emergencyFloor}
-            showEssentials={showEssentials}
-            showBaseline={showBaseline}
-          />
+          <div className="space-y-3">
+            {/* Historical snapshot date picker */}
+            <SnapshotDatePicker
+              availableDates={availableDates}
+              selectedDate={selectedHistoricalDate}
+              onChange={onHistoricalDateSelect}
+              loading={snapshotLoading}
+            />
+            {/* Context badge when a historical snapshot is active */}
+            {selectedHistoricalDate && historicalBurndown && (
+              <div
+                className="flex flex-wrap items-center gap-2 text-xs px-3 py-2 rounded-lg"
+                style={{
+                  background: 'rgba(124,58,237,0.08)',
+                  border: '1px solid rgba(124,58,237,0.25)',
+                  color: '#a78bfa',
+                }}
+              >
+                <span>Comparing with snapshot from <strong>{dayjs(selectedHistoricalDate).format('MMMM D, YYYY')}</strong></span>
+                <span style={{ opacity: 0.6 }}>— dashed line shows the projection as it stood on that date</span>
+              </div>
+            )}
+            <BurndownChart
+              dataPoints={dataPoints}
+              runoutDate={runoutDate}
+              baseDataPoints={historicalBurndown ? historicalBurndown.dataPoints : baseDataPoints}
+              baselineLabel={
+                selectedHistoricalDate
+                  ? `Snapshot from ${dayjs(selectedHistoricalDate).format('MMM D, YYYY')}`
+                  : 'No what-if baseline'
+              }
+              benefitStart={benefitStart}
+              benefitEnd={benefitEnd}
+              emergencyFloor={emergencyFloor}
+              showEssentials={showEssentials}
+              showBaseline={showBaseline}
+            />
+          </div>
         )}
         {activeId === 'burnrate' && (
           <BurnRateChart dataPoints={dataPoints} />

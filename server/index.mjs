@@ -122,6 +122,8 @@ function generateJoinCode() { return crypto.randomBytes(4).toString('hex').toUpp
 function dataKey(orgId) { return orgId ? `orgs/${orgId}/data.json` : 'data.json' }
 function statementsIndexKey(orgId) { return orgId ? `orgs/${orgId}/statements/index.json` : 'statements/index.json' }
 function statementKey(orgId, id) { return orgId ? `orgs/${orgId}/statements/${id}.json` : `statements/${id}.json` }
+function snapshotIndexKey(orgId) { return orgId ? `orgs/${orgId}/snapshots/index.json` : 'snapshots/index.json' }
+function snapshotKey(orgId, date) { return orgId ? `orgs/${orgId}/snapshots/${date}.json` : `snapshots/${date}.json` }
 
 async function s3Get(key) {
   if (USE_LOCAL_DATA) {
@@ -1423,6 +1425,75 @@ app.put('/api/data', orgMiddleware, async (req, res) => {
     res.json({ saved: true, savedAt: new Date().toISOString() })
   } catch (err) {
     req.log.error({ err }, 'PUT /api/data failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
+// SNAPSHOT API — daily historical burndown snapshots
+// ═══════════════════════════════════════════════════════════════
+
+// GET /api/snapshots — list available snapshot dates for this org
+app.get('/api/snapshots', orgMiddleware, async (req, res) => {
+  try {
+    const data = await s3Get(snapshotIndexKey(req.user.orgId))
+    res.json(data || { version: 1, dates: [] })
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return res.json({ version: 1, dates: [] })
+    }
+    req.log.error({ err }, 'GET /api/snapshots failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/snapshots/:date — fetch state snapshot for a specific YYYY-MM-DD date
+app.get('/api/snapshots/:date', orgMiddleware, async (req, res) => {
+  const { date } = req.params
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'Invalid date format, expected YYYY-MM-DD' })
+  }
+  try {
+    const data = await s3Get(snapshotKey(req.user.orgId, date))
+    res.json(data)
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return res.status(404).json({ error: 'Snapshot not found for this date' })
+    }
+    req.log.error({ err }, 'GET /api/snapshots/:date failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/snapshots — save a daily snapshot (idempotent: once per calendar day)
+app.post('/api/snapshots', orgMiddleware, async (req, res) => {
+  const orgId = req.user.orgId
+  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD UTC
+  try {
+    // Load or initialise the index
+    let index = { version: 1, dates: [] }
+    try {
+      index = (await s3Get(snapshotIndexKey(orgId))) || index
+    } catch (err) {
+      if (err.name !== 'NoSuchKey' && err.$metadata?.httpStatusCode !== 404) throw err
+    }
+
+    // Only write once per day; subsequent saves that day are no-ops
+    const alreadyExisted = index.dates.includes(today)
+    if (!alreadyExisted) {
+      const snapshot = {
+        capturedAt: new Date().toISOString(),
+        date: today,
+        state: req.body,
+      }
+      await s3Put(snapshotKey(orgId, today), snapshot)
+      index.dates = [...index.dates, today].sort()
+      await s3Put(snapshotIndexKey(orgId), index)
+    }
+
+    res.json({ saved: true, date: today, alreadyExisted })
+  } catch (err) {
+    req.log.error({ err }, 'POST /api/snapshots failed')
     res.status(500).json({ error: err.message })
   }
 })

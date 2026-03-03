@@ -63,6 +63,11 @@ export default function BurndownPage({
   templateResults,
   jobScenarioResults,
   plaid,
+  // Historical snapshot comparison
+  snapshots,
+  historicalDate,
+  historicalBurndown,
+  onHistoricalDateSelect,
 }) {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
@@ -92,6 +97,11 @@ export default function BurndownPage({
         creditCards={creditCards}
         investments={investments}
         monthlyBenefits={current.monthlyBenefits}
+        availableDates={snapshots?.availableDates || []}
+        selectedHistoricalDate={historicalDate}
+        historicalBurndown={historicalBurndown}
+        snapshotLoading={snapshots?.snapshotLoading || false}
+        onHistoricalDateSelect={onHistoricalDateSelect}
       />
 
       {/* Jobs / Employment */}
