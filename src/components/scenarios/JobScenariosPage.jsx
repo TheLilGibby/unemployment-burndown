@@ -21,24 +21,43 @@ export default function JobScenariosPage({
   const baselineResult = jobScenarioResults?.['__baseline__']
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Page header */}
-      <div>
-        <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-          Job Scenarios Dashboard
-        </h2>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Compare job offers side-by-side. See how salary, location, and start date
-          impact your financial runway, savings growth, and investment trajectory.
-        </p>
-      </div>
+    <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
+      {/* Hero banner — mirrors RunwayBanner structure */}
+      <div className="theme-card rounded-xl border p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-block w-2 h-2 rounded-full" style={{ background: 'var(--accent-blue)' }} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Job Scenarios
+          </h2>
+        </div>
 
-      {/* Summary context from financial page */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MiniStat label="Current Savings" value={formatCurrency(totalSavings)} color="var(--accent-blue)" />
-        <MiniStat label="Monthly Expenses" value={formatCurrency(effectiveExpenses)} color="var(--accent-red)" />
-        <MiniStat label="UI Benefits/mo" value={formatCurrency(monthlyBenefits)} color="var(--accent-emerald)" />
-        <MiniStat label="Net Burn/mo" value={formatCurrency(currentNetBurn)} color={currentNetBurn > 0 ? 'var(--accent-red)' : 'var(--accent-emerald)'} />
+        <p className="text-2xl sm:text-3xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+          {jobScenarios.length} {jobScenarios.length === 1 ? 'Scenario' : 'Scenarios'}
+        </p>
+        <p className="text-sm mt-1 mb-5" style={{ color: 'var(--text-muted)' }}>
+          Compare job offers side-by-side — salary, location, and start date impact on your runway.
+        </p>
+
+        <div className="flex flex-wrap gap-6 sm:gap-10 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Current Savings</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--accent-blue)' }}>{formatCurrency(totalSavings)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Expenses / Mo</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--accent-red)' }}>{formatCurrency(effectiveExpenses)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>UI Benefits / Mo</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--accent-emerald)' }}>{formatCurrency(monthlyBenefits)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Net Burn / Mo</p>
+            <p className={`text-xl font-semibold ${currentNetBurn > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+              {currentNetBurn > 0 ? '-' : '+'}{formatCurrency(Math.abs(currentNetBurn))}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Scenario form */}
@@ -53,7 +72,7 @@ export default function JobScenariosPage({
 
       {/* Charts dashboard */}
       {jobScenarios.length > 0 && jobScenarioResults && (
-        <div className="space-y-5">
+        <div className="space-y-5" id="sec-scenarios-charts">
           {/* Salary growth - full width feature chart */}
           <SectionCard title="Salary Growth Projection">
             <SalaryGrowthChart scenarios={jobScenarios} effectiveExpenses={effectiveExpenses} />
@@ -192,15 +211,6 @@ export default function JobScenariosPage({
         </SectionCard>
       )}
     </main>
-  )
-}
-
-function MiniStat({ label, value, color }) {
-  return (
-    <div className="theme-card rounded-xl border px-3 py-2.5">
-      <p className="text-xs uppercase tracking-wider font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="text-base font-bold" style={{ color }}>{value}</p>
-    </div>
   )
 }
 
