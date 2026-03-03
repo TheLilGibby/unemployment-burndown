@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { formatCurrency } from '../../utils/formatters'
+import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
 
 /**
  * Displays connected Plaid institutions and their accounts.
@@ -35,12 +36,40 @@ export default function ConnectedAccountsPanel({
 
   if (!hasFetched && loading) {
     return (
-      <div className="text-center py-6">
-        <div
-          className="inline-block w-5 h-5 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }}
-        />
-        <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Loading connected accounts...</p>
+      <div className="space-y-3">
+        <SkeletonStyles />
+        {[1, 2].map(i => (
+          <div
+            key={i}
+            className="rounded-xl border"
+            style={{ background: 'var(--bg-input)', borderColor: 'var(--border-input)' }}
+          >
+            <div className="flex items-center justify-between px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <SkeletonLine width="1.25rem" height="1.25rem" style={{ borderRadius: '0.375rem' }} />
+                <div>
+                  <SkeletonLine width="8rem" height="0.65rem" style={{ marginBottom: '0.35rem' }} />
+                  <SkeletonLine width="5rem" height="0.45rem" />
+                </div>
+              </div>
+              <SkeletonLine width="3rem" height="1.5rem" style={{ borderRadius: '0.375rem' }} />
+            </div>
+            <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
+              {[1, 2].map(j => (
+                <div key={j} className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div className="flex items-center gap-2">
+                    <SkeletonLine width="1rem" height="1rem" style={{ borderRadius: '0.25rem' }} />
+                    <div>
+                      <SkeletonLine width={`${5 + Math.random() * 4}rem`} height="0.6rem" style={{ marginBottom: '0.3rem' }} />
+                      <SkeletonLine width="4rem" height="0.45rem" />
+                    </div>
+                  </div>
+                  <SkeletonLine width="3.5rem" height="0.65rem" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

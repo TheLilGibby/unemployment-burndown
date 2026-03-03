@@ -8,6 +8,7 @@ import StatementChartTabs from '../components/statements/StatementChartTabs'
 import TransactionTable from '../components/statements/TransactionTable'
 import StatementImportStatus from '../components/statements/StatementImportStatus'
 import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
+import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
 
 export default function CreditCardHubPage({ creditCards, people = [], plaid, savingsAccounts = [] }) {
   const [searchParams] = useSearchParams()
@@ -74,6 +75,9 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
     }
     return accounts
   }, [creditCards, savingsAccounts, index])
+
+  // Show skeleton while statement index is loading
+  if (loading && !index) return <CreditCardHubSkeleton />
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">

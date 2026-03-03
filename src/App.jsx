@@ -42,6 +42,9 @@ import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import AppLoadingSkeleton from './components/common/AppLoadingSkeleton'
+import BurndownPageSkeleton from './components/common/BurndownPageSkeleton'
+import { SkeletonStyles } from './components/common/Skeleton'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
@@ -567,12 +570,8 @@ export default function App() {
   if (location.pathname === '/privacy') return <PrivacyPolicyPage />
   if (location.pathname === '/reset-password') return <ResetPasswordPage />
 
-  // Show loading state while checking token
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
-      <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
-    </div>
-  )
+  // Show loading skeleton while checking token
+  if (loading) return <AppLoadingSkeleton />
 
   if (!authed) return (
     <LoginScreen
@@ -973,6 +972,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     <CommentsPanel />
     <NotificationPanel />
     <ToastContainer />
+    <SkeletonStyles />
     <div className="min-h-screen theme-page" style={{ color: 'var(--text-primary)' }}>
       {/* Presentation overlay — rendered outside main layout so it fills the viewport */}
       {presentationMode && (
@@ -1068,6 +1068,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
       <Routes>
         <Route path="/" element={
+          s3Storage.status === 'loading' ? <BurndownPageSkeleton /> :
           <>
             <TableOfContents visibleSections={viewSettings.sections} />
             <div className="max-w-5xl mx-auto px-4 pt-4 flex items-center justify-between gap-3">
