@@ -5,11 +5,13 @@ import './index.css'
 import App from './App.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import ErrorBoundary from './components/common/ErrorBoundary.jsx'
+import BugDropWidget from './components/feedback/BugDropWidget.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary level="page">
       <ThemeProvider>
+        <BugDropWidget />
         <BrowserRouter>
           <App />
         </BrowserRouter>
