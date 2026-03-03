@@ -913,6 +913,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 expenses={expenses}
                 whatIf={whatIf}
                 oneTimeExpenses={oneTimeExpenses}
+                oneTimePurchases={oneTimePurchases}
                 oneTimeIncome={oneTimeIncome}
                 monthlyIncome={monthlyIncome}
                 assets={assets}
@@ -928,6 +929,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onExpensesChange={onExpensesChange}
                 onWhatIfChange={onWhatIfChange}
                 onOneTimeExpChange={onOneTimeExpChange}
+                onOneTimePurchChange={onOneTimePurchChange}
                 onOneTimeIncChange={onOneTimeIncChange}
                 onMonthlyIncChange={onMonthlyIncChange}
                 onAssetsChange={onAssetsChange}
