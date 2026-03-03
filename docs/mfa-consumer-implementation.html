@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consumer MFA Implementation — RAG Consulting LLC</title>
+  <style>
+    @page { margin: 0.75in 1in; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 7.5in;
+      margin: 0 auto;
+      padding: 0.5in;
+    }
+    h1 { font-size: 20pt; margin-bottom: 4pt; }
+    h2 { font-size: 14pt; margin-top: 24pt; margin-bottom: 8pt; border-bottom: 1px solid #e0e0e0; padding-bottom: 4pt; }
+    h3 { font-size: 12pt; font-weight: 600; margin-top: 16pt; margin-bottom: 4pt; }
+    .subtitle { font-size: 10pt; color: #666; margin-bottom: 24pt; }
+    ul, ol { padding-left: 20pt; }
+    li { margin-bottom: 4pt; }
+    a { color: #2563eb; }
+    .footer { margin-top: 36pt; padding-top: 12pt; border-top: 1px solid #e0e0e0; font-size: 9pt; color: #999; }
+    strong { font-weight: 600; }
+    .company { font-size: 12pt; color: #444; font-weight: 500; margin-bottom: 2pt; }
+    table { border-collapse: collapse; width: 100%; margin: 12pt 0; font-size: 10pt; }
+    th, td { border: 1px solid #ddd; padding: 8pt 10pt; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    code { font-family: 'SF Mono', Consolas, monospace; font-size: 9.5pt; background: #f5f5f5; padding: 1pt 4pt; border-radius: 3pt; }
+    .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6pt; padding: 12pt 16pt; margin: 12pt 0; font-size: 10pt; }
+    .callout-title { font-weight: 600; color: #1e40af; margin-bottom: 4pt; }
+  </style>
+</head>
+<body>
+
+<p class="company">RAG Consulting LLC</p>
+<h1>Consumer Multi-Factor Authentication (MFA)</h1>
+<p class="subtitle">
+  Plaid Security Questionnaire — Question 4 Supporting Documentation<br>
+  Prepared: March 3, 2026 &middot; Application: Financial Burndown Tracker
+</p>
+
+<div class="callout">
+  <div class="callout-title">Summary</div>
+  RAG Consulting LLC provides TOTP-based multi-factor authentication (MFA) for all consumers
+  on the Financial Burndown Tracker web application. MFA is available to all users and is
+  verified before Plaid Link is surfaced. Users must authenticate (including MFA verification
+  when enabled) before accessing any financial features or connecting bank accounts.
+</div>
+
+<h2>1. MFA Implementation Overview</h2>
+
+<table>
+  <tr><th>Attribute</th><th>Details</th></tr>
+  <tr><td>MFA Type</td><td>Time-based One-Time Password (TOTP) — RFC 6238</td></tr>
+  <tr><td>Supported Authenticator Apps</td><td>Google Authenticator, Authy, Microsoft Authenticator, 1Password, and any TOTP-compatible app</td></tr>
+  <tr><td>Code Length</td><td>6 digits</td></tr>
+  <tr><td>Code Validity</td><td>30-second rolling window</td></tr>
+  <tr><td>Libraries Used</td><td><code>otplib</code> v13 (TOTP generation/verification), <code>qrcode</code> (QR code generation)</td></tr>
+  <tr><td>Platform</td><td>Web application (React 19 frontend, AWS Lambda backend)</td></tr>
+  <tr><td>Availability</td><td>All registered users</td></tr>
+</table>
+
+<h2>2. MFA Setup Flow</h2>
+
+<p>Users enable MFA from the Settings page within the application. The setup process is as follows:</p>
+
+<ol>
+  <li><strong>Initiate Setup:</strong> Authenticated user clicks "Set Up 2FA" in the Settings panel.</li>
+  <li><strong>Secret Generation:</strong> The backend generates a cryptographic TOTP secret using <code>otplib authenticator.generateSecret()</code>.</li>
+  <li><strong>QR Code Display:</strong> A QR code is generated and displayed to the user, encoding the TOTP URI (<code>otpauth://totp/BurndownTracker:{email}?secret={secret}</code>).</li>
+  <li><strong>Manual Entry Option:</strong> The raw secret key is also displayed for users who prefer manual entry into their authenticator app.</li>
+  <li><strong>Verification:</strong> The user enters the 6-digit code from their authenticator app.</li>
+  <li><strong>Activation:</strong> The backend verifies the code against the secret using <code>authenticator.verify()</code>. On success, MFA is permanently enabled for the account and the secret is stored securely.</li>
+  <li><strong>Audit Logging:</strong> MFA enablement is recorded in the structured audit log.</li>
+</ol>
+
+<h2>3. MFA Login Flow</h2>
+
+<p>When a user with MFA enabled attempts to log in:</p>
+
+<ol>
+  <li><strong>Credential Verification:</strong> The user submits their email and password. Passwords are verified against bcrypt hashes (12 rounds).</li>
+  <li><strong>MFA Challenge:</strong> If credentials are valid and MFA is enabled, the server returns <code>mfaRequired: true</code> along with a temporary JWT token. This temporary token has <code>mfaVerified: false</code> and cannot be used to access any protected resources or financial data.</li>
+  <li><strong>Code Entry:</strong> The user is presented with a dedicated MFA verification screen requesting their 6-digit authenticator code.</li>
+  <li><strong>Code Verification:</strong> The backend verifies the submitted TOTP code against the user's stored secret using <code>authenticator.verify()</code>.</li>
+  <li><strong>Full Access Token:</strong> On successful verification, a new JWT is issued with <code>mfaVerified: true</code>. Only this token grants access to the application dashboard and financial features.</li>
+  <li><strong>Audit Logging:</strong> Both successful and failed MFA verification attempts are recorded in the audit log.</li>
+</ol>
+
+<h2>4. MFA Enforcement Before Plaid Link</h2>
+
+<p>
+  The application enforces a strict authentication gate before any financial features are accessible:
+</p>
+
+<ul>
+  <li><strong>Unauthenticated users</strong> see only the Login/Register screen. No financial data or Plaid Link is rendered.</li>
+  <li><strong>Users with MFA enabled</strong> must complete the full MFA verification step during login before reaching the application dashboard.</li>
+  <li>The <strong>"Connect Bank" button</strong> (which launches Plaid Link) is only rendered within the authenticated dashboard, behind the login + MFA gate.</li>
+  <li>Before Plaid Link opens, users are additionally presented with a <strong>consent disclosure modal</strong> that describes the data being accessed and requires explicit agreement.</li>
+  <li>The <strong>Plaid link token endpoint</strong> (<code>/plaid/link-token</code>) requires a valid JWT with organization membership, which itself requires successful authentication (including MFA if enabled).</li>
+</ul>
+
+<div class="callout">
+  <div class="callout-title">Authentication Flow to Plaid Link</div>
+  Login &rarr; MFA Verification (if enabled) &rarr; Dashboard &rarr; "Connect Bank" &rarr; Consent Modal &rarr; Plaid Link
+</div>
+
+<h2>5. Backend Authorization Middleware</h2>
+
+<p>All API endpoints that handle financial data use the <code>requireAuth()</code> middleware, which:</p>
+
+<ul>
+  <li>Extracts and validates the JWT Bearer token from the <code>Authorization</code> header.</li>
+  <li>Rejects requests with missing, invalid, or expired tokens (HTTP 401).</li>
+  <li>Supports an optional <code>requireMfa: true</code> flag that rejects tokens where <code>mfaVerified</code> is <code>false</code> (HTTP 403).</li>
+</ul>
+
+<p>Additionally, the <code>requireOrg()</code> middleware ensures users belong to an organization before accessing Plaid-related endpoints, providing data isolation between users.</p>
+
+<h2>6. Token Security</h2>
+
+<table>
+  <tr><th>Attribute</th><th>Details</th></tr>
+  <tr><td>Token Type</td><td>JSON Web Token (JWT)</td></tr>
+  <tr><td>Signing Algorithm</td><td>HS256 (HMAC-SHA256)</td></tr>
+  <tr><td>Expiration</td><td>24 hours</td></tr>
+  <tr><td>Secret Key</td><td>Minimum 32 characters, stored as encrypted environment variable in AWS Lambda</td></tr>
+  <tr><td>Storage (Client)</td><td>Browser <code>sessionStorage</code> — cleared on tab close</td></tr>
+  <tr><td>MFA State in Token</td><td><code>mfaVerified</code> boolean claim — <code>false</code> for temporary tokens, <code>true</code> only after successful TOTP verification</td></tr>
+</table>
+
+<h2>7. Password Requirements</h2>
+
+<table>
+  <tr><th>Attribute</th><th>Details</th></tr>
+  <tr><td>Minimum Length</td><td>8 characters</td></tr>
+  <tr><td>Hashing Algorithm</td><td>bcrypt</td></tr>
+  <tr><td>Cost Factor</td><td>12 rounds</td></tr>
+  <tr><td>Password Reset</td><td>32-byte cryptographic random token, SHA-256 hashed, 1-hour expiry, delivered via email (SendGrid). Generic response to prevent email enumeration.</td></tr>
+</table>
+
+<h2>8. Security Controls Summary</h2>
+
+<ul>
+  <li><strong>Anti-Enumeration:</strong> Login and password reset endpoints return generic error messages that do not reveal whether an email exists in the system.</li>
+  <li><strong>Session Isolation:</strong> Tokens stored in <code>sessionStorage</code> are not accessible across tabs or after browser close.</li>
+  <li><strong>Audit Trail:</strong> All authentication events (login, MFA setup, MFA verification, failed attempts) are logged in structured JSON format with timestamps and user identifiers.</li>
+  <li><strong>Sensitive Data Redaction:</strong> Passwords, tokens, and secrets are automatically redacted from all log output.</li>
+</ul>
+
+<div class="footer">
+  Prepared March 3, 2026 &middot; RAG Consulting LLC &middot; Confidential
+</div>
+
+</body>
+</html>
