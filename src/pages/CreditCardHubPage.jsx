@@ -17,6 +17,7 @@ export default function CreditCardHubPage({
   oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
   transactionLinks = {}, onLinkTransaction, onUnlinkTransaction,
   onAllTransactionsChange,
+  transactionOverrides = {}, onTransactionOverride,
 }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
@@ -44,7 +45,7 @@ export default function CreditCardHubPage({
     }
   }, [index, selectedCardId]) // eslint-disable-line
 
-  // Collect all transactions from loaded statements
+  // Collect all transactions from loaded statements, applying any user overrides
   const allTransactions = useMemo(() => {
     const txns = []
     const relevantStmts = (index?.statements || [])
@@ -54,6 +55,7 @@ export default function CreditCardHubPage({
       const full = statements[stmtMeta.id]
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
+        const override = transactionOverrides[txn.id]
         txns.push({
           ...txn,
           cardId: full.cardId,
@@ -61,11 +63,12 @@ export default function CreditCardHubPage({
           accountType: full.accountType || null,
           accountSubtype: full.accountSubtype || null,
           accountName: full.accountName || null,
+          ...(override || {}),
         })
       }
     }
     return txns
-  }, [index, statements, selectedCardId])
+  }, [index, statements, selectedCardId, transactionOverrides])
 
   // Collect ALL transactions across all accounts (unfiltered, for linking)
   const allTransactionsUnfiltered = useMemo(() => {
@@ -244,6 +247,7 @@ export default function CreditCardHubPage({
       <StatementChartTabs
         transactions={allTransactions}
         creditCards={creditCards}
+        onTransactionUpdate={onTransactionOverride}
       />
 
       {/* Statement list */}
