@@ -1455,10 +1455,71 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
   }
 })
 
+// ═══════════════════════════════════════════════════════════════
+// FEEDBACK ROUTE
+// ═══════════════════════════════════════════════════════════════
+
+const FEEDBACK_REPO = 'RAG-Consulting-LLC/unemployment-burndown'
+const FEEDBACK_LABEL_MAP = {
+  bug_report: 'bug',
+  feature_request: 'enhancement',
+  question: 'question',
+}
+
+// POST /api/feedback — create a GitHub issue from in-app feedback
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const githubToken = process.env.GITHUB_TOKEN
+    if (!githubToken) {
+      return res.status(503).json({ error: 'Feedback service is not configured' })
+    }
+
+    const { category, description } = req.body
+    if (!description || !description.trim()) {
+      return res.status(400).json({ error: 'Description is required' })
+    }
+
+    const labels = []
+    if (category && FEEDBACK_LABEL_MAP[category]) labels.push(FEEDBACK_LABEL_MAP[category])
+
+    const title = description.trim().slice(0, 100)
+    const issueBody = [
+      description.trim(),
+      '',
+      '---',
+      `*Submitted via in-app feedback widget*`,
+    ].join('\n')
+
+    const ghRes = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO}/issues`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${githubToken}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({ title, body: issueBody, labels }),
+    })
+
+    if (!ghRes.ok) {
+      const text = await ghRes.text()
+      req.log.error({ status: ghRes.status, body: text }, 'GitHub API error')
+      return res.status(502).json({ error: 'Failed to create issue' })
+    }
+
+    const issue = await ghRes.json()
+    req.log.info({ issueNumber: issue.number }, 'feedback issue created')
+    res.json({ created: true, issueNumber: issue.number, url: issue.html_url })
+  } catch (err) {
+    req.log.error({ err }, 'feedback submission failed')
+    res.status(500).json({ error: 'Failed to submit feedback' })
+  }
+})
+
 const PORT = process.env.PLAID_SERVER_PORT || 3001
 
 // ── HTTPS with TLS 1.2+ ──
-const tlsCreds = getDevTlsCredentials()
+const tlsCreds = await getDevTlsCredentials()
 const server = https.createServer(
   {
     key: tlsCreds.key,
