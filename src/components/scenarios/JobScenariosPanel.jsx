@@ -52,7 +52,7 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
   return (
     <div className="space-y-5">
       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-        Compare multiple job offers side-by-side. See how each role impacts your savings over 5 years.
+        Compare multiple job offers side-by-side. See how each role impacts your savings over time.
       </p>
 
       {/* Existing scenario cards */}
@@ -277,7 +277,7 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
       {scenarios.length > 0 && scenarioResults && (
         <div>
           <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
-            5-Year Savings Projection
+            Savings Projection
           </p>
           <JobScenariosChart scenarios={scenarios} scenarioResults={scenarioResults} />
         </div>
@@ -298,9 +298,9 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
                   <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>No Job (Baseline)</p>
                 </div>
                 <MetricRow label="Runway" value={baselineResult.runoutDate ? formatMonths(baselineResult.totalRunwayMonths) : 'Beyond 10 yrs'} />
+                <MetricRow label="6 Months" value={formatCurrency(baselineResult.dataPoints[6]?.balance ?? 0)} />
                 <MetricRow label="Year 1" value={formatCurrency(baselineResult.dataPoints[12]?.balance ?? 0)} />
-                <MetricRow label="Year 3" value={formatCurrency(baselineResult.dataPoints[36]?.balance ?? 0)} />
-                <MetricRow label="Year 5" value={formatCurrency(baselineResult.dataPoints[Math.min(60, baselineResult.dataPoints.length - 1)]?.balance ?? 0)} />
+                <MetricRow label="Year 2" value={formatCurrency(baselineResult.dataPoints[24]?.balance ?? 0)} />
               </div>
             )}
 
@@ -320,9 +320,9 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
                     <p className="text-xs font-semibold truncate" style={{ color: s.color }}>{s.name}</p>
                   </div>
                   <MetricRow label="Runway" value={result.runoutDate ? formatMonths(result.totalRunwayMonths) : 'Beyond 10 yrs'} />
+                  <MetricRow label="6 Months" value={formatCurrency(result.dataPoints[6]?.balance ?? 0)} />
                   <MetricRow label="Year 1" value={formatCurrency(result.dataPoints[12]?.balance ?? 0)} />
-                  <MetricRow label="Year 3" value={formatCurrency(result.dataPoints[36]?.balance ?? 0)} />
-                  <MetricRow label="Year 5" value={formatCurrency(result.dataPoints[Math.min(60, result.dataPoints.length - 1)]?.balance ?? 0)} />
+                  <MetricRow label="Year 2" value={formatCurrency(result.dataPoints[24]?.balance ?? 0)} />
                   <MetricRow
                     label="Monthly surplus"
                     value={formatCurrency(surplus) + '/mo'}
@@ -338,7 +338,7 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
       {/* Empty state */}
       {scenarios.length === 0 && (
         <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
-          Add a job scenario above to see how different offers impact your financial runway over 5 years.
+          Add a job scenario above to see how different offers impact your financial runway.
         </p>
       )}
     </div>

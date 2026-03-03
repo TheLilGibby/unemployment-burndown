@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   LineChart,
   Line,
@@ -11,7 +12,12 @@ import {
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 
-const MAX_MONTHS = 60 // 5-year default view
+const ZOOM_OPTIONS = [
+  { label: '6M', months: 6 },
+  { label: '1Y', months: 12 },
+  { label: '2Y', months: 24 },
+  { label: '5Y', months: 60 },
+]
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
@@ -32,17 +38,17 @@ function CustomTooltip({ active, payload }) {
  * Merges N scenario dataPoint arrays (by month index) into a single array
  * for a multi-line chart. Includes a baseline (no-job) line.
  */
-function mergeDataPoints(baselinePoints, scenarios, scenarioResults) {
+function mergeDataPoints(baselinePoints, scenarios, scenarioResults, maxMonths) {
   const map = {}
   for (const pt of (baselinePoints || [])) {
-    if (pt.month > MAX_MONTHS) break
+    if (pt.month > maxMonths) break
     map[pt.month] = { dateLabel: pt.dateLabel, month: pt.month, 'No Job (Baseline)': pt.balance }
   }
   for (const s of scenarios) {
     const result = scenarioResults[s.id]
     if (!result) continue
     for (const pt of result.dataPoints) {
-      if (pt.month > MAX_MONTHS) break
+      if (pt.month > maxMonths) break
       map[pt.month] = { ...map[pt.month], dateLabel: pt.dateLabel, month: pt.month, [s.name]: pt.balance }
     }
   }
@@ -50,10 +56,11 @@ function mergeDataPoints(baselinePoints, scenarios, scenarioResults) {
 }
 
 export default function JobScenariosChart({ scenarios, scenarioResults }) {
+  const [zoom, setZoom] = useState(24)
   const baselineResult = scenarioResults['__baseline__']
   if (!baselineResult || scenarios.length === 0) return null
 
-  const merged = mergeDataPoints(baselineResult.dataPoints, scenarios, scenarioResults)
+  const merged = mergeDataPoints(baselineResult.dataPoints, scenarios, scenarioResults, zoom)
 
   // Thin to ~60 points max for performance
   const step = Math.max(1, Math.ceil(merged.length / 60))
@@ -66,6 +73,24 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
   )
 
   return (
+    <div className="space-y-3">
+      <div className="flex gap-1">
+        {ZOOM_OPTIONS.map(opt => (
+          <button
+            key={opt.label}
+            onClick={() => setZoom(opt.months)}
+            className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
+            style={{
+              borderColor: zoom === opt.months ? 'var(--accent-blue)' : 'var(--border-subtle)',
+              background: zoom === opt.months ? 'var(--accent-blue)' + '20' : 'transparent',
+              color: zoom === opt.months ? 'var(--accent-blue)' : 'var(--text-faint)',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
     <div style={{ width: '100%', height: 320 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
@@ -122,6 +147,7 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
           ))}
         </LineChart>
       </ResponsiveContainer>
+    </div>
     </div>
   )
 }
