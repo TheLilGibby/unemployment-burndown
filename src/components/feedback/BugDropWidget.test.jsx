@@ -22,12 +22,21 @@ beforeAll(() => {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     stroke: vi.fn(),
+    fillRect: vi.fn(),
+    fillText: vi.fn(),
     getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray(4), width: 1, height: 1 }),
     putImageData: vi.fn(),
+    set fillStyle(_v) {},
     set strokeStyle(_v) {},
     set lineWidth(_v) {},
     set lineCap(_v) {},
     set lineJoin(_v) {},
+    set font(_v) {},
+    set textAlign(_v) {},
+    set shadowColor(_v) {},
+    set shadowBlur(_v) {},
+    set shadowOffsetX(_v) {},
+    set shadowOffsetY(_v) {},
   })
   HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/jpeg;base64,TESTDATA')
 })
@@ -211,6 +220,18 @@ describe('BugDropWidget', () => {
     })
 
     expect(screen.getByText('Feedback service is not configured')).toBeTruthy()
+  })
+
+  it('shows annotation overlay with blank canvas when screenshot capture fails', async () => {
+    const { default: html2canvas } = await import('html2canvas')
+    html2canvas.mockRejectedValueOnce(new Error('canvas tainted'))
+
+    render(<BugDropWidget />)
+    fireEvent.click(screen.getByTestId('feedback-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('annotation-overlay')).toBeTruthy()
+    })
   })
 
   it('closes everything when button is clicked while open', async () => {

@@ -77,9 +77,21 @@ export default function BugDropWidget() {
 
       setScreenshotUrl(result.toDataURL('image/jpeg', 0.7))
       setStep('annotate')
-    } catch {
-      // If screenshot fails, skip straight to form
-      setStep('form')
+    } catch (err) {
+      console.error('[BugDropWidget] Screenshot capture failed:', err)
+      // Generate a grey placeholder so the annotation step is still shown
+      const blank = document.createElement('canvas')
+      blank.width = 1280
+      blank.height = 720
+      const ctx = blank.getContext('2d')
+      ctx.fillStyle = '#f3f4f6'
+      ctx.fillRect(0, 0, 1280, 720)
+      ctx.fillStyle = '#9ca3af'
+      ctx.font = 'bold 18px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Screenshot unavailable — annotate or describe your issue below', 640, 360)
+      setScreenshotUrl(blank.toDataURL('image/jpeg', 0.7))
+      setStep('annotate')
     }
   }, [])
 
