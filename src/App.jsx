@@ -26,6 +26,7 @@ import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
+import { getEffectivePayment } from './utils/ccPayment'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
@@ -80,7 +81,7 @@ function migrateJobScenario(s) {
 // Pure burndown computation (mirrors useBurndown logic without React hooks).
 // Used inside useMemo to compute template results for the Compare tab.
 // ---------------------------------------------------------------------------
-function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
+function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = [], creditCards = []) {
   const today = dayjs(startDate || new Date())
 
   const rawBenefitStart = dayjs(unemployment.startDate)
@@ -158,12 +159,22 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     oneTimeIncomeByMonth[slot] = (oneTimeIncomeByMonth[slot] || 0) + (Number(oti.amount) || 0)
   }
 
+  let ccBals = creditCards.map(c => ({
+    id: c.id, balance: Number(c.balance) || 0,
+    apr: Number(c.apr) || 0,
+    payment: getEffectivePayment(c),
+    strategy: c.paymentStrategy || 'minimum',
+  }))
+  const initDebt = ccBals.reduce((s, cc) => s + cc.balance, 0)
+
   const MAX_MONTHS = 120
   let balance = (Number(savings) || 0) + (Number(extraCash) || 0)
   const dataPoints = [{
     date: today.toDate(), dateLabel: today.format('MMM YYYY'),
     balance: Math.round(Math.max(0, balance - emergencyFloor)),
     rawBalance: Math.round(balance), month: 0,
+    totalDebt: Math.round(initDebt),
+    netPosition: Math.round(Math.max(0, balance - emergencyFloor) - initDebt),
   }]
 
   let runoutDate = null, runoutMonth = null
@@ -226,11 +237,23 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
       runoutDate = crossoverDate.toDate()
       runoutMonth = i - 1 + fraction
     }
+    // Update CC balances
+    for (const cc of ccBals) {
+      if (cc.balance <= 0) continue
+      if (cc.strategy === 'full') { cc.balance = 0 }
+      else {
+        const interest = cc.balance * (cc.apr / 100 / 12)
+        cc.balance = Math.max(0, cc.balance + interest - cc.payment)
+      }
+    }
+    const totalDebt = ccBals.reduce((s, cc) => s + cc.balance, 0)
     dataPoints.push({
       date: currentDate.toDate(), dateLabel: currentDate.format('MMM YYYY'),
       balance: Math.max(0, Math.round(effectiveBalance)),
       rawBalance: Math.round(balance), month: i,
       oneTimeCost: oneTimeCost > 0 ? Math.round(oneTimeCost) : undefined,
+      totalDebt: Math.round(totalDebt),
+      netPosition: Math.round(Math.max(0, effectiveBalance) - totalDebt),
     })
     if (effectiveBalance <= 0 && i >= (runoutMonth || 0) + 3) break
   }
@@ -522,7 +545,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
   const summarizeInvestments  = (v) => _activeSum(v, 'monthlyAmount') + '/mo'
   const summarizeSubs         = (v) => _activeSum(v, 'monthlyAmount') + '/mo'
-  const summarizeCCs          = (v) => _allSum(v, 'minimumPayment') + ' min/mo'
+  const summarizeCCs          = (v) => {
+    const total = v.reduce((s, c) => s + getEffectivePayment(c), 0)
+    return _fmtM(total) + '/mo'
+  }
   const summarizeJobScenarios = (v) => `${v.length} scenario${v.length !== 1 ? 's' : ''}`
   const summarizeRetirement = (v) => {
     const target = v.targetMode === 'income'
@@ -635,23 +661,27 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const effectiveStartDate = furloughDate || derivedStartDate || dayjs().format('YYYY-MM-DD')
 
-  // Merge active subscriptions + credit card minimum payments into expenses
+  // Merge active subscriptions + credit card payments into expenses
   const expensesWithSubs = [
     ...expenses,
     ...subscriptions
       .filter(s => s.active !== false)
       .map(s => ({ id: `sub_${s.id}`, category: s.name, monthlyAmount: s.monthlyAmount, essential: false })),
     ...creditCards
-      .filter(c => (Number(c.minimumPayment) || 0) > 0)
-      .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+      .filter(c => getEffectivePayment(c) > 0)
+      .map(c => {
+        const pmt = getEffectivePayment(c)
+        const label = c.paymentStrategy === 'full' ? 'full bal.' : c.paymentStrategy === 'fixed' ? 'fixed pmt' : 'min. payment'
+        return { id: `cc_${c.id}`, category: `${c.name} (${label})`, monthlyAmount: pmt, essential: true }
+      }),
   ]
 
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
+  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
+  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -671,8 +701,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           .filter(sub => sub.active !== false)
           .map(sub => ({ id: `sub_${sub.id}`, category: sub.name, monthlyAmount: sub.monthlyAmount, essential: false })),
         ...(s.creditCards || [])
-          .filter(c => (Number(c.minimumPayment) || 0) > 0)
-          .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+          .filter(c => getEffectivePayment(c) > 0)
+          .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (payment)`, monthlyAmount: getEffectivePayment(c), essential: true })),
       ]
       const tWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
       const tUnemployment = s.unemployment || DEFAULTS.unemployment
@@ -683,7 +713,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       const tFurloughDate = s.furloughDate || DEFAULTS.furloughDate
       const tJobs = s.jobs || []
       const tOneTimePurchases = s.oneTimePurchases || []
-      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases)
+      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases, s.creditCards || [])
     }
     return results
   }, [templates])
@@ -713,14 +743,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       results[scenario.id] = computeBurndown(
         totalSavings, unemployment, expensesWithSubs, scenarioWhatIf,
         oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-        monthlyIncome, furloughDate, [], oneTimePurchases
+        monthlyIncome, furloughDate, [], oneTimePurchases, creditCards
       )
     }
     // Baseline (no job) result
     results['__baseline__'] = computeBurndown(
       totalSavings, unemployment, expensesWithSubs, baseWhatIfForScenarios,
       oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-      monthlyIncome, furloughDate, [], oneTimePurchases
+      monthlyIncome, furloughDate, [], oneTimePurchases, creditCards
     )
     return results
   }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, oneTimePurchases, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
@@ -741,8 +771,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         .filter(sub => sub.active !== false)
         .map(sub => ({ id: `sub_${sub.id}`, category: sub.name, monthlyAmount: sub.monthlyAmount, essential: false })),
       ...(s.creditCards || [])
-        .filter(c => (Number(c.minimumPayment) || 0) > 0)
-        .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+        .filter(c => getEffectivePayment(c) > 0)
+        .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (payment)`, monthlyAmount: getEffectivePayment(c), essential: true })),
     ]
     const hWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
     const hUnemployment = s.unemployment || DEFAULTS.unemployment
@@ -756,7 +786,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       hSavings, hUnemployment, hExpenses, hWhatIf,
       hOneTime, hAssetProceeds, hInvestments,
       hOneTimeIncome, hMonthlyIncome, historicalDate,
-      hJobs, hOneTimePurchases
+      hJobs, hOneTimePurchases, s.creditCards || []
     )
   }, [historicalSnapshot, historicalDate])
 
@@ -1093,6 +1123,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             onLinkTransaction={handleLinkTransaction}
             onUnlinkTransaction={handleUnlinkTransaction}
             onAllTransactionsChange={setAllTransactionsCache}
+            expenses={expenses}
+            subscriptions={subscriptions}
+            monthlyBenefits={current.monthlyBenefits}
+            totalMonthlyIncome={current.totalMonthlyIncome}
             transactionOverrides={transactionOverrides}
             onTransactionOverride={handleTransactionOverride}
           />

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import dayjs from 'dayjs'
+import { getEffectivePayment } from '../utils/ccPayment'
 
 /**
  * whatIf shape:
@@ -25,7 +26,7 @@ import dayjs from 'dayjs'
  *   jobOfferTaxRatePct     number  effective tax rate (for bonus calculation)
  *   jobOfferEmployerMatchPct number 0-100 employer 401k match % (tracked separately, not liquid)
  */
-export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses = [], extraCash = 0, investments = [], oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
+export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses = [], extraCash = 0, investments = [], oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = [], creditCards = []) {
   return useMemo(() => {
     const today = dayjs(startDate || new Date())
 
@@ -134,6 +135,16 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       return total
     }
 
+    // --- Credit card balance trajectories ---
+    let ccBalances = creditCards.map(c => ({
+      id: c.id,
+      balance: Number(c.balance) || 0,
+      apr: Number(c.apr) || 0,
+      payment: getEffectivePayment(c),
+      strategy: c.paymentStrategy || 'minimum',
+    }))
+    const initialDebt = ccBalances.reduce((s, cc) => s + cc.balance, 0)
+
     // --- Simulation ---
     const MAX_MONTHS = 120
     let balance = (Number(savings) || 0) + (Number(extraCash) || 0)
@@ -152,6 +163,8 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
         netBurnEssentialOnly: 0,
         inBenefitWindow: false,
         jobActive: false,
+        totalDebt: Math.round(initialDebt),
+        netPosition: Math.round(Math.max(0, balance - emergencyFloor) - initialDebt),
       },
     ]
 
@@ -258,6 +271,18 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
 
       const effectiveBalanceEssential = balanceEssential - emergencyFloor
 
+      // Update CC balances for this month
+      for (const cc of ccBalances) {
+        if (cc.balance <= 0) continue
+        if (cc.strategy === 'full') {
+          cc.balance = 0
+        } else {
+          const interest = cc.balance * (cc.apr / 100 / 12)
+          cc.balance = Math.max(0, cc.balance + interest - cc.payment)
+        }
+      }
+      const totalDebt = ccBalances.reduce((s, cc) => s + cc.balance, 0)
+
       dataPoints.push({
         date: currentDate.toDate(),
         dateLabel: currentDate.format('MMM YYYY'),
@@ -272,6 +297,8 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
         oneTimeIncome: oneTimeIncomeThisMonth > 0 ? Math.round(oneTimeIncomeThisMonth) : undefined,
         inBenefitWindow,
         jobActive: jobIncomeThisMonth > 0,
+        totalDebt: Math.round(totalDebt),
+        netPosition: Math.round(Math.max(0, effectiveBalance) - totalDebt),
       })
 
       if (effectiveBalance <= 0 && i >= (runoutMonth || 0) + 3) break
@@ -335,5 +362,5 @@ export function useBurndown(savings, unemployment, expenses, whatIf, oneTimeExpe
       benefitStart: benefitStart.toDate(),
       emergencyFloor,
     }
-  }, [savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome, monthlyIncome, startDate, jobs, oneTimePurchases])
+  }, [savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome, monthlyIncome, startDate, jobs, oneTimePurchases, creditCards])
 }

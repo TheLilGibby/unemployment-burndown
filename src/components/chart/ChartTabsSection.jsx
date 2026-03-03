@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import dayjs from 'dayjs'
-import { TrendingDown, Flame, ArrowLeftRight, PieChart, BarChart2, BarChart3 } from 'lucide-react'
+import { TrendingDown, Flame, ArrowLeftRight, PieChart, BarChart2, BarChart3, Scale } from 'lucide-react'
 import BurndownChart from './BurndownChart'
 import SnapshotDatePicker from './SnapshotDatePicker'
 import BurnRateChart from './BurnRateChart'
@@ -8,6 +8,7 @@ import IncomeVsExpensesChart from './IncomeVsExpensesChart'
 import ExpenseDonutChart from './ExpenseDonutChart'
 import TopExpensesChart from './TopExpensesChart'
 import IncomeCompositionChart from './IncomeCompositionChart'
+import NetPositionChart from './NetPositionChart'
 
 // ─── Chart registry ───────────────────────────────────────────────────────────
 const CHART_DEFS = [
@@ -16,6 +17,12 @@ const CHART_DEFS = [
     Icon: TrendingDown,
     label: 'Balance',
     desc:  'Savings balance over time — the core runway burndown view',
+  },
+  {
+    id:   'netposition',
+    Icon: Scale,
+    label: 'Net Position',
+    desc:  'Cash minus credit card debt — your true financial position over time',
   },
   {
     id:   'burnrate',
@@ -197,6 +204,9 @@ export default function ChartTabsSection({
               showBaseline={showBaseline}
             />
           </div>
+        )}
+        {activeId === 'netposition' && (
+          <NetPositionChart dataPoints={dataPoints} />
         )}
         {activeId === 'burnrate' && (
           <BurnRateChart dataPoints={dataPoints} />

@@ -17,6 +17,7 @@ export default function CreditCardHubPage({
   oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
   transactionLinks = {}, onLinkTransaction, onUnlinkTransaction,
   onAllTransactionsChange,
+  expenses = [], subscriptions = [], monthlyBenefits = 0, totalMonthlyIncome = 0,
   transactionOverrides = {}, onTransactionOverride,
 }) {
   const [searchParams] = useSearchParams()
@@ -247,6 +248,10 @@ export default function CreditCardHubPage({
       <StatementChartTabs
         transactions={allTransactions}
         creditCards={creditCards}
+        expenses={expenses}
+        subscriptions={subscriptions}
+        monthlyIncome={totalMonthlyIncome}
+        monthlyBenefits={monthlyBenefits}
         onTransactionUpdate={onTransactionOverride}
       />
 

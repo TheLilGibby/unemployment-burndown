@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { formatCurrency, formatMonths } from '../../utils/formatters'
+import { getEffectivePayment } from '../../utils/ccPayment'
 import dayjs from 'dayjs'
 import EmergencyFloorPanel from './EmergencyFloorPanel'
 import BenefitGapPanel from './BenefitGapPanel'
@@ -108,7 +109,7 @@ export default function WhatIfPanel({
     .filter(s => s.active !== false)
     .reduce((sum, s) => sum + (Number(s.monthlyAmount) || 0), 0)
   const ccMinTotal = (creditCards || [])
-    .reduce((sum, c) => sum + (Number(c.minimumPayment) || 0), 0)
+    .reduce((sum, c) => sum + getEffectivePayment(c), 0)
   const totalCostOfLiving = essentialTotal + nonEssentialTotal + subsTotal + ccMinTotal
 
   const hasChanges =
