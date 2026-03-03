@@ -234,6 +234,31 @@ describe('BugDropWidget', () => {
     })
   })
 
+  it('renders annotation canvas placeholder when screenshot image fails to decode', async () => {
+    const { default: html2canvas } = await import('html2canvas')
+    const fakeCanvas = { toDataURL: vi.fn().mockReturnValue('data:image/jpeg;base64,TESTDATA'), width: 800, height: 600 }
+    html2canvas.mockResolvedValueOnce(fakeCanvas)
+
+    // Force the Image element to immediately fire onerror
+    const OriginalImage = global.Image
+    try {
+      global.Image = class {
+        constructor() {}
+        set src(_val) { if (this.onerror) setTimeout(() => this.onerror(), 0) }
+      }
+
+      render(<BugDropWidget />)
+      fireEvent.click(screen.getByTestId('feedback-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('annotation-overlay')).toBeTruthy()
+      })
+      expect(screen.getByTestId('annotation-canvas')).toBeTruthy()
+    } finally {
+      global.Image = OriginalImage
+    }
+  })
+
   it('closes everything when button is clicked while open', async () => {
     render(<BugDropWidget />)
     fireEvent.click(screen.getByTestId('feedback-button'))
