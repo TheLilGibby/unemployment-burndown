@@ -21,6 +21,7 @@ import BurndownPage from './pages/BurndownPage'
 import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
+import RetirementPage from './pages/RetirementPage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { usePlaid } from './hooks/usePlaid'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
@@ -980,6 +981,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               currentNetBurn={current.currentNetBurn}
             />
           </ErrorBoundary>
+        } />
+
+        <Route path="/retirement" element={
+          <RetirementPage
+            retirement={retirement}
+            onRetirementChange={onRetirementChange}
+            people={people}
+          />
         } />
 
         <Route path="/settings" element={<UserProfilePage />} />
