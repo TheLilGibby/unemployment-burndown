@@ -6,9 +6,10 @@ import { formatCurrency } from '../../utils/formatters'
 import { computeMonthlyTakeHome } from '../../utils/stateTaxRates'
 
 const ZOOM_OPTIONS = [
+  { label: '1Y', years: 1 },
+  { label: '2Y', years: 2 },
   { label: '5Y', years: 5 },
   { label: '10Y', years: 10 },
-  { label: '15Y', years: 15 },
   { label: '20Y', years: 20 },
 ]
 
@@ -31,7 +32,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) {
-  const [zoom, setZoom] = useState(10)
+  const [zoom, setZoom] = useState(5)
   const [mode, setMode] = useState('gross') // 'gross' | 'takeHome' | 'totalComp'
 
   const chartData = useMemo(() => {
@@ -187,10 +188,10 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
               <th className="text-left py-1 pr-3 font-medium">Scenario</th>
               <th className="text-right py-1 px-2 font-medium">Raise</th>
               <th className="text-right py-1 px-2 font-medium">Year 1</th>
-              <th className="text-right py-1 px-2 font-medium">Year 3</th>
-              <th className="text-right py-1 px-2 font-medium">Year 5</th>
-              <th className="text-right py-1 px-2 font-medium">Year 10</th>
-              <th className="text-right py-1 pl-2 font-medium">Total Earned (10yr)</th>
+              <th className="text-right py-1 px-2 font-medium">Year 2</th>
+              {zoom >= 5 && <th className="text-right py-1 px-2 font-medium">Year 5</th>}
+              {zoom >= 10 && <th className="text-right py-1 px-2 font-medium">Year 10</th>}
+              <th className="text-right py-1 pl-2 font-medium">Total Earned ({zoom}yr)</th>
             </tr>
           </thead>
           <tbody>
@@ -204,12 +205,12 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
               const yr = mode === 'totalComp'
                 ? (y) => yrBase(y) + yrBase(y) * bonusPct + equity + (y === 0 ? signing : 0)
                 : yrBase
-              // Total earnings over 10 years = sum of geometric series
+              // Total earnings over zoom years = sum of geometric series
               const baseEarned = r > 0
-                ? g * (Math.pow(1 + r, 10) - 1) / r
-                : g * 10
+                ? g * (Math.pow(1 + r, zoom) - 1) / r
+                : g * zoom
               const totalEarned = mode === 'totalComp'
-                ? baseEarned + baseEarned * bonusPct + equity * 10 + signing
+                ? baseEarned + baseEarned * bonusPct + equity * zoom + signing
                 : baseEarned
 
               return (
@@ -225,14 +226,18 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
                     {formatCurrency(yr(1))}
                   </td>
                   <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
-                    {formatCurrency(yr(3))}
+                    {formatCurrency(yr(2))}
                   </td>
-                  <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
-                    {formatCurrency(yr(5))}
-                  </td>
-                  <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
-                    {formatCurrency(yr(10))}
-                  </td>
+                  {zoom >= 5 && (
+                    <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                      {formatCurrency(yr(5))}
+                    </td>
+                  )}
+                  {zoom >= 10 && (
+                    <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                      {formatCurrency(yr(10))}
+                    </td>
+                  )}
                   <td className="text-right py-1.5 pl-2 font-semibold" style={{ color: 'var(--accent-emerald)' }}>
                     {formatCurrency(totalEarned)}
                   </td>

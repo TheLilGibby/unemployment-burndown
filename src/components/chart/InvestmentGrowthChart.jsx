@@ -10,6 +10,8 @@ const ANNUAL_RETURN = 0.07
 const MONTHLY_RETURN = Math.pow(1 + ANNUAL_RETURN, 1 / 12) - 1
 
 const ZOOM_OPTIONS = [
+  { label: '1Y', months: 12 },
+  { label: '2Y', months: 24 },
   { label: '5Y', months: 60 },
   { label: '10Y', months: 120 },
   { label: '20Y', months: 240 },

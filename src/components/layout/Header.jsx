@@ -5,6 +5,7 @@ const BASE_TABS = [
   { path: '/',              label: 'Overview',      shortLabel: 'Overview' },
   { path: '/job-scenarios', label: 'Job Scenarios', shortLabel: 'Jobs' },
   { path: '/credit-cards',  label: 'Statements',    shortLabel: 'Cards' },
+  { path: '/retirement',    label: 'Retirement',    shortLabel: 'Retire' },
 ]
 
 const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin' }
