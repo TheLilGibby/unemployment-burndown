@@ -24,8 +24,6 @@ const SECTION_GROUPS = [
     label: 'Assets & Planning',
     items: [
       { key: 'investments', label: 'Investments' },
-      { key: 'child1Investments', label: 'Child [1] Investments' },
-      { key: 'child2Investments', label: 'Child [2] Investments' },
       { key: 'assets', label: 'Sellable Assets' },
     ],
   },
