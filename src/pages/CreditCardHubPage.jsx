@@ -22,6 +22,7 @@ export default function CreditCardHubPage({
   onAllTransactionsChange,
   expenses = [], subscriptions = [], monthlyBenefits = 0, totalMonthlyIncome = 0,
   transactionOverrides = {}, onTransactionOverride,
+  jobs = [],
 }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
@@ -320,6 +321,9 @@ export default function CreditCardHubPage({
           txnToOverviewMap={hasOneTimeItems ? txnToOverviewMap : undefined}
           onOpenLinkModal={hasOneTimeItems ? setLinkModalTxn : undefined}
           onOpenCCPicklist={creditCards.length > 0 ? handleOpenCCPicklist : undefined}
+          jobs={jobs}
+          transactionOverrides={transactionOverrides}
+          onTransactionOverride={onTransactionOverride}
         />
       </SectionCard>
 

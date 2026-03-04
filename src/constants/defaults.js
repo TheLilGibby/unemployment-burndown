@@ -45,6 +45,8 @@ export const DEFAULTS = {
   jobs: [],
   assets: [],
   investments: [],
+  child1Investments: [],
+  child2Investments: [],
   subscriptions: [
     { id: 101, name: 'Netflix',  monthlyAmount: 17,  active: true, assignedTo: null },
     { id: 102, name: 'Spotify',  monthlyAmount: 11,  active: true, assignedTo: null },

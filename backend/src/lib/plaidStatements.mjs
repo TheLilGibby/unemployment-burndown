@@ -24,16 +24,49 @@ function lastDayOfMonth(yyyymm) {
   return new Date(y, m, 0).toISOString().slice(0, 10)
 }
 
+// Patterns that indicate an internal (same-source) bank transfer
+const INTERNAL_TRANSFER_PATTERNS = [
+  /\btransfer\s+(to|from)\s+share\b/i,
+  /\bwithdrawal\s+home\s+banking\s+transfer\b/i,
+  /\bhome\s+banking\s+transfer\b/i,
+  /\bfunds\s+transfer\s+via\s+online\b/i,
+  /\binternal\s+transfer\b/i,
+  /\baccount\s+transfer\b/i,
+  /\btransfer\s+(to|from)\s+(checking|savings|share|money\s*market)\b/i,
+  /\bonline\s+transfer\s+(to|from)\b/i,
+  /\bmobile\s+transfer\s+(to|from)\b/i,
+  /\bauto\s*transfer\b/i,
+  /\bdeposit\s+home\s+banking\s+transfer\b/i,
+  /\btransfer\s+deposit\b/i,
+  /\bxfer\s+(to|from)\s+(checking|savings|share)\b/i,
+  /\bsweep\s+(to|from)\b/i,
+]
+
+function isInternalTransferDesc(text) {
+  return INTERNAL_TRANSFER_PATTERNS.some(p => p.test(text))
+}
+
 /**
  * Convert a single Plaid transaction to hub transaction format.
  */
 function transformTransaction(plaidTxn) {
+  let category = mapPlaidCategory(plaidTxn.personal_finance_category)
+
+  // Upgrade generic venmo/other transfers to 'transfer' when the description
+  // matches internal-transfer patterns (e.g. "Withdrawal Home Banking Transfer To Share")
+  if (category !== 'transfer') {
+    const desc = `${plaidTxn.name || ''} ${plaidTxn.merchant_name || ''}`
+    if (isInternalTransferDesc(desc)) {
+      category = 'transfer'
+    }
+  }
+
   return {
     id:                 `plaid_txn_${plaidTxn.transaction_id}`,
     date:               plaidTxn.date,
     description:        plaidTxn.name,
     merchantName:       plaidTxn.merchant_name || plaidTxn.name,
-    category:           mapPlaidCategory(plaidTxn.personal_finance_category),
+    category,
     amount:             plaidTxn.amount,
     isRefund:           plaidTxn.amount < 0,
     pending:            plaidTxn.pending || false,
