@@ -358,7 +358,7 @@ app.post('/api/auth/delete-account', authMiddleware, async (req, res) => {
       if (orgItemMap) {
         for (const [itemId, itemData] of orgItemMap) {
           try {
-            await plaidClient.itemRemove({ access_token: itemData.accessToken })
+            await plaidClient.itemRemove({ access_token: decryptToken(itemData.accessToken) })
           } catch { /* tolerate failure */ }
           lastSyncTimes.delete(itemId)
         }
@@ -867,12 +867,17 @@ app.delete('/api/jobs/:jobId', orgMiddleware, (req, res) => {
 // PLAID ROUTES
 // ═══════════════════════════════════════════════════════════════
 
+const PLAID_ENV_MAP = {
+  sandbox:     PlaidEnvironments.sandbox,
+  development: PlaidEnvironments.development,
+  production:  PlaidEnvironments.production,
+}
 const config = new Configuration({
-  basePath: PlaidEnvironments.sandbox,
+  basePath: PLAID_ENV_MAP[process.env.PLAID_ENV] || PlaidEnvironments.sandbox,
   baseOptions: {
     headers: {
       'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SANDBOX_SECRET,
+      'PLAID-SECRET': process.env.PLAID_SECRET || process.env.PLAID_SANDBOX_SECRET,
     },
   },
 })
