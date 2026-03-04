@@ -612,6 +612,221 @@ function ImpersonationUsersTable({ users, onImpersonate }) {
 
 // ---------------------------------------------------------------------------
 
+function PlaidLimitsEditor({ getToken, onLimitsUpdated }) {
+  const [limits, setLimits] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+
+  const fetchLimits = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/plaid-limits`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch limits')
+      const data = await res.json()
+      setLimits(data)
+      setDraft(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => { fetchLimits() }, [fetchLimits])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/plaid-limits`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monthlyBudget: parseFloat(draft.monthlyBudget),
+          estCostPerCall: parseFloat(draft.estCostPerCall),
+          maxSyncPages: parseInt(draft.maxSyncPages, 10),
+          syncCooldownSeconds: parseInt(draft.syncCooldownSeconds, 10),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update limits')
+      }
+      const data = await res.json()
+      setLimits(data.after)
+      setDraft(data.after)
+      setSuccess('Limits updated successfully')
+      if (onLimitsUpdated) onLimitsUpdated()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isDirty = draft && limits && (
+    parseFloat(draft.monthlyBudget) !== limits.monthlyBudget ||
+    parseFloat(draft.estCostPerCall) !== limits.estCostPerCall ||
+    parseInt(draft.maxSyncPages, 10) !== limits.maxSyncPages ||
+    parseInt(draft.syncCooldownSeconds, 10) !== limits.syncCooldownSeconds
+  )
+
+  const derivedMaxCalls = draft
+    ? Math.floor(parseFloat(draft.monthlyBudget || 0) / parseFloat(draft.estCostPerCall || 1))
+    : 0
+
+  if (loading && !limits) {
+    return (
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>API Limit Configuration</h3>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Adjust Plaid API rate limits and budget caps. Changes take effect immediately for all users.
+          </p>
+        </div>
+      </div>
+
+      {draft && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Monthly Budget ($)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="10000"
+                value={draft.monthlyBudget}
+                onChange={e => setDraft({ ...draft, monthlyBudget: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Est. Cost Per Call ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="100"
+                value={draft.estCostPerCall}
+                onChange={e => setDraft({ ...draft, estCostPerCall: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Max Sync Pages
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max="100"
+                value={draft.maxSyncPages}
+                onChange={e => setDraft({ ...draft, maxSyncPages: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Sync Cooldown (seconds)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="86400"
+                value={draft.syncCooldownSeconds}
+                onChange={e => setDraft({ ...draft, syncCooldownSeconds: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+          </div>
+
+          <div className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
+            Derived max calls/month: <strong style={{ color: 'var(--text-primary)' }}>{derivedMaxCalls}</strong>
+            {' '}({draft.monthlyBudget ? `$${parseFloat(draft.monthlyBudget).toFixed(2)}` : '$0'} / ${draft.estCostPerCall ? `$${parseFloat(draft.estCostPerCall).toFixed(2)}` : '$0'} per call)
+          </div>
+
+          {success && (
+            <div className="px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={saving || !isDirty}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: !isDirty ? 'var(--bg-input)' : saving ? 'var(--bg-input)' : 'rgba(59, 130, 246, 0.15)',
+              color: !isDirty ? 'var(--text-muted)' : saving ? 'var(--text-muted)' : '#3b82f6',
+              cursor: !isDirty || saving ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={e => { if (isDirty && !saving) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)' }}
+            onMouseLeave={e => { if (isDirty && !saving) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)' }}
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: '#3b82f6' }} />
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save Limits
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlaidBudgetPanel({ getToken }) {
   const [budget, setBudget] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -759,6 +974,9 @@ function PlaidBudgetPanel({ getToken }) {
           </div>
         ) : null}
       </div>
+
+      {/* Limits Editor Card */}
+      <PlaidLimitsEditor getToken={getToken} onLimitsUpdated={fetchBudget} />
 
       {/* Reset Tool Card */}
       <div className="rounded-xl border p-5" style={{

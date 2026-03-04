@@ -635,6 +635,36 @@ Resources:
             Path: /api/admin/reset-plaid-budget
             Method: post
 
+  AdminGetPlaidLimitsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.getHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: get
+
+  AdminPutPlaidLimitsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.putHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: put
+
   # ---------- Feedback ----------
   FeedbackFunction:
     Type: AWS::Serverless::Function
