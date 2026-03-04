@@ -108,6 +108,7 @@ Globals:
         PLAID_ENCRYPTION_KEY: !Ref PlaidEncryptionKey
         GITHUB_TOKEN: !Ref GitHubToken
         JOBS_TABLE: !Ref JobsTable
+        SUPER_ADMINS: !Ref SuperAdmins
 
   Api:
     Cors:
