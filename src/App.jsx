@@ -42,6 +42,7 @@ import OrgSettings from './components/org/OrgSettings'
 import ProfileMenu from './components/profile/ProfileMenu'
 import ProfileSettings from './components/profile/ProfileSettings'
 import { NotificationsProvider } from './context/NotificationsContext'
+import { ToastProvider } from './context/ToastContext'
 import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
@@ -407,7 +408,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     updateSnapshot,
   } = useTemplates()
 
-  const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog()
+  const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
 
   const s3Storage = useS3Storage()
@@ -858,6 +859,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   return (
     <>
     {impersonating && <ImpersonationBanner user={user} onStop={stopImpersonating} />}
+    <ToastProvider>
     <NotificationsProvider
       burndown={current}
       preferences={notificationPreferences}
@@ -1238,6 +1240,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     </div>
     </CommentsProvider>
     </NotificationsProvider>
+    </ToastProvider>
     </>
   )
 }

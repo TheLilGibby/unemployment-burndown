@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { useNotifications } from '../hooks/useNotifications'
+import { useToast } from './ToastContext'
 
 const NotificationsContext = createContext(null)
 
 export function NotificationsProvider({ children, burndown, preferences, onPreferencesChange, initialBalance }) {
   const [panelOpen, setPanelOpen] = useState(false)
+  const { addToast } = useToast()
 
   const {
     notifications,
@@ -13,9 +15,7 @@ export function NotificationsProvider({ children, burndown, preferences, onPrefe
     highestSeverity,
     dismiss,
     dismissAll,
-    toasts,
-    removeToast,
-  } = useNotifications(burndown, preferences, initialBalance)
+  } = useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange })
 
   const openPanel = useCallback(() => setPanelOpen(true), [])
   const closePanel = useCallback(() => setPanelOpen(false), [])
@@ -49,8 +49,6 @@ export function NotificationsProvider({ children, burndown, preferences, onPrefe
       highestSeverity,
       dismiss,
       dismissAll,
-      toasts,
-      removeToast,
       panelOpen,
       openPanel,
       closePanel,
