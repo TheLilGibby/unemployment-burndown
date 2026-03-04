@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
@@ -30,6 +30,8 @@ export default function TransactionTable({
   const [maxAmount, setMaxAmount] = useState('')
   const [payrollDropdownTxnId, setPayrollDropdownTxnId] = useState(null)
   const payrollDropdownRef = useRef(null)
+  const [categoryDropdownTxnId, setCategoryDropdownTxnId] = useState(null)
+  const categoryDropdownRef = useRef(null)
 
   const hasLinking = !!onOpenLinkModal
   const hasPayrollTagging = !!onTransactionOverride && jobs.length > 0
@@ -45,6 +47,18 @@ export default function TransactionTable({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [payrollDropdownTxnId])
+
+  // Close category dropdown on outside click
+  useEffect(() => {
+    if (!categoryDropdownTxnId) return
+    function handleClick(e) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setCategoryDropdownTxnId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [categoryDropdownTxnId])
 
   // Build unique account list for the account filter
   const uniqueAccounts = useMemo(() => {
@@ -343,15 +357,104 @@ export default function TransactionTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2">
-                    {cat && (
-                      <span
-                        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
-                        style={{ background: cat.color + '20', color: cat.color }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
-                        {cat.label}
-                      </span>
+                  <td className="px-3 py-2 relative">
+                    {onTransactionOverride ? (
+                      <>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setPayrollDropdownTxnId(null)
+                            setCategoryDropdownTxnId(categoryDropdownTxnId === txn.id ? null : txn.id)
+                          }}
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-80"
+                          style={cat
+                            ? { background: cat.color + '20', color: cat.color }
+                            : { background: 'rgba(107,114,128,0.15)', color: 'var(--text-muted)' }
+                          }
+                          title="Change category"
+                        >
+                          {cat ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
+                              {cat.label}
+                            </>
+                          ) : (
+                            <>
+                              <Tag size={10} strokeWidth={1.5} />
+                              <span>Uncategorized</span>
+                            </>
+                          )}
+                        </button>
+                        {categoryDropdownTxnId === txn.id && (
+                          <div
+                            ref={categoryDropdownRef}
+                            className="absolute left-0 top-full z-50 mt-1 rounded-lg shadow-lg py-1 min-w-[200px] max-h-[320px] overflow-y-auto"
+                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+                          >
+                            <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                              Select category
+                            </div>
+                            {STATEMENT_CATEGORIES.map(c => {
+                              const isSelected = txn.category === c.key
+                              const hasSubSelected = c.subCategories?.some(s => s.key === txn.category)
+                              return (
+                                <div key={c.key}>
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      onTransactionOverride(txn.id, { category: c.key })
+                                      setCategoryDropdownTxnId(null)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
+                                    style={{
+                                      color: isSelected ? c.color : 'var(--text-primary)',
+                                      background: isSelected ? c.color + '18' : 'transparent',
+                                    }}
+                                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = isSelected ? c.color + '18' : 'transparent' }}
+                                  >
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                                    <span className="truncate">{c.label}</span>
+                                  </button>
+                                  {c.subCategories && (isSelected || hasSubSelected) && c.subCategories.map(sub => {
+                                    const isSubSel = txn.category === sub.key
+                                    return (
+                                      <button
+                                        key={sub.key}
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          onTransactionOverride(txn.id, { category: sub.key })
+                                          setCategoryDropdownTxnId(null)
+                                        }}
+                                        className="w-full text-left pl-7 pr-3 py-1 text-[11px] transition-colors flex items-center gap-2"
+                                        style={{
+                                          color: isSubSel ? sub.color : 'var(--text-secondary)',
+                                          background: isSubSel ? sub.color + '18' : 'transparent',
+                                        }}
+                                        onMouseEnter={e => { if (!isSubSel) e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = isSubSel ? sub.color + '18' : 'transparent' }}
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sub.color }} />
+                                        <span className="truncate">{sub.label}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      cat && (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                          style={{ background: cat.color + '20', color: cat.color }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
+                          {cat.label}
+                        </span>
+                      )
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
@@ -407,7 +510,7 @@ export default function TransactionTable({
                       <td className="px-2 py-2 text-center relative" style={{ width: 70 }}>
                         {isPayroll ? (
                           <button
-                            onClick={e => { e.stopPropagation(); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
+                            onClick={e => { e.stopPropagation(); setCategoryDropdownTxnId(null); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
                             className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full transition-colors cursor-pointer"
                             style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}
                             title={taggedJob ? `Payroll: ${taggedJob.title || taggedJob.employer}` : 'Payroll tagged'}
@@ -417,7 +520,7 @@ export default function TransactionTable({
                           </button>
                         ) : (
                           <button
-                            onClick={e => { e.stopPropagation(); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
+                            onClick={e => { e.stopPropagation(); setCategoryDropdownTxnId(null); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
                             className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors"
                             style={{ color: 'var(--text-muted)', background: 'transparent' }}
                             title="Tag as payroll"
