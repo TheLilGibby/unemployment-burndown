@@ -22,6 +22,7 @@ import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
+import GoalsPage from './pages/GoalsPage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
@@ -380,8 +381,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [jobs, setJobs] = useState(DEFAULTS.jobs)
   const [jobScenarios, setJobScenarios] = useState(DEFAULTS.jobScenarios)
   const [retirement, setRetirement] = useState(DEFAULTS.retirement)
-  const [properties, setProperties] = useState(DEFAULTS.properties)
-  const [homeImprovements, setHomeImprovements] = useState(DEFAULTS.homeImprovements)
+  const [goals, setGoals] = useState(DEFAULTS.goals)
   const [comments, setComments] = useState({})
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
@@ -422,7 +422,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, transactionLinks, transactionOverrides }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, goals, transactionLinks, transactionOverrides }
   }
 
   function applySnapshot(snapshot) {
@@ -447,8 +447,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.creditCards) setCreditCards(snapshot.creditCards)
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
     if (snapshot.retirement) setRetirement({ ...DEFAULTS.retirement, ...snapshot.retirement })
-    if (snapshot.properties) setProperties(snapshot.properties)
-    if (snapshot.homeImprovements) setHomeImprovements(snapshot.homeImprovements)
+    if (snapshot.goals) setGoals(snapshot.goals)
     if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
     if (snapshot.transactionOverrides) setTransactionOverrides(snapshot.transactionOverrides)
   }
@@ -505,7 +504,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, templates, comments, transactionLinks, transactionOverrides]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, goals, templates, comments, transactionLinks, transactionOverrides]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -604,8 +603,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const onCreditCardsChange  = track(() => creditCards,     setCreditCards,     'Credit cards',       summarizeCCs,          diffArray)
   const onJobScenariosChange = track(() => jobScenarios,    setJobScenarios,    'Job scenarios',      summarizeJobScenarios, diffArray)
   const onRetirementChange   = track(() => retirement,      setRetirement,      'Retirement plan',    summarizeRetirement,   diffObject)
-  const onPropertiesChange        = track(() => properties,       setProperties,        'Properties',          summarizeProperties,        diffArray)
-  const onHomeImprovementsChange  = track(() => homeImprovements, setHomeImprovements,  'Home improvements',   summarizeHomeImprovements,  diffArray)
+  const summarizeGoals       = (v) => `${v.length} goal${v.length !== 1 ? 's' : ''}`
+  const onGoalsChange        = track(() => goals,           setGoals,           'Goals',              summarizeGoals,        diffArray)
 
   // Transaction linking handlers
   const txnToOverviewMap = useMemo(() => {
@@ -1183,6 +1182,17 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           <RetirementPage
             retirement={retirement}
             onRetirementChange={onRetirementChange}
+            people={people}
+          />
+        } />
+
+        <Route path="/goals" element={
+          <GoalsPage
+            goals={goals}
+            onGoalsChange={onGoalsChange}
+            savingsAccounts={savingsAccounts}
+            investments={investments}
+            creditCards={creditCards}
             people={people}
           />
         } />
