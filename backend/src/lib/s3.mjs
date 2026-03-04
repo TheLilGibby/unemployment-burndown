@@ -23,6 +23,15 @@ function statementKey(orgId, statementId) {
   return orgId ? `orgs/${orgId}/statements/${statementId}.json` : `statements/${statementId}.json`
 }
 
+async function s3Put(key, data) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: JSON.stringify(data, null, 2),
+    ContentType: 'application/json',
+  }))
+}
+
 async function s3Get(key) {
   try {
     const res = await getS3().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }))
@@ -107,6 +116,33 @@ export async function deleteStatement(orgId, statementId) {
     Bucket: BUCKET,
     Key: statementKey(orgId, statementId),
   }))
+}
+
+// ── Snapshots ──
+
+function snapshotIndexKey(orgId) {
+  return orgId ? `orgs/${orgId}/snapshots/index.json` : 'snapshots/index.json'
+}
+
+function snapshotKey(orgId, date) {
+  return orgId ? `orgs/${orgId}/snapshots/${date}.json` : `snapshots/${date}.json`
+}
+
+export async function readSnapshotIndex(orgId) {
+  const data = await s3Get(snapshotIndexKey(orgId))
+  return data || { version: 1, dates: [] }
+}
+
+export async function writeSnapshotIndex(orgId, index) {
+  await s3Put(snapshotIndexKey(orgId), index)
+}
+
+export async function readSnapshot(orgId, date) {
+  return s3Get(snapshotKey(orgId, date))
+}
+
+export async function writeSnapshot(orgId, date, snapshot) {
+  await s3Put(snapshotKey(orgId, date), snapshot)
 }
 
 // ── Plaid accounts cache ──

@@ -637,6 +637,52 @@ Resources:
             Path: /api/feedback
             Method: post
 
+  # ---------- Snapshots API ----------
+  GetSnapshotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshots.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: get
+
+  GetSnapshotByDateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshotByDate.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots/{date}
+            Method: get
+
+  PostSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/postSnapshot.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: post
+
   # ---------- Data API (secured S3 proxy) ----------
   GetDataFunction:
     Type: AWS::Serverless::Function
