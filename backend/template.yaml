@@ -526,6 +526,22 @@ Resources:
             Path: /plaid/budget
             Method: get
 
+  # ---------- Admin ----------
+  AdminResetPlaidBudgetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminResetPlaidBudget.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/reset-plaid-budget
+            Method: post
+
   # ---------- Feedback ----------
   FeedbackFunction:
     Type: AWS::Serverless::Function
