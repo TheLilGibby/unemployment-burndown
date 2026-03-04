@@ -898,13 +898,22 @@ let callCounter = { month: new Date().toISOString().slice(0, 7), count: 0 }
 // Map: orgId -> Map<itemId, { accessToken (encrypted if key set), cursor, institutionName, institutionId }>
 const plaidItems = new Map()
 
+const ACCESS_TOKEN_RE = /^access-(sandbox|development|production)-[a-f0-9-]+$/
+
 function encryptToken(token) {
   if (!token || !isEncryptionConfigured()) return token
   return encrypt(token)
 }
 function decryptToken(token) {
   if (!token || !isEncryptionConfigured()) return token
-  try { return decrypt(token) } catch { return token }
+  if (ACCESS_TOKEN_RE.test(token)) return token // already plaintext
+  try { return decrypt(token) } catch (e) {
+    log.warn('decryptToken failed — token may be corrupted or PLAID_ENCRYPTION_KEY changed')
+    return token
+  }
+}
+function isValidAccessToken(token) {
+  return typeof token === 'string' && ACCESS_TOKEN_RE.test(token)
 }
 
 function checkDevBudget() {
@@ -1138,8 +1147,14 @@ app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
     const items = []
     for (const [itemId, itemData] of orgItems) {
       try {
+        const token = decryptToken(itemData.accessToken)
+        if (!isValidAccessToken(token)) {
+          req.log.warn({ itemId }, 'skipping item with invalid access token')
+          items.push({ itemId, institutionName: itemData.institutionName, accounts: [], error: 'Access token is invalid. Try disconnecting and reconnecting this bank.' })
+          continue
+        }
         recordDevCall()
-        const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
+        const acctRes = await plaidClient.accountsGet({ access_token: token })
         items.push({
           itemId,
           institutionName: itemData.institutionName,
@@ -1230,6 +1245,14 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
     const allSyncData = [] // per-item transaction data
 
     for (const [itemId, itemData] of itemEntries) {
+      // ── Validate token before calling Plaid ──
+      const token = decryptToken(itemData.accessToken)
+      if (!isValidAccessToken(token)) {
+        const looks = !token ? 'missing' : token.startsWith('access-') ? 'env-mismatch' : 'encrypted-or-corrupt'
+        req.log.error({ itemId, looks }, 'access token is invalid — may be encrypted/corrupt or PLAID_ENV mismatch')
+        return res.status(500).json({ error: `Access token for ${itemData.institutionName || itemId} is invalid (${looks}). Try disconnecting and reconnecting the bank account.` })
+      }
+
       // ── Sync transactions (cursor-based) ──
       let cursor = itemData.cursor || null
       let hasMore = true
@@ -1242,7 +1265,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
         pageCount++
         recordDevCall()
         const syncRes = await plaidClient.transactionsSync({
-          access_token: decryptToken(itemData.accessToken),
+          access_token: token,
           cursor: cursor || undefined,
           count: 500,
         })
@@ -1261,7 +1284,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
 
       // ── Fetch current balances ──
       recordDevCall()
-      const acctRes = await plaidClient.accountsGet({ access_token: decryptToken(itemData.accessToken) })
+      const acctRes = await plaidClient.accountsGet({ access_token: token })
       const plaidAccounts = acctRes.data.accounts
 
       for (const acct of plaidAccounts) {
