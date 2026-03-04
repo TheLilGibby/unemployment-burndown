@@ -322,7 +322,7 @@ export default function ProfileMenu({
           </Link>
 
           {/* Superadmin Tools */}
-          {(user?.orgRole === 'owner' || user?.isSuperAdmin) && (
+          {user?.isSuperAdmin && (
             <Link
               to="/admin/tools"
               onClick={() => setOpen(false)}
