@@ -291,6 +291,13 @@ export default function CreditCardHubPage({
         monthlyIncome={totalMonthlyIncome}
         monthlyBenefits={monthlyBenefits}
         onTransactionUpdate={onTransactionOverride}
+        oneTimePurchases={oneTimePurchases}
+        oneTimeExpenses={oneTimeExpenses}
+        oneTimeIncome={oneTimeIncome}
+        transactionLinks={transactionLinks}
+        txnToOverviewMap={txnToOverviewMap}
+        onLinkTransaction={onLinkTransaction}
+        onUnlinkTransaction={onUnlinkTransaction}
       />
 
       {/* Statement list */}
