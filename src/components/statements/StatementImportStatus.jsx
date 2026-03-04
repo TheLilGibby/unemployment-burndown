@@ -6,7 +6,7 @@ export default function StatementImportStatus({ statementIndex, loading, error, 
 
   return (
     <div
-      className="rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2"
+      className="rounded-xl border px-4 py-3 mb-3 flex flex-wrap items-center gap-x-4 gap-y-2"
       style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
     >
       {/* Status indicator */}

@@ -257,17 +257,15 @@ export default function CreditCardHubPage({
         )}
       </div>
 
-      {/* Import status */}
-      <StatementImportStatus
-        statementIndex={index}
-        loading={loading}
-        error={error}
-        onRefresh={refreshIndex}
-      />
-
       {/* Card / account selector */}
-      {allAccounts.length > 0 ? (
-        <SectionCard title="Your Accounts">
+      <SectionCard title="Your Accounts">
+        <StatementImportStatus
+          statementIndex={index}
+          loading={loading}
+          error={error}
+          onRefresh={refreshIndex}
+        />
+        {allAccounts.length > 0 ? (
           <CardOverviewBanner
             creditCards={creditCards}
             savingsAccounts={savingsAccounts}
@@ -280,9 +278,7 @@ export default function CreditCardHubPage({
             onStatementsRefresh={refreshIndex}
             user={user}
           />
-        </SectionCard>
-      ) : (
-        <SectionCard title="Your Accounts">
+        ) : (
           <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
             No accounts configured yet. Add cards in the{' '}
             <a href="/" className="underline" style={{ color: 'var(--accent-blue)' }}>
@@ -290,8 +286,8 @@ export default function CreditCardHubPage({
             </a>{' '}
             or connect a bank above to get started.
           </p>
-        </SectionCard>
-      )}
+        )}
+      </SectionCard>
 
       {/* Spending charts */}
       <StatementChartTabs
