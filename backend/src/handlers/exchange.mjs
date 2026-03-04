@@ -1,5 +1,5 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
-import { putPlaidItem } from '../lib/dynamo.mjs'
+import { putPlaidItem, getPlaidItemsByUser, deletePlaidItem, isValidAccessToken } from '../lib/dynamo.mjs'
 import { readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
@@ -64,6 +64,35 @@ export async function handler(event) {
       connectedBy: user.sub,
     })
 
+    // ── Clean up stale items for the same institution ──
+    // After a key rotation, old items have undecryptable tokens. If the user
+    // reconnects the same bank, remove the stale entries automatically.
+    let staleCleaned = []
+    if (institutionId) {
+      try {
+        const existingItems = await getPlaidItemsByUser(userId)
+        const staleItems = existingItems.filter(ei =>
+          ei.institutionId === institutionId &&
+          ei.itemId !== item_id &&
+          !isValidAccessToken(ei.accessToken)
+        )
+        for (const stale of staleItems) {
+          try {
+            await client.itemRemove({ access_token: stale.accessToken })
+          } catch (_) { /* token undecryptable — Plaid will reject, that's fine */ }
+          await deletePlaidItem(userId, stale.itemId)
+        }
+        staleCleaned = staleItems.map(s => s.itemId)
+        if (staleCleaned.length > 0) {
+          const log = createRequestLogger('exchange', event)
+          log.info({ staleCleaned, institutionId }, 'cleaned up stale items for same institution')
+        }
+      } catch (cleanupErr) {
+        const log = createRequestLogger('exchange', event)
+        log.warn({ err: cleanupErr }, 'failed to clean stale items during exchange')
+      }
+    }
+
     // Fetch initial accounts
     const accountsRes = await client.accountsGet({ access_token })
     const accounts = accountsRes.data.accounts.map(acct => ({
@@ -83,7 +112,9 @@ export async function handler(event) {
     // Merge the new item into any existing cached items for this org.
     try {
       const existing = await readAccountsCache(userId)
-      const otherItems = (existing?.items || []).filter(ci => ci.itemId !== item_id)
+      const otherItems = (existing?.items || []).filter(ci =>
+        ci.itemId !== item_id && !staleCleaned.includes(ci.itemId)
+      )
       const newItem = {
         itemId:          item_id,
         institutionName,
