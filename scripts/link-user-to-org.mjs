@@ -5,6 +5,8 @@
  * Updates:
  *   1. BurndownUsers — sets orgId + orgRole on the user record
  *   2. OrgMembers    — adds a membership row linking user to org with personId=2 (Jon)
+ *   3. S3 data.json  — sets linkedUserId + email on person id=2 so the account
+ *                      is properly associated with this user in the household data
  *
  * Usage:
  *   node scripts/link-user-to-org.mjs
@@ -13,6 +15,7 @@
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
@@ -22,25 +25,27 @@ dotenv.config({ path: resolve(__dirname, '..', '.env') })
 
 const REGION = process.env.AWS_REGION || 'us-west-1'
 const USERS_TABLE = process.env.USERS_TABLE || 'BurndownUsers'
+const ORGS_TABLE = process.env.ORGS_TABLE || 'Organizations'
 const ORG_MEMBERS_TABLE = process.env.ORG_MEMBERS_TABLE || 'OrgMembers'
+const S3_BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
+const S3_REGION = process.env.S3_REGION || REGION
 
 const USER_ID = 'goragconsulting@gmail.com'
 const ORG_ID = 'org_039210db04aadec1'
 const ORG_ROLE = 'member'
 const PERSON_ID = 2 // Jon's id in data.json
 
-const client = new DynamoDBClient({
-  region: REGION,
-  credentials: process.env.AWS_ACCESS_KEY_ID
-    ? { accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY }
-    : undefined,
-})
-const doc = DynamoDBDocumentClient.from(client)
+const credentials = process.env.AWS_ACCESS_KEY_ID
+  ? { accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY }
+  : undefined
+
+const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION, credentials }))
+const s3 = new S3Client({ region: S3_REGION, credentials })
 
 async function main() {
   // 1. Verify user exists
   console.log(`Checking ${USERS_TABLE} for ${USER_ID}...`)
-  const userRes = await doc.send(new GetCommand({
+  const userRes = await dynamo.send(new GetCommand({
     TableName: USERS_TABLE,
     Key: { userId: USER_ID },
   }))
@@ -50,9 +55,21 @@ async function main() {
   }
   console.log(`  Found user. Current orgId: ${userRes.Item.orgId || '(none)'}`)
 
-  // 2. Update BurndownUsers — set orgId and orgRole
+  // 2. Verify org exists
+  console.log(`\nVerifying org ${ORG_ID} exists in ${ORGS_TABLE}...`)
+  const orgRes = await dynamo.send(new GetCommand({
+    TableName: ORGS_TABLE,
+    Key: { orgId: ORG_ID },
+  }))
+  if (!orgRes.Item) {
+    console.error(`Org ${ORG_ID} not found in ${ORGS_TABLE}. Cannot link user to a non-existent org.`)
+    process.exit(1)
+  }
+  console.log(`  Found org: "${orgRes.Item.name}"`)
+
+  // 3. Update BurndownUsers — set orgId and orgRole
   console.log(`\nUpdating ${USERS_TABLE}: orgId=${ORG_ID}, orgRole=${ORG_ROLE}`)
-  await doc.send(new UpdateCommand({
+  await dynamo.send(new UpdateCommand({
     TableName: USERS_TABLE,
     Key: { userId: USER_ID },
     UpdateExpression: 'SET orgId = :oid, orgRole = :role, updatedAt = :u',
@@ -64,9 +81,9 @@ async function main() {
   }))
   console.log('  Done.')
 
-  // 3. Add to OrgMembers
+  // 4. Add to OrgMembers
   console.log(`\nAdding to ${ORG_MEMBERS_TABLE}: orgId=${ORG_ID}, userId=${USER_ID}, role=${ORG_ROLE}, personId=${PERSON_ID}`)
-  await doc.send(new PutCommand({
+  await dynamo.send(new PutCommand({
     TableName: ORG_MEMBERS_TABLE,
     Item: {
       orgId: ORG_ID,
@@ -77,6 +94,43 @@ async function main() {
     },
   }))
   console.log('  Done.')
+
+  // 5. Update data.json — link person id=PERSON_ID to this user
+  const dataKey = `orgs/${ORG_ID}/data.json`
+  console.log(`\nUpdating s3://${S3_BUCKET}/${dataKey}: setting linkedUserId on person id=${PERSON_ID}...`)
+  let data
+  try {
+    const s3Res = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: dataKey }))
+    data = JSON.parse(await s3Res.Body.transformToString('utf-8'))
+  } catch (e) {
+    if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) {
+      console.warn(`  data.json not found at ${dataKey} — skipping S3 update.`)
+      console.log('\nUser linked in DynamoDB. Log out and log back in to pick up the new org membership.')
+      return
+    }
+    throw e
+  }
+
+  const person = (data.state?.people || []).find(p => p.id === PERSON_ID)
+  if (!person) {
+    console.warn(`  Person with id=${PERSON_ID} not found in data.json — skipping S3 update.`)
+  } else {
+    console.log(`  Found person: "${person.name}" (current linkedUserId: ${person.linkedUserId || '(none)'})`)
+    if (person.linkedUserId === USER_ID && person.email === USER_ID) {
+      console.log('  Already linked correctly — no S3 update needed.')
+    } else {
+      person.linkedUserId = USER_ID
+      person.email = USER_ID
+      data.savedAt = new Date().toISOString()
+      await s3.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: dataKey,
+        Body: JSON.stringify(data, null, 2),
+        ContentType: 'application/json',
+      }))
+      console.log(`  Updated person "${person.name}": linkedUserId + email → ${USER_ID}`)
+    }
+  }
 
   console.log('\nUser linked successfully! Log out and log back in to pick up the new org membership.')
 }

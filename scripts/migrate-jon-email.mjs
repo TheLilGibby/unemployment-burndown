@@ -48,8 +48,8 @@ async function main() {
   console.log(`  email:        ${jon.email}`)
   console.log(`  linkedUserId: ${jon.linkedUserId}`)
 
-  if (jon.email !== OLD_EMAIL && jon.linkedUserId !== OLD_EMAIL) {
-    console.log('Nothing to update — email is already changed.')
+  if (jon.email === NEW_EMAIL && jon.linkedUserId === NEW_EMAIL) {
+    console.log('Nothing to update — already set to the new email.')
     process.exit(0)
   }
 
