@@ -69,8 +69,8 @@ const DETAILED_OVERRIDES = {
   INVESTMENTS_CRYPTO:                      'investments_crypto',
   HOME_IMPROVEMENT_FURNITURE:              'homeImprovement',
   HOME_IMPROVEMENT_HARDWARE:               'homeImprovement',
-  TRANSFER_IN_ACCOUNT_TRANSFER:            'venmo',
-  TRANSFER_OUT_ACCOUNT_TRANSFER:           'venmo',
+  TRANSFER_IN_ACCOUNT_TRANSFER:            'transfer',
+  TRANSFER_OUT_ACCOUNT_TRANSFER:           'transfer',
   TRANSFER_IN_THIRD_PARTY:                 'venmo',
   TRANSFER_OUT_THIRD_PARTY:                'venmo',
 }

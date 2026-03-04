@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
+import { isInternalTransfer } from '../../utils/transferDetector'
 
 // Determine payment method label + color from transaction metadata
 function getPaymentMethod(txn) {
@@ -304,6 +305,16 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                           CC Pmt
                         </span>
                       )
+                    )}
+                    {isInternalTransfer(txn) && !isCCPaymentTransaction(txn) && (
+                      <span
+                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
+                        title="Internal transfer between your own accounts"
+                      >
+                        <ArrowLeftRight size={9} strokeWidth={2} />
+                        Transfer
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
