@@ -687,6 +687,23 @@ app.post('/api/admin/impersonate', superAdminMiddleware, (req, res) => {
   })
 })
 
+// POST /api/admin/reset-plaid-budget — reset monthly API call counter to 0
+app.post('/api/admin/reset-plaid-budget', superAdminMiddleware, (req, res) => {
+  const previousCount = callCounter.count
+  const month = callCounter.month
+  req.log.warn({ adminUserId: req.user.sub, previousCount, month }, 'superadmin reset Plaid API budget counter to 0')
+  callCounter.count = 0
+  const budget = checkDevBudget()
+  res.json({
+    reset: true,
+    month,
+    previousCount,
+    ...budget,
+    budgetDollars: MONTHLY_BUDGET,
+    estCostPerCall: EST_COST_PER_CALL,
+  })
+})
+
 // ═══════════════════════════════════════════════════════════════
 // PLAID ROUTES
 // ═══════════════════════════════════════════════════════════════

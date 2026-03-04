@@ -612,6 +612,220 @@ function ImpersonationUsersTable({ users, onImpersonate }) {
 
 // ---------------------------------------------------------------------------
 
+function PlaidBudgetPanel({ getToken }) {
+  const [budget, setBudget] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
+  const [error, setError] = useState(null)
+  const [resetResult, setResetResult] = useState(null)
+
+  const fetchBudget = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/plaid/budget`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch budget status')
+      const data = await res.json()
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => { fetchBudget() }, [fetchBudget])
+
+  const handleReset = async () => {
+    if (!window.confirm(
+      'Are you sure you want to reset the Plaid API call counter to 0?\n\n' +
+      'This is a one-time exception override. The counter tracks monthly spend against the budget cap.'
+    )) return
+
+    setResetting(true)
+    setError(null)
+    setResetResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/reset-plaid-budget`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to reset budget')
+      }
+      const data = await res.json()
+      setResetResult(data)
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const usagePercent = budget ? Math.min(100, (budget.used / budget.limit) * 100) : 0
+  const isExhausted = budget && budget.remaining === 0
+
+  return (
+    <div className="space-y-4">
+      {/* Budget Status Card */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Current Month Budget Status
+          </h2>
+          <button
+            onClick={fetchBudget}
+            disabled={loading}
+            className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors"
+            style={{ color: 'var(--accent-blue)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+
+        {loading && !budget ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+          </div>
+        ) : error && !budget ? (
+          <div className="text-center py-8">
+            <p className="text-sm mb-3" style={{ color: '#ef4444' }}>{error}</p>
+            <button onClick={fetchBudget} className="text-xs font-medium" style={{ color: 'var(--accent-blue)' }}>Retry</button>
+          </div>
+        ) : budget ? (
+          <div>
+            {/* Usage bar */}
+            <div className="mb-4">
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <span className="text-3xl font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>
+                    {budget.used}
+                  </span>
+                  <span className="text-sm ml-1" style={{ color: 'var(--text-muted)' }}>/ {budget.limit} calls</span>
+                </div>
+                <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
+                  {budget.month}
+                </span>
+              </div>
+              <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${usagePercent}%`,
+                    background: usagePercent >= 90 ? '#ef4444' : usagePercent >= 70 ? '#f59e0b' : '#10b981',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {budget.remaining} calls remaining
+                </span>
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  ${(budget.used * (budget.estCostPerCall || 0.10)).toFixed(2)} / ${(budget.budgetDollars || 10).toFixed(2)} budget
+                </span>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Budget</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.budgetDollars || 10).toFixed(2)}/mo</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Cost/Call</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.estCostPerCall || 0.10).toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Used</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>{budget.used} calls</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : '#10b981' }}>
+                  {isExhausted ? 'Exhausted' : 'Active'}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Reset Tool Card */}
+      <div className="rounded-xl border p-5" style={{
+        background: 'var(--bg-card)',
+        borderColor: isExhausted ? '#ef4444' : 'var(--border-subtle)',
+      }}>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Reset API Call Counter</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              One-time exception override. Resets the monthly Plaid API call counter back to 0,
+              allowing additional API calls beyond the normal budget cap. This action is audit-logged.
+            </p>
+          </div>
+        </div>
+
+        {resetResult && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+            Budget reset successfully. Previous count: {resetResult.previousCount} &rarr; 0.
+            The budget now has {resetResult.remaining}/{resetResult.limit} calls available.
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleReset}
+          disabled={resetting || loading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={{
+            background: resetting ? 'var(--bg-input)' : 'rgba(239, 68, 68, 0.15)',
+            color: resetting ? 'var(--text-muted)' : '#ef4444',
+            cursor: resetting ? 'not-allowed' : 'pointer',
+          }}
+          onMouseEnter={e => { if (!resetting) e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)' }}
+          onMouseLeave={e => { if (!resetting) e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)' }}
+        >
+          {resetting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: '#ef4444' }} />
+              Resetting...
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              Reset Call Counter to 0
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function SuperAdminToolsPage() {
   const { user, getToken, impersonate } = useAuth()
   const navigate = useNavigate()
@@ -716,7 +930,9 @@ export default function SuperAdminToolsPage() {
               Superadmin Tools
             </h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {activeSection === 'impersonation' ? 'View as any user to debug and support' : 'AWS infrastructure cost analysis & projections'}
+              {activeSection === 'impersonation' ? 'View as any user to debug and support'
+                : activeSection === 'plaidBudget' ? 'Monitor and manage Plaid API call budget'
+                : 'AWS infrastructure cost analysis & projections'}
             </p>
           </div>
         </div>
@@ -753,11 +969,33 @@ export default function SuperAdminToolsPage() {
             </svg>
             Cost Analysis
           </button>
+          {user?.isSuperAdmin && (
+            <button
+              onClick={() => setActiveSection('plaidBudget')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
+              style={{
+                background: activeSection === 'plaidBudget' ? 'var(--accent-blue)' : 'transparent',
+                color: activeSection === 'plaidBudget' ? '#fff' : 'var(--text-secondary)',
+                borderColor: activeSection === 'plaidBudget' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              Plaid Budget
+            </button>
+          )}
         </div>
 
         {/* Impersonation Panel */}
         {activeSection === 'impersonation' && user?.isSuperAdmin && (
           <ImpersonationPanel getToken={getToken} impersonate={impersonate} />
+        )}
+
+        {/* Plaid Budget Panel */}
+        {activeSection === 'plaidBudget' && user?.isSuperAdmin && (
+          <PlaidBudgetPanel getToken={getToken} />
         )}
 
         {/* Cost Analysis Content */}
