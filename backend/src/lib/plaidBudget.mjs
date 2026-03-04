@@ -3,17 +3,80 @@ import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand } from '@
 
 const TABLE = process.env.TOKENS_TABLE || 'PlaidTokens'
 
-// ── Budget configuration ──
-// Monthly budget in dollars (default $10)
-export const MONTHLY_BUDGET = parseFloat(process.env.PLAID_MONTHLY_BUDGET || '10')
-// Estimated cost per Plaid API call in dollars (default $0.10)
-export const EST_COST_PER_CALL = parseFloat(process.env.PLAID_EST_COST_PER_CALL || '0.10')
-// Derived max calls per month
-export const MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
-// Max pagination pages in a single transactionsSync loop (default 10)
-export const MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '10', 10)
-// Minimum seconds between syncs for the same item (default 5 minutes)
-export const SYNC_COOLDOWN_MS = parseInt(process.env.PLAID_SYNC_COOLDOWN_SECONDS || '300', 10) * 1000
+// ── Budget configuration (env-var defaults, overridable via DynamoDB) ──
+const DEFAULT_MONTHLY_BUDGET = parseFloat(process.env.PLAID_MONTHLY_BUDGET || '10')
+const DEFAULT_EST_COST_PER_CALL = parseFloat(process.env.PLAID_EST_COST_PER_CALL || '0.10')
+const DEFAULT_MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '10', 10)
+const DEFAULT_SYNC_COOLDOWN_SECONDS = parseInt(process.env.PLAID_SYNC_COOLDOWN_SECONDS || '300', 10)
+
+// Exported mutable values – updated by getLimits()
+export let MONTHLY_BUDGET = DEFAULT_MONTHLY_BUDGET
+export let EST_COST_PER_CALL = DEFAULT_EST_COST_PER_CALL
+export let MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
+export let MAX_SYNC_PAGES = DEFAULT_MAX_SYNC_PAGES
+export let SYNC_COOLDOWN_MS = DEFAULT_SYNC_COOLDOWN_SECONDS * 1000
+
+// DynamoDB key for persisted limit overrides
+const LIMITS_KEY = { userId: '_PLAID_LIMITS_', itemId: 'config' }
+
+/**
+ * Load limits from DynamoDB (superadmin overrides), falling back to env-var defaults.
+ * Also refreshes the module-level exported values.
+ */
+export async function getLimits() {
+  try {
+    const res = await getDocClient().send(new GetCommand({
+      TableName: TABLE,
+      Key: LIMITS_KEY,
+    }))
+    const item = res.Item || {}
+    MONTHLY_BUDGET = item.monthlyBudget ?? DEFAULT_MONTHLY_BUDGET
+    EST_COST_PER_CALL = item.estCostPerCall ?? DEFAULT_EST_COST_PER_CALL
+    MAX_SYNC_PAGES = item.maxSyncPages ?? DEFAULT_MAX_SYNC_PAGES
+    const cooldownSec = item.syncCooldownSeconds ?? DEFAULT_SYNC_COOLDOWN_SECONDS
+    SYNC_COOLDOWN_MS = cooldownSec * 1000
+    MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
+  } catch {
+    // On error, keep env-var defaults – don't block API calls
+    MONTHLY_BUDGET = DEFAULT_MONTHLY_BUDGET
+    EST_COST_PER_CALL = DEFAULT_EST_COST_PER_CALL
+    MAX_SYNC_PAGES = DEFAULT_MAX_SYNC_PAGES
+    SYNC_COOLDOWN_MS = DEFAULT_SYNC_COOLDOWN_SECONDS * 1000
+    MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
+  }
+  return {
+    monthlyBudget: MONTHLY_BUDGET,
+    estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: MAX_MONTHLY_CALLS,
+  }
+}
+
+/**
+ * Persist new limit overrides to DynamoDB (superadmin only).
+ * Accepts partial updates – only provided fields are changed.
+ */
+export async function setLimits({ monthlyBudget, estCostPerCall, maxSyncPages, syncCooldownSeconds }) {
+  // Read current persisted limits first so we only overwrite provided fields
+  const current = await getLimits()
+  const updated = {
+    monthlyBudget: monthlyBudget ?? current.monthlyBudget,
+    estCostPerCall: estCostPerCall ?? current.estCostPerCall,
+    maxSyncPages: maxSyncPages ?? current.maxSyncPages,
+    syncCooldownSeconds: syncCooldownSeconds ?? current.syncCooldownSeconds,
+  }
+  await getDocClient().send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      ...LIMITS_KEY,
+      ...updated,
+      updatedAt: new Date().toISOString(),
+    },
+  }))
+  // Refresh module-level exports
+  return getLimits()
+}
 
 // ── DynamoDB client (reuse across invocations) ──
 let _docClient = null
@@ -79,9 +142,11 @@ export async function resetCallCount() {
 
 /**
  * Check whether the budget allows more API calls.
+ * Refreshes limits from DynamoDB before checking.
  * Returns { allowed, used, limit, remaining, budgetDollars }.
  */
 export async function checkBudget(callsNeeded = 1) {
+  await getLimits()
   const used = await getCallCount()
   const remaining = Math.max(0, MAX_MONTHLY_CALLS - used)
   return {
@@ -91,6 +156,8 @@ export async function checkBudget(callsNeeded = 1) {
     remaining,
     budgetDollars: MONTHLY_BUDGET,
     estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
     month: getMonthKey(),
   }
 }

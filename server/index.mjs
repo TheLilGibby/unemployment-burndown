@@ -704,6 +704,59 @@ app.post('/api/admin/reset-plaid-budget', superAdminMiddleware, (req, res) => {
   })
 })
 
+// GET /api/admin/plaid-limits — get current Plaid API limit configuration
+app.get('/api/admin/plaid-limits', superAdminMiddleware, (req, res) => {
+  res.json({
+    monthlyBudget: MONTHLY_BUDGET,
+    estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: MAX_MONTHLY_CALLS,
+  })
+})
+
+// PUT /api/admin/plaid-limits — update Plaid API limit configuration
+app.put('/api/admin/plaid-limits', superAdminMiddleware, (req, res) => {
+  const before = {
+    monthlyBudget: MONTHLY_BUDGET,
+    estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: MAX_MONTHLY_CALLS,
+  }
+  const { monthlyBudget, estCostPerCall, maxSyncPages, syncCooldownSeconds } = req.body
+  if (monthlyBudget !== undefined) {
+    const val = parseFloat(monthlyBudget)
+    if (isNaN(val) || val < 0 || val > 10000) return res.status(400).json({ error: 'monthlyBudget must be between 0 and 10000' })
+    MONTHLY_BUDGET = val
+  }
+  if (estCostPerCall !== undefined) {
+    const val = parseFloat(estCostPerCall)
+    if (isNaN(val) || val <= 0 || val > 100) return res.status(400).json({ error: 'estCostPerCall must be between 0.01 and 100' })
+    EST_COST_PER_CALL = val
+  }
+  if (maxSyncPages !== undefined) {
+    const val = parseInt(maxSyncPages, 10)
+    if (isNaN(val) || val < 1 || val > 100) return res.status(400).json({ error: 'maxSyncPages must be between 1 and 100' })
+    MAX_SYNC_PAGES = val
+  }
+  if (syncCooldownSeconds !== undefined) {
+    const val = parseInt(syncCooldownSeconds, 10)
+    if (isNaN(val) || val < 0 || val > 86400) return res.status(400).json({ error: 'syncCooldownSeconds must be between 0 and 86400' })
+    SYNC_COOLDOWN_MS = val * 1000
+  }
+  MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
+  req.log.warn({ adminUserId: req.user.sub, before, updates: req.body }, 'superadmin updated Plaid API limits')
+  const after = {
+    monthlyBudget: MONTHLY_BUDGET,
+    estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: MAX_MONTHLY_CALLS,
+  }
+  res.json({ updated: true, before, after })
+})
+
 // ═══════════════════════════════════════════════════════════════
 // JOBS ROUTES (in-memory store for dev)
 // ═══════════════════════════════════════════════════════════════
@@ -826,17 +879,14 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config)
 
-// ── Safety: max pagination pages (matches backend PLAID_MAX_SYNC_PAGES) ──
-const MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '10', 10)
+// ── Safety: mutable Plaid limits (defaults from env, overridable by superadmin) ──
+let MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '10', 10)
+let SYNC_COOLDOWN_MS = parseInt(process.env.PLAID_SYNC_COOLDOWN_SECONDS || '300', 10) * 1000
+let MONTHLY_BUDGET = parseFloat(process.env.PLAID_MONTHLY_BUDGET || '10')
+let EST_COST_PER_CALL = parseFloat(process.env.PLAID_EST_COST_PER_CALL || '0.10')
+let MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
 
-// ── Safety: in-memory per-item sync cooldown for dev server ──
-const SYNC_COOLDOWN_MS = parseInt(process.env.PLAID_SYNC_COOLDOWN_SECONDS || '300', 10) * 1000
 const lastSyncTimes = new Map()
-
-// ── Safety: in-memory monthly call counter for dev server ──
-const MONTHLY_BUDGET = parseFloat(process.env.PLAID_MONTHLY_BUDGET || '10')
-const EST_COST_PER_CALL = parseFloat(process.env.PLAID_EST_COST_PER_CALL || '0.10')
-const MAX_MONTHLY_CALLS = Math.floor(MONTHLY_BUDGET / EST_COST_PER_CALL)
 let callCounter = { month: new Date().toISOString().slice(0, 7), count: 0 }
 
 // ── In-memory store for linked Plaid items (dev server only) ──
@@ -1065,6 +1115,8 @@ app.get('/api/plaid/budget', authMiddleware, (req, res) => {
     ...budget,
     budgetDollars: MONTHLY_BUDGET,
     estCostPerCall: EST_COST_PER_CALL,
+    maxSyncPages: MAX_SYNC_PAGES,
+    syncCooldownSeconds: SYNC_COOLDOWN_MS / 1000,
     month: new Date().toISOString().slice(0, 7),
   })
 })
