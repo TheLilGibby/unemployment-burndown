@@ -1129,6 +1129,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             totalMonthlyIncome={current.totalMonthlyIncome}
             transactionOverrides={transactionOverrides}
             onTransactionOverride={handleTransactionOverride}
+            jobs={jobs}
           />
         } />
 

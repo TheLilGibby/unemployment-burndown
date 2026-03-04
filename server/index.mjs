@@ -688,6 +688,112 @@ app.post('/api/admin/impersonate', superAdminMiddleware, (req, res) => {
 })
 
 // ═══════════════════════════════════════════════════════════════
+// JOBS ROUTES (in-memory store for dev)
+// ═══════════════════════════════════════════════════════════════
+
+const jobsStore = new Map() // orgId -> Map<jobId, job>
+let jobCounter = 0
+
+function generateJobId() {
+  jobCounter++
+  return `job_${Date.now().toString(36)}_${jobCounter}`
+}
+
+// GET /api/jobs — list all jobs for the org
+app.get('/api/jobs', orgMiddleware, (req, res) => {
+  try {
+    const orgJobs = jobsStore.get(req.user.orgId)
+    const jobs = orgJobs ? Array.from(orgJobs.values()) : []
+    res.json({ jobs })
+  } catch (err) {
+    req.log.error({ err }, 'list jobs failed')
+    res.status(500).json({ error: 'Failed to list jobs' })
+  }
+})
+
+// POST /api/jobs — create a new job
+app.post('/api/jobs', orgMiddleware, (req, res) => {
+  try {
+    const { title, employer, monthlySalary, startDate, endDate, status, statusDate, assignedTo } = req.body
+
+    if (!title && !employer) {
+      return res.status(400).json({ error: 'Job title or employer is required' })
+    }
+
+    const orgId = req.user.orgId
+    if (!jobsStore.has(orgId)) jobsStore.set(orgId, new Map())
+
+    const jobId = generateJobId()
+    const now = new Date().toISOString()
+    const job = {
+      orgId,
+      jobId,
+      userId: req.user.sub,
+      title: title || '',
+      employer: employer || '',
+      monthlySalary: monthlySalary || 0,
+      startDate: startDate || '',
+      endDate: endDate || '',
+      status: status || 'active',
+      statusDate: statusDate || '',
+      assignedTo: assignedTo || null,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    jobsStore.get(orgId).set(jobId, job)
+    req.log.info({ userId: req.user.sub, jobId, title, employer }, 'job created')
+    res.json({ job })
+  } catch (err) {
+    req.log.error({ err }, 'create job failed')
+    res.status(500).json({ error: 'Failed to create job' })
+  }
+})
+
+// PUT /api/jobs/:jobId — update a job
+app.put('/api/jobs/:jobId', orgMiddleware, (req, res) => {
+  try {
+    const { jobId } = req.params
+    const orgJobs = jobsStore.get(req.user.orgId)
+    if (!orgJobs || !orgJobs.has(jobId)) {
+      return res.status(404).json({ error: 'Job not found' })
+    }
+
+    const existing = orgJobs.get(jobId)
+    const allowedFields = ['title', 'employer', 'monthlySalary', 'startDate', 'endDate', 'status', 'statusDate', 'assignedTo']
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        existing[field] = req.body[field]
+      }
+    }
+    existing.updatedAt = new Date().toISOString()
+
+    res.json({ job: existing })
+  } catch (err) {
+    req.log.error({ err }, 'update job failed')
+    res.status(500).json({ error: 'Failed to update job' })
+  }
+})
+
+// DELETE /api/jobs/:jobId — delete a job
+app.delete('/api/jobs/:jobId', orgMiddleware, (req, res) => {
+  try {
+    const { jobId } = req.params
+    const orgJobs = jobsStore.get(req.user.orgId)
+    if (!orgJobs || !orgJobs.has(jobId)) {
+      return res.status(404).json({ error: 'Job not found' })
+    }
+
+    orgJobs.delete(jobId)
+    req.log.info({ userId: req.user.sub, jobId }, 'job deleted')
+    res.json({ deleted: true, jobId })
+  } catch (err) {
+    req.log.error({ err }, 'delete job failed')
+    res.status(500).json({ error: 'Failed to delete job' })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
 // PLAID ROUTES
 // ═══════════════════════════════════════════════════════════════
 
