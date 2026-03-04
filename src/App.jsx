@@ -299,8 +299,6 @@ const DEFAULT_VIEW = {
     subscriptions: true,
     creditCards:   true,
     investments:   true,
-    child1Investments: true,
-    child2Investments: true,
     onetimes:      true,
     onetimePurchases: true,
     onetimeIncome:   true,
@@ -1012,8 +1010,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               monthlyIncome={monthlyIncome}
               assets={assets}
               investments={investments}
-              child1Investments={child1Investments}
-              child2Investments={child2Investments}
               subscriptions={subscriptions}
               creditCards={creditCards}
               jobs={jobs}
@@ -1030,8 +1026,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               onMonthlyIncChange={onMonthlyIncChange}
               onAssetsChange={onAssetsChange}
               onInvestmentsChange={onInvestmentsChange}
-              onChild1InvestmentsChange={onChild1InvestmentsChange}
-              onChild2InvestmentsChange={onChild2InvestmentsChange}
               onSubsChange={onSubsChange}
               onCreditCardsChange={onCreditCardsChange}
               onJobScenariosChange={onJobScenariosChange}

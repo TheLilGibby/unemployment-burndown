@@ -39,8 +39,6 @@ export default function BurndownPage({
   monthlyIncome,
   assets,
   investments,
-  child1Investments,
-  child2Investments,
   subscriptions,
   creditCards,
   jobs,
@@ -58,8 +56,6 @@ export default function BurndownPage({
   onMonthlyIncChange,
   onAssetsChange,
   onInvestmentsChange,
-  onChild1InvestmentsChange,
-  onChild2InvestmentsChange,
   onSubsChange,
   onCreditCardsChange,
   onJobScenariosChange,
@@ -266,19 +262,6 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Child [1] investments — full width */}
-      {viewSettings.sections.child1Investments && (
-        <SectionCard id="sec-child1investments" title="Child [1] Investments" className="scroll-mt-20">
-          <InvestmentsPanel investments={child1Investments} onChange={onChild1InvestmentsChange} people={people} />
-        </SectionCard>
-      )}
-
-      {/* Child [2] investments — full width */}
-      {viewSettings.sections.child2Investments && (
-        <SectionCard id="sec-child2investments" title="Child [2] Investments" className="scroll-mt-20">
-          <InvestmentsPanel investments={child2Investments} onChange={onChild2InvestmentsChange} people={people} />
-        </SectionCard>
-      )}
 
       {/* One-time expenses — full width */}
       {viewSettings.sections.onetimes && (
