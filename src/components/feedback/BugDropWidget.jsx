@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
+import { useToast } from '../../context/ToastContext'
 // html2canvas is loaded dynamically in handleOpen to reduce bundle size
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
@@ -448,6 +449,7 @@ function FeedbackPanel({ isDark, onClose, screenshotUrl, metadata }) {
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle') // idle | submitting | success | error
   const [errorMsg, setErrorMsg] = useState('')
+  const toast = useToast()
 
   const bg = isDark ? '#1f2937' : '#ffffff'
   const text = isDark ? '#f9fafb' : '#111827'
@@ -483,14 +485,18 @@ function FeedbackPanel({ isDark, onClose, screenshotUrl, metadata }) {
       setStatus('success')
       setDescription('')
       setSelected(null)
+      toast.success('Feedback Sent', 'Your report has been submitted.')
     } catch (err) {
       setStatus('error')
       // Give a friendlier message for network-level failures
+      let msg
       if (err.name === 'TypeError' && /fetch/i.test(err.message)) {
-        setErrorMsg('Unable to reach the feedback server. Please check your connection or try again later.')
+        msg = 'Unable to reach the feedback server. Please check your connection or try again later.'
       } else {
-        setErrorMsg(err.message || 'Something went wrong')
+        msg = err.message || 'Something went wrong'
       }
+      setErrorMsg(msg)
+      toast.error('Submission Failed', msg)
     }
   }, [description, selected, screenshotUrl, metadata])
 

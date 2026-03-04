@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useToast } from '../../context/ToastContext'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 const TOKEN_KEY = 'burndown_token'
@@ -26,6 +27,7 @@ export default function OrgSettings({ user, onClose }) {
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+  const toast = useToast()
 
   const fetchOrg = useCallback(async () => {
     try {
@@ -81,6 +83,7 @@ export default function OrgSettings({ user, onClose }) {
       navigator.clipboard.writeText(org.joinCode)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+      toast.success('Copied!', 'Join code copied to clipboard.')
     }
   }
 
