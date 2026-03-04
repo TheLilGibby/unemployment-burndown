@@ -83,7 +83,17 @@ export default function CardOverviewBanner({
 
   const banks = bankAccounts.map(acct => {
     const stmts = (statementIndex?.statements || []).filter(s => s.cardId === acct.id)
-    return { ...acct, statementCount: stmts.length, person: null }
+    // Derive subtype: prefer explicit field, then match from statement index, then parse from name
+    let subtype = acct.plaidSubtype || null
+    if (!subtype && acct.plaidAccountId) {
+      const stmtEntry = (statementIndex?.statements || []).find(s => s.plaidAccountId === acct.plaidAccountId)
+      if (stmtEntry?.accountSubtype) subtype = stmtEntry.accountSubtype
+    }
+    if (!subtype) {
+      const m = acct.name?.match(/\((checking|savings|cd|money market)\)/i)
+      if (m) subtype = m[1].toLowerCase()
+    }
+    return { ...acct, statementCount: stmts.length, person: null, subtype }
   })
 
   const allPills = [...cards, ...banks]
@@ -178,18 +188,11 @@ export default function CardOverviewBanner({
                   borderBottomRightRadius: managing ? 0 : undefined,
                 }}
               >
-                {item.person ? (
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                    style={{ background: personBg }}
-                    title={item.person.name}
-                  >
-                    {getInitials(item.person.name)}
-                  </div>
-                ) : item.isDepository ? (
+                {/* Type icon — always on the left */}
+                {item.isDepository ? (
                   <Landmark size={16} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
                 ) : (
-                  <UserBadge user={user} />
+                  <CreditCard size={16} strokeWidth={1.75} />
                 )}
                 <div className="text-left">
                   {isEditing ? (
@@ -229,6 +232,17 @@ export default function CardOverviewBanner({
                   )}
                   {!isEditing && (
                     <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {item.isDepository && item.subtype && (
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
+                          style={{
+                            background: 'color-mix(in srgb, var(--accent-emerald) 15%, transparent)',
+                            color: 'var(--accent-emerald)',
+                          }}
+                        >
+                          {item.subtype}
+                        </span>
+                      )}
                       <span style={{ color: item.isDepository ? 'var(--accent-emerald)' : undefined }}>
                         {formatCurrency(item.balance || 0)}
                       </span>
@@ -245,6 +259,18 @@ export default function CardOverviewBanner({
                     </div>
                   )}
                 </div>
+                {/* Person / user badge — on the right */}
+                {item.person ? (
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                    style={{ background: personBg }}
+                    title={item.person.name}
+                  >
+                    {getInitials(item.person.name)}
+                  </div>
+                ) : (
+                  <UserBadge user={user} />
+                )}
               </button>
 
               {/* Manage controls — rename & delete */}

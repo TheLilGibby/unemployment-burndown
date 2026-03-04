@@ -220,6 +220,7 @@ export async function mergeTransactionsIntoStatements(
       source:           'plaid',
       accountName:      stmt.accountName,
       accountType:      stmt.accountType,
+      accountSubtype:   stmt.accountSubtype || null,
     })
   }
 
