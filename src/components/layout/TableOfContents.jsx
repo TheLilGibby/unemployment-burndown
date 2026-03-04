@@ -12,6 +12,8 @@ const ALL_SECTIONS = [
   { id: 'sec-creditcards',  label: 'Credit Cards',  sectionKey: 'creditCards' },
   { id: 'sec-expenses',     label: 'Expenses',      sectionKey: null },
   { id: 'sec-investments',  label: 'Investments',   sectionKey: 'investments' },
+  { id: 'sec-child1investments', label: 'Child [1] Inv', sectionKey: 'child1Investments' },
+  { id: 'sec-child2investments', label: 'Child [2] Inv', sectionKey: 'child2Investments' },
   { id: 'sec-onetimes',      label: 'One-Time',      sectionKey: 'onetimes' },
   { id: 'sec-onetimepurchases', label: 'Purchases',  sectionKey: 'onetimePurchases' },
   { id: 'sec-onetimeincome',  label: 'Injections',   sectionKey: 'onetimeIncome' },

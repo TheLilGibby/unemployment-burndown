@@ -73,6 +73,10 @@ Parameters:
     Description: GitHub personal access token for creating feedback issues
     NoEcho: true
     Default: ''
+  SuperAdmins:
+    Type: String
+    Description: Comma-separated list of superadmin email addresses
+    Default: 'goragconsulting@gmail.com'
 
 Globals:
   Function:
@@ -603,6 +607,22 @@ Resources:
           Properties:
             Path: /plaid/budget
             Method: get
+
+  # ---------- Admin ----------
+  AdminResetPlaidBudgetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminResetPlaidBudget.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/reset-plaid-budget
+            Method: post
 
   # ---------- Feedback ----------
   FeedbackFunction:
