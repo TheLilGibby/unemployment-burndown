@@ -1,5 +1,5 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
-import { getPlaidItemsByUser } from '../lib/dynamo.mjs'
+import { getPlaidItemsByUser, isValidAccessToken } from '../lib/dynamo.mjs'
 import { readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
@@ -48,6 +48,19 @@ export async function handler(event) {
 
     for (const item of items) {
       try {
+        if (!isValidAccessToken(item.accessToken)) {
+          log.warn({ itemId: item.itemId }, 'skipping item with invalid access token (encrypted/corrupt or PLAID_ENV mismatch)')
+          result.push({
+            itemId:          item.itemId,
+            institutionName: item.institutionName,
+            institutionId:   item.institutionId,
+            connectedBy:     item.connectedBy || null,
+            accounts:        [],
+            error:           'Access token is invalid. Try disconnecting and reconnecting this bank account.',
+            lastSync:        item.updatedAt || item.createdAt,
+          })
+          continue
+        }
         const acctRes  = await client.accountsGet({ access_token: item.accessToken })
         const accounts = acctRes.data.accounts.map(acct => ({
           id:               acct.account_id,

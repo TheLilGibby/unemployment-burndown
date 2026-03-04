@@ -1,5 +1,5 @@
 import { getPlaidClient } from '../lib/plaid.mjs'
-import { getPlaidItemsByUser, getPlaidItem, updateCursor } from '../lib/dynamo.mjs'
+import { getPlaidItemsByUser, getPlaidItem, updateCursor, isValidAccessToken } from '../lib/dynamo.mjs'
 import { readDataJson, writeDataJson, readAccountsCache, writeAccountsCache } from '../lib/s3.mjs'
 import { requireOrg } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
@@ -81,6 +81,14 @@ export async function handler(event) {
 
     for (const item of items) {
       const { accessToken, itemId: iid } = item
+
+      // ── Validate token before calling Plaid ──
+      if (!isValidAccessToken(accessToken)) {
+        const log = createRequestLogger('sync', event)
+        const looks = !accessToken ? 'missing' : accessToken.startsWith('access-') ? 'env-mismatch' : 'encrypted-or-corrupt'
+        log.error({ itemId: iid, looks }, 'access token is invalid — it may be encrypted (PLAID_ENCRYPTION_KEY changed?), or the PLAID_ENV does not match the token environment')
+        return err(500, `Access token for ${item.institutionName || iid} is invalid (${looks}). Try disconnecting and reconnecting the bank account.`)
+      }
 
       // ── Sync transactions (cursor-based, page-limited) ──
       let cursor = item.cursor || null
