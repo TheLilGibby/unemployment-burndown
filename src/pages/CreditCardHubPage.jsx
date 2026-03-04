@@ -96,6 +96,13 @@ export default function CreditCardHubPage({
     return txns
   }, [index, statements])
 
+  // Stable transaction count from the index (doesn't depend on lazy-loaded statement data)
+  const totalTransactionCount = useMemo(() => {
+    return (index?.statements || [])
+      .filter(s => selectedCardId === null || s.cardId === selectedCardId)
+      .reduce((sum, s) => sum + (s.transactionCount || 0), 0)
+  }, [index, selectedCardId])
+
   // Propagate allTransactions to parent for overview usage
   useEffect(() => {
     if (onAllTransactionsChange && allTransactionsUnfiltered.length > 0) {
@@ -203,7 +210,7 @@ export default function CreditCardHubPage({
           </div>
           <div>
             <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Transactions</p>
-            <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{allTransactions.length}</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{totalTransactionCount}</p>
           </div>
         </div>
       </div>
