@@ -20,6 +20,8 @@ const ALL_SECTIONS = [
   { id: 'sec-monthlyincome', label: 'Mo. Income',   sectionKey: 'monthlyIncome' },
   { id: 'sec-transactions',  label: 'Transactions',  sectionKey: 'transactions' },
   { id: 'sec-assets',        label: 'Assets',        sectionKey: 'assets' },
+  { id: 'sec-properties',    label: 'Properties',    sectionKey: 'properties' },
+  { id: 'sec-homeimprovements', label: 'Home Improv.', sectionKey: 'homeImprovements' },
 ]
 
 export default function TableOfContents({ visibleSections = {} }) {
