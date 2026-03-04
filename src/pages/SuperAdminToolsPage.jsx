@@ -1047,7 +1047,7 @@ function PlaidBudgetPanel({ getToken }) {
 export default function SuperAdminToolsPage() {
   const { user, getToken, impersonate } = useAuth()
   const navigate = useNavigate()
-  const [activeSection, setActiveSection] = useState(user?.isSuperAdmin ? 'impersonation' : 'costs')
+  const [activeSection, setActiveSection] = useState('index')
   const [usageProfile, setUsageProfile] = useState('minimal')
   const [growthRate, setGrowthRate] = useState(10)
   const [expandedService, setExpandedService] = useState(null)
@@ -1106,7 +1106,7 @@ export default function SuperAdminToolsPage() {
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
   }, [serviceCosts])
 
-  if (user?.orgRole !== 'owner' && !user?.isSuperAdmin) {
+  if (!user?.isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
         <div className="text-center">
@@ -1148,71 +1148,75 @@ export default function SuperAdminToolsPage() {
               Superadmin Tools
             </h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {activeSection === 'impersonation' ? 'View as any user to debug and support'
+              {activeSection === 'index' ? 'Administrative tools and utilities'
+                : activeSection === 'impersonation' ? 'View as any user to debug and support'
                 : activeSection === 'plaidBudget' ? 'Monitor and manage Plaid API call budget'
                 : 'AWS infrastructure cost analysis & projections'}
             </p>
           </div>
         </div>
 
-        {/* Section Tabs */}
-        <div className="flex gap-2 mb-6">
-          {user?.isSuperAdmin && (
-            <button
-              onClick={() => setActiveSection('impersonation')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
-              style={{
-                background: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'transparent',
-                color: activeSection === 'impersonation' ? '#fff' : 'var(--text-secondary)',
-                borderColor: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-              </svg>
-              User Impersonation
-            </button>
-          )}
+        {/* Back to tools index when inside a tool */}
+        {activeSection !== 'index' && (
           <button
-            onClick={() => setActiveSection('costs')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
-            style={{
-              background: activeSection === 'costs' ? 'var(--accent-blue)' : 'transparent',
-              color: activeSection === 'costs' ? '#fff' : 'var(--text-secondary)',
-              borderColor: activeSection === 'costs' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-            }}
+            onClick={() => setActiveSection('index')}
+            className="flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ color: 'var(--accent-blue)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M15 18l-6-6 6-6" />
             </svg>
-            Cost Analysis
+            Back to Tools
           </button>
-          {user?.isSuperAdmin && (
-            <button
-              onClick={() => setActiveSection('plaidBudget')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
-              style={{
-                background: activeSection === 'plaidBudget' ? 'var(--accent-blue)' : 'transparent',
-                color: activeSection === 'plaidBudget' ? '#fff' : 'var(--text-secondary)',
-                borderColor: activeSection === 'plaidBudget' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-              Plaid Budget
-            </button>
-          )}
-        </div>
+        )}
+
+        {/* Tools Index Table */}
+        {activeSection === 'index' && (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tool</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: 'impersonation', name: 'User Impersonation', desc: 'View as any user to debug and support', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg> },
+                  { key: 'costs', name: 'Cost Analysis', desc: 'AWS infrastructure cost analysis & projections', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg> },
+                  { key: 'plaidBudget', name: 'Plaid Budget', desc: 'Monitor and manage Plaid API call budget', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg> },
+                ].map(tool => (
+                  <tr
+                    key={tool.key}
+                    onClick={() => setActiveSection(tool.key)}
+                    className="cursor-pointer transition-colors"
+                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <span style={{ color: 'var(--accent-blue)' }}>{tool.icon}</span>
+                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{tool.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{tool.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Impersonation Panel */}
-        {activeSection === 'impersonation' && user?.isSuperAdmin && (
+        {activeSection === 'impersonation' && (
           <ImpersonationPanel getToken={getToken} impersonate={impersonate} />
         )}
 
         {/* Plaid Budget Panel */}
-        {activeSection === 'plaidBudget' && user?.isSuperAdmin && (
+        {activeSection === 'plaidBudget' && (
           <PlaidBudgetPanel getToken={getToken} />
         )}
 
