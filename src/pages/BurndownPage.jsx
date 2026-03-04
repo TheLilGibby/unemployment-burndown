@@ -16,6 +16,8 @@ import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
+import PropertyPanel from '../components/finances/PropertyPanel'
+import HomeImprovementPanel from '../components/finances/HomeImprovementPanel'
 import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 
 export default function BurndownPage({
@@ -56,6 +58,11 @@ export default function BurndownPage({
   onSubsChange,
   onCreditCardsChange,
   onJobScenariosChange,
+  // Properties & Home Improvements
+  properties,
+  homeImprovements,
+  onPropertiesChange,
+  onHomeImprovementsChange,
   // What-if extras
   furloughDate,
   derivedStartDate,
@@ -303,6 +310,25 @@ export default function BurndownPage({
       {viewSettings.sections.assets && (
         <SectionCard id="sec-assets" title="Sellable Assets" className="scroll-mt-20">
           <AssetsPanel assets={assets} onChange={onAssetsChange} people={people} />
+        </SectionCard>
+      )}
+
+      {/* Properties — full width */}
+      {viewSettings.sections.properties && (
+        <SectionCard id="sec-properties" title="Properties" className="scroll-mt-20">
+          <PropertyPanel properties={properties} onChange={onPropertiesChange} />
+        </SectionCard>
+      )}
+
+      {/* Home Improvements — full width */}
+      {viewSettings.sections.homeImprovements && (
+        <SectionCard id="sec-homeimprovements" title="Home Improvements" className="scroll-mt-20">
+          <HomeImprovementPanel
+            improvements={homeImprovements}
+            onChange={onHomeImprovementsChange}
+            properties={properties}
+            people={people}
+          />
         </SectionCard>
       )}
 

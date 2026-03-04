@@ -51,6 +51,8 @@ export const DEFAULTS = {
     { id: 103, name: 'Internet', monthlyAmount: 60,  active: true, assignedTo: null },
   ],
   creditCards: [],
+  properties: [],
+  homeImprovements: [],
   notificationPreferences: {
     enabled: true,
     thresholds: {
