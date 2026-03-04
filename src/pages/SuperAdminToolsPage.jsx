@@ -92,14 +92,14 @@ const AWS_SERVICES = [
     id: 'bedrock',
     name: 'AWS Bedrock',
     category: 'AI/ML',
-    description: 'Claude 3 Haiku for credit card statement parsing',
+    description: 'Claude Haiku 4.5 for credit card statement parsing',
     icon: 'bedrock',
     freeTier: {},
-    pricing: { perInputToken: 0.00000025, perOutputToken: 0.00000125 },
+    pricing: { perInputToken: 0.000001, perOutputToken: 0.000005 },
     estimateMonthly: (usage) => {
       // Avg statement parse: ~2000 input tokens, ~500 output tokens
-      const inputCost = usage.parserInvocations * 2000 * 0.00000025
-      const outputCost = usage.parserInvocations * 500 * 0.00000125
+      const inputCost = usage.parserInvocations * 2000 * 0.000001
+      const outputCost = usage.parserInvocations * 500 * 0.000005
       return inputCost + outputCost
     },
   },
@@ -1507,7 +1507,7 @@ export default function SuperAdminToolsPage() {
             </div>
             <div className="flex items-start gap-2">
               <span style={{ color: '#f59e0b' }}>!</span>
-              <span><strong style={{ color: 'var(--text-primary)' }}>Bedrock (Claude 3 Haiku)</strong> &mdash; Per-token pricing; costs scale with statement parsing volume</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Bedrock (Claude Haiku 4.5)</strong> &mdash; Per-token pricing; costs scale with statement parsing volume</span>
             </div>
             <div className="flex items-start gap-2">
               <span style={{ color: '#f59e0b' }}>!</span>

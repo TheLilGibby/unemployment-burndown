@@ -5,7 +5,7 @@ import { getS3Object } from './s3Helpers.mjs'
 const log = pino({ name: 'statement-parser' })
 
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-1' })
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0'
+const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-haiku-4-5-20251001-v1:0'
 
 const CATEGORIES = [
   'dining', 'groceries', 'gas', 'travel', 'entertainment', 'shopping',
