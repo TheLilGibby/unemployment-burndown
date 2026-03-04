@@ -3,7 +3,7 @@ import { usePlaidLink } from 'react-plaid-link'
 import PlaidConsentModal from './PlaidConsentModal'
 
 /**
- * "Connect Bank" button that opens the Plaid Link modal.
+ * "Add Bank" button that opens the Plaid Link modal.
  * Shows a consent screen before the first connection.
  *
  * Props:
@@ -70,45 +70,30 @@ export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAl
     }
   }, [linkToken, ready, open])
 
+  const disabled = preparing || syncing
+  const label = preparing ? 'Connecting...' : syncing ? 'Syncing...' : linkedCount > 0 ? 'Add Bank' : 'Connect Bank'
+
   return (
     <>
       <button
         onClick={handleClick}
-        disabled={preparing || syncing}
+        disabled={disabled}
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
         style={{
-          borderColor: linkedCount > 0 ? 'var(--accent-emerald)' : 'var(--accent-blue)',
-          background: linkedCount > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-          color: linkedCount > 0 ? 'var(--accent-emerald)' : 'var(--accent-blue)',
-          opacity: (preparing || syncing) ? 0.6 : 1,
-          cursor: (preparing || syncing) ? 'wait' : 'pointer',
+          borderColor: 'var(--accent-blue)',
+          background: 'rgba(59, 130, 246, 0.1)',
+          color: 'var(--accent-blue)',
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? 'wait' : 'pointer',
         }}
         title={linkedCount > 0 ? 'Connect another bank account' : 'Connect your bank via Plaid'}
       >
-        {/* Bank icon */}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="6" width="22" height="16" rx="2" />
-          <path d="M1 10h22" />
-          <path d="M7 15h4" />
+        {/* Plus icon */}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span className="hidden sm:inline">
-          {preparing ? 'Connecting...' : syncing ? 'Syncing...' : linkedCount > 0 ? `${linkedCount} Bank${linkedCount > 1 ? 's' : ''}` : 'Connect Bank'}
-        </span>
-        {linkedCount > 0 && !preparing && !syncing && (
-          <span
-            className="text-xs font-semibold px-1 rounded-full tabular-nums"
-            style={{
-              background: 'var(--accent-emerald)',
-              color: '#fff',
-              fontSize: '10px',
-              lineHeight: '16px',
-              minWidth: 16,
-              textAlign: 'center',
-            }}
-          >
-            {linkedCount}
-          </span>
-        )}
+        <span>{label}</span>
       </button>
 
       {showConsent && (

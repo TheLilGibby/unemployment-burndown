@@ -204,6 +204,12 @@ export default function CreditCardHubPage({
         </p>
 
         <div className="flex flex-wrap gap-6 sm:gap-10 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+          {plaid && (
+            <div>
+              <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Banks Connected</p>
+              <p className="text-xl font-semibold" style={{ color: 'var(--accent-emerald)' }}>{plaid.linkedItems.length}</p>
+            </div>
+          )}
           <div>
             <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Statements</p>
             <p className="text-xl font-semibold" style={{ color: 'var(--accent-blue)' }}>{index?.statements?.length || 0}</p>
@@ -213,46 +219,43 @@ export default function CreditCardHubPage({
             <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{totalTransactionCount}</p>
           </div>
         </div>
-      </div>
 
-      {/* Plaid connection bar */}
-      {plaid && (
-        <div
-          className="rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2"
-          style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-        >
-          <PlaidLinkButton
-            createLinkToken={plaid.createLinkToken}
-            exchangeToken={plaid.exchangeToken}
-            syncAll={handleSync}
-            linkedCount={plaid.linkedItems.length}
-            syncing={plaid.syncing}
-          />
-          {plaid.linkedItems.length > 0 && (
-            <button
-              onClick={() => handleSync()}
-              disabled={plaid.syncing}
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
-              style={{
-                borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                cursor: plaid.syncing ? 'wait' : 'pointer',
-              }}
-            >
-              {plaid.syncing ? 'Syncing...' : 'Sync Transactions'}
-            </button>
-          )}
-          {plaid.lastSync && (
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Last synced: {new Date(plaid.lastSync).toLocaleString()}
-            </span>
-          )}
-          {plaid.error && (
-            <span className="text-xs" style={{ color: '#f87171' }}>{plaid.error}</span>
-          )}
-        </div>
-      )}
+        {/* Add Bank + Sync controls */}
+        {plaid && (
+          <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+            <PlaidLinkButton
+              createLinkToken={plaid.createLinkToken}
+              exchangeToken={plaid.exchangeToken}
+              syncAll={handleSync}
+              linkedCount={plaid.linkedItems.length}
+              syncing={plaid.syncing}
+            />
+            {plaid.linkedItems.length > 0 && (
+              <button
+                onClick={() => handleSync()}
+                disabled={plaid.syncing}
+                className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                style={{
+                  borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
+                  color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
+                  background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                  cursor: plaid.syncing ? 'wait' : 'pointer',
+                }}
+              >
+                {plaid.syncing ? 'Syncing...' : 'Sync Transactions'}
+              </button>
+            )}
+            {plaid.lastSync && (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Last synced: {new Date(plaid.lastSync).toLocaleString()}
+              </span>
+            )}
+            {plaid.error && (
+              <span className="text-xs" style={{ color: '#f87171' }}>{plaid.error}</span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Import status */}
       <StatementImportStatus
