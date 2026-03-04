@@ -32,7 +32,7 @@ function MiniTooltip({ active, payload, label }) {
 
 /* ───────── Transaction Detail Drawer ───────── */
 
-function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink }) {
+function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [] }) {
   const [editCategory, setEditCategory] = useState(transaction.category || 'other')
   const [excluded, setExcluded] = useState(!!transaction.excluded)
   const hasChanges = editCategory !== (transaction.category || 'other') || excluded !== !!transaction.excluded
@@ -80,9 +80,9 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
           </button>
         </div>
 
-        <div className="p-4 space-y-5">
+        <div className="p-4 space-y-3">
           {/* Amount */}
-          <div className="text-center py-3">
+          <div className="text-center py-2">
             <p
               className="text-3xl font-bold tabular-nums"
               style={{ color: transaction.amount < 0 ? 'var(--accent-emerald)' : 'var(--text-primary)' }}
@@ -97,7 +97,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
           </div>
 
           {/* Details grid */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <DetailRow label="Merchant" value={transaction.merchantName || '—'} />
             <DetailRow label="Description" value={transaction.description || '—'} mono />
             <DetailRow
@@ -158,11 +158,43 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
           {/* Category selector */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: 'var(--text-muted)' }}>
+            <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-muted)' }}>
               <Tag size={11} className="inline mr-1" style={{ verticalAlign: 'middle' }} />
               Category
             </label>
-            <div className="space-y-1">
+
+            {/* Recently used categories */}
+            {recentCategories.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1" style={{ color: 'var(--text-faint)' }}>
+                  Recent
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {recentCategories.map(rc => {
+                    const isSelected = editCategory === rc.key
+                    return (
+                      <button
+                        key={rc.key}
+                        onClick={() => setEditCategory(rc.key)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-100"
+                        style={{
+                          background: isSelected ? rc.color + '25' : 'var(--bg-subtle, rgba(255,255,255,0.06))',
+                          border: '1px solid',
+                          borderColor: isSelected ? rc.color + '60' : 'var(--border-subtle)',
+                          color: isSelected ? '#f9fafb' : 'var(--text-muted)',
+                        }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc.color }} />
+                        {rc.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="h-px mb-2" style={{ background: 'var(--border-subtle)' }} />
+              </div>
+            )}
+
+            <div className="space-y-0.5">
               {STATEMENT_CATEGORIES.map(c => {
                 const isSelected = editCategory === c.key
                 const isSubSelected = c.subCategories?.some(s => s.key === editCategory)
@@ -170,7 +202,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
                   <div key={c.key}>
                     <button
                       onClick={() => setEditCategory(c.key)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all duration-100"
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all duration-100"
                       style={{
                         background: isSelected ? c.color + '18' : 'transparent',
                         border: '1px solid',
@@ -640,6 +672,24 @@ export default function CategoryExplorer({
 
   const hasLinking = !!(onLinkTransaction && (oneTimePurchases.length || oneTimeExpenses.length || oneTimeIncome.length))
 
+  // Compute recently used categories (last 3 distinct) from most recent transactions
+  const recentCategories = useMemo(() => {
+    const sorted = [...transactions]
+      .filter(t => t.date && t.category)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    const seen = new Set()
+    const result = []
+    for (const txn of sorted) {
+      const key = txn.category
+      if (seen.has(key)) continue
+      seen.add(key)
+      const cfg = findCategory(key)
+      if (cfg) result.push(cfg)
+      if (result.length >= 3) break
+    }
+    return result
+  }, [transactions])
+
   // Build a lookup for overview items by key
   const overviewItemsByKey = useMemo(() => {
     const map = {}
@@ -735,6 +785,7 @@ export default function CategoryExplorer({
             linkedKey={selLinkedKey}
             onOpenLinkModal={hasLinking ? (txn) => { setLinkModalTxn(txn) } : undefined}
             onUnlink={onUnlinkTransaction ? (key, txnId) => { onUnlinkTransaction(key, txnId) } : undefined}
+            recentCategories={recentCategories}
           />
         )
       })()}
