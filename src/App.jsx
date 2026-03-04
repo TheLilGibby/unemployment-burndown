@@ -30,7 +30,6 @@ import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { getEffectivePayment } from './utils/ccPayment'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
-import PlaidLinkButton from './components/plaid/PlaidLinkButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
@@ -925,15 +924,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         rightSlot={
           <div className="flex items-center gap-0.5">
             <span className="hidden sm:flex"><CloudSaveStatus storage={s3Storage} /></span>
-            {import.meta.env.VITE_PLAID_API_URL && (
-              <PlaidLinkButton
-                createLinkToken={plaid.createLinkToken}
-                exchangeToken={plaid.exchangeToken}
-                syncAll={plaid.syncAll}
-                linkedCount={plaid.linkedItems.length}
-                syncing={plaid.syncing}
-              />
-            )}
             <NotificationBell />
             <TemplateManager
               templates={templates}
