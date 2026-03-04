@@ -116,12 +116,14 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Center label */}
+        {/* Center label — hidden while a slice tooltip is visible */}
         <div
           style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
             textAlign: 'center', pointerEvents: 'none',
+            opacity: active === null ? 1 : 0,
+            transition: 'opacity 0.15s',
           }}
         >
           <p className="text-lg font-bold text-white leading-tight">{formatCurrency(total)}</p>
