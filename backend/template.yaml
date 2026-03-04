@@ -575,6 +575,10 @@ Resources:
             TableName: !Ref PlaidTokensTable
         - S3CrudPolicy:
             BucketName: !Ref S3Bucket
+        - Statement:
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${S3Bucket}
       Events:
         Api:
           Type: Api
