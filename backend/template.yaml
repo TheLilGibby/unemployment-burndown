@@ -538,6 +538,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -571,6 +573,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -586,6 +590,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
