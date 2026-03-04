@@ -16,6 +16,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import crypto from 'node:crypto'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
@@ -32,7 +33,7 @@ const S3_REGION = process.env.S3_REGION || REGION
 
 const USER_ID = 'goragconsulting@gmail.com'
 const ORG_ID = 'org_039210db04aadec1'
-const ORG_ROLE = 'member'
+const ORG_NAME = 'My Household'
 const PERSON_ID = 2 // Jon's id in data.json
 
 const credentials = process.env.AWS_ACCESS_KEY_ID
@@ -55,42 +56,55 @@ async function main() {
   }
   console.log(`  Found user. Current orgId: ${userRes.Item.orgId || '(none)'}`)
 
-  // 2. Verify org exists
-  console.log(`\nVerifying org ${ORG_ID} exists in ${ORGS_TABLE}...`)
+  // 2. Ensure org exists — create it if missing
+  console.log(`\nChecking ${ORGS_TABLE} for ${ORG_ID}...`)
   const orgRes = await dynamo.send(new GetCommand({
     TableName: ORGS_TABLE,
     Key: { orgId: ORG_ID },
   }))
+
+  let orgRole
+  const now = new Date().toISOString()
+
   if (!orgRes.Item) {
-    console.error(`Org ${ORG_ID} not found in ${ORGS_TABLE}. Cannot link user to a non-existent org.`)
-    process.exit(1)
+    console.log(`  Org not found — creating it now as owner...`)
+    const joinCode = crypto.randomBytes(4).toString('hex').toUpperCase()
+    await dynamo.send(new PutCommand({
+      TableName: ORGS_TABLE,
+      Item: { orgId: ORG_ID, name: ORG_NAME, joinCode, ownerId: USER_ID, createdAt: now, updatedAt: now },
+    }))
+    console.log(`  Created org "${ORG_NAME}" (joinCode: ${joinCode})`)
+    orgRole = 'owner'
+  } else {
+    console.log(`  Found org: "${orgRes.Item.name}"`)
+    // If this user is already recorded as the owner, honour that; otherwise join as member
+    orgRole = orgRes.Item.ownerId === USER_ID ? 'owner' : 'member'
   }
-  console.log(`  Found org: "${orgRes.Item.name}"`)
 
   // 3. Update BurndownUsers — set orgId and orgRole
-  console.log(`\nUpdating ${USERS_TABLE}: orgId=${ORG_ID}, orgRole=${ORG_ROLE}`)
+  console.log(`\nUpdating ${USERS_TABLE}: orgId=${ORG_ID}, orgRole=${orgRole}`)
   await dynamo.send(new UpdateCommand({
     TableName: USERS_TABLE,
     Key: { userId: USER_ID },
     UpdateExpression: 'SET orgId = :oid, orgRole = :role, updatedAt = :u',
     ExpressionAttributeValues: {
       ':oid': ORG_ID,
-      ':role': ORG_ROLE,
-      ':u': new Date().toISOString(),
+      ':role': orgRole,
+      ':u': now,
     },
   }))
   console.log('  Done.')
 
   // 4. Add to OrgMembers
-  console.log(`\nAdding to ${ORG_MEMBERS_TABLE}: orgId=${ORG_ID}, userId=${USER_ID}, role=${ORG_ROLE}, personId=${PERSON_ID}`)
+  console.log(`\nAdding to ${ORG_MEMBERS_TABLE}: orgId=${ORG_ID}, userId=${USER_ID}, role=${orgRole}, personId=${PERSON_ID}`)
   await dynamo.send(new PutCommand({
     TableName: ORG_MEMBERS_TABLE,
     Item: {
       orgId: ORG_ID,
       userId: USER_ID,
-      role: ORG_ROLE,
+      role: orgRole,
       personId: PERSON_ID,
-      joinedAt: new Date().toISOString(),
+      joinedAt: now,
     },
   }))
   console.log('  Done.')
