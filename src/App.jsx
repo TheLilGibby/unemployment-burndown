@@ -1130,6 +1130,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 txnToOverviewMap={txnToOverviewMap}
                 onLinkTransaction={handleLinkTransaction}
                 onUnlinkTransaction={handleUnlinkTransaction}
+                transactionOverrides={transactionOverrides}
                 properties={properties}
                 homeImprovements={homeImprovements}
                 onPropertiesChange={onPropertiesChange}

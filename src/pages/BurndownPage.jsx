@@ -82,6 +82,7 @@ export default function BurndownPage({
   txnToOverviewMap = {},
   onLinkTransaction,
   onUnlinkTransaction,
+  transactionOverrides = {},
   // Historical snapshot comparison
   snapshots,
   historicalDate,
@@ -132,7 +133,7 @@ export default function BurndownPage({
       {/* Jobs / Employment */}
       {viewSettings.sections.jobs && (
         <SectionCard id="sec-jobs" title="Jobs / Employment" className="scroll-mt-20">
-          <JobsPanel jobs={jobs} onChange={onJobsChange} people={people} />
+          <JobsPanel jobs={jobs} onChange={onJobsChange} people={people} allTransactions={allTransactions} transactionOverrides={transactionOverrides} />
         </SectionCard>
       )}
 

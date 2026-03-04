@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import dayjs from 'dayjs'
 import { formatCurrency } from '../../utils/formatters'
 import { useDragReorder } from '../../hooks/useDragReorder'
@@ -5,6 +6,7 @@ import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
+import JobPayrollDrawer from './JobPayrollDrawer'
 
 function TrashIcon() {
   return (
@@ -28,8 +30,9 @@ const STATUS_STYLES = {
   quit:       { bg: 'color-mix(in srgb, var(--accent-red) 20%, var(--bg-input))',     border: 'color-mix(in srgb, var(--accent-red) 40%, var(--border-input))',     color: 'var(--accent-red)' },
 }
 
-export default function JobsPanel({ jobs, onChange, people = [] }) {
+export default function JobsPanel({ jobs, onChange, people = [], allTransactions = [], transactionOverrides = {} }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(jobs, onChange)
+  const [expandedJobId, setExpandedJobId] = useState(null)
 
   function updateItem(id, field, val) {
     onChange(jobs.map(job => {
@@ -222,6 +225,15 @@ export default function JobsPanel({ jobs, onChange, people = [] }) {
                       <TrashIcon />
                     </button>
                   </div>
+
+                  {/* Payroll transactions drawer */}
+                  <JobPayrollDrawer
+                    job={job}
+                    allTransactions={allTransactions}
+                    transactionOverrides={transactionOverrides}
+                    open={expandedJobId === job.id}
+                    onToggle={() => setExpandedJobId(prev => prev === job.id ? null : job.id)}
+                  />
                 </div>
               )
             })}
@@ -261,7 +273,7 @@ export default function JobsPanel({ jobs, onChange, people = [] }) {
       )}
 
       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-        Active jobs contribute their salary to the burndown as income. Status date is used to auto-derive the simulation start date. Drag <span style={{ color: 'var(--text-muted)' }}>&#x2807;</span> to reorder.
+        Active jobs contribute their salary to the burndown as income. Status date is used to auto-derive the simulation start date. Drag <span style={{ color: 'var(--text-muted)' }}>&#x2807;</span> to reorder. Click the payroll button on each job to see linked payroll transactions.
       </p>
     </div>
   )
