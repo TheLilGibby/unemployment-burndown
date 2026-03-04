@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, X, Tag, EyeOff, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, X, Tag, EyeOff, Eye, Link2, Unlink } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
+import TransactionLinkModal from '../linking/TransactionLinkModal'
 
 /* ───────── helpers ───────── */
 
@@ -31,7 +32,7 @@ function MiniTooltip({ active, payload, label }) {
 
 /* ───────── Transaction Detail Drawer ───────── */
 
-function TransactionDrawer({ transaction, onClose, onUpdate }) {
+function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink }) {
   const [editCategory, setEditCategory] = useState(transaction.category || 'other')
   const [excluded, setExcluded] = useState(!!transaction.excluded)
   const hasChanges = editCategory !== (transaction.category || 'other') || excluded !== !!transaction.excluded
@@ -108,6 +109,50 @@ function TransactionDrawer({ transaction, onClose, onUpdate }) {
             />
             {transaction.pending && (
               <DetailRow label="Status" value="Pending" color="#eab308" />
+            )}
+          </div>
+
+          {/* Link to overview item */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: 'var(--text-muted)' }}>
+              <Link2 size={11} className="inline mr-1" style={{ verticalAlign: 'middle' }} />
+              Linked Item
+            </label>
+            {linkedItem ? (
+              <div
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+                style={{ background: 'color-mix(in srgb, var(--accent-blue) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)' }}
+              >
+                <Link2 size={13} style={{ color: 'var(--accent-blue)' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {linkedItem.description}
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {linkedItem.date ? new Date(linkedItem.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} &middot; {formatCurrency(Math.abs(Number(linkedItem.amount) || 0))}
+                    {linkedItem.medium ? ` &middot; ${linkedItem.medium}` : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onUnlink?.(linkedKey, transaction.id)}
+                  className="text-xs px-2 py-1 rounded-md transition-colors flex items-center gap-1 flex-shrink-0"
+                  style={{ color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                >
+                  <Unlink size={10} /> Unlink
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => onOpenLinkModal?.(transaction)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors"
+                style={{
+                  color: 'var(--accent-blue)',
+                  border: '1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)',
+                  background: 'color-mix(in srgb, var(--accent-blue) 5%, transparent)',
+                }}
+              >
+                <Link2 size={12} /> Link to Purchase / Expense / Income
+              </button>
             )}
           </div>
 
@@ -240,7 +285,7 @@ function DetailRow({ label, value, mono, color }) {
 
 /* ───────── Category Detail View ───────── */
 
-function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor }) {
+function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [merchantFilter, setMerchantFilter] = useState(null)
@@ -493,10 +538,20 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
                 >
                   Amount <SortIcon field="amount" />
                 </th>
+                {txnToOverviewMap && (
+                  <th
+                    className="px-2 py-1.5 text-center"
+                    style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: 32 }}
+                  >
+                    <Link2 size={11} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {sortedTxns.slice(0, 50).map((txn, i) => (
+              {sortedTxns.slice(0, 50).map((txn, i) => {
+                const linkedKey = txnToOverviewMap ? txnToOverviewMap[txn.id] : null
+                return (
                 <tr
                   key={txn.id || i}
                   onClick={() => onTransactionClick?.(txn)}
@@ -523,8 +578,23 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
                   >
                     {txn.amount < 0 ? '-' : ''}{formatCurrency(Math.abs(txn.amount))}
                   </td>
+                  {txnToOverviewMap && (
+                    <td className="px-2 py-2 text-center" style={{ width: 32 }}>
+                      <span
+                        title={linkedKey ? 'Linked to overview item' : ''}
+                        className="inline-flex items-center justify-center w-5 h-5 rounded-full"
+                        style={{
+                          color: linkedKey ? 'var(--accent-blue)' : 'transparent',
+                          background: linkedKey ? 'color-mix(in srgb, var(--accent-blue) 12%, transparent)' : 'transparent',
+                        }}
+                      >
+                        {linkedKey && <Link2 size={11} strokeWidth={2.2} />}
+                      </span>
+                    </td>
+                  )}
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
           {sortedTxns.length > 50 && (
@@ -552,7 +622,12 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
 
 /* ═══════════════ Main CategoryExplorer ═══════════════ */
 
-export default function CategoryExplorer({ transactions = [], onTransactionUpdate }) {
+export default function CategoryExplorer({
+  transactions = [], onTransactionUpdate,
+  oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
+  transactionLinks = {}, txnToOverviewMap = {},
+  onLinkTransaction, onUnlinkTransaction,
+}) {
   // Time period
   const [period, setPeriod] = useState('thisMonth')
   const [customStart, setCustomStart] = useState('')
@@ -561,6 +636,18 @@ export default function CategoryExplorer({ transactions = [], onTransactionUpdat
   // Drill-down
   const [drillCategory, setDrillCategory] = useState(null)
   const [selectedTxn, setSelectedTxn] = useState(null)
+  const [linkModalTxn, setLinkModalTxn] = useState(null)
+
+  const hasLinking = !!(onLinkTransaction && (oneTimePurchases.length || oneTimeExpenses.length || oneTimeIncome.length))
+
+  // Build a lookup for overview items by key
+  const overviewItemsByKey = useMemo(() => {
+    const map = {}
+    for (const p of oneTimePurchases) map[`otp_${p.id}`] = { ...p, _type: 'otp' }
+    for (const e of oneTimeExpenses) map[`ote_${e.id}`] = { ...e, _type: 'ote' }
+    for (const i of oneTimeIncome) map[`oti_${i.id}`] = { ...i, _type: 'oti' }
+    return map
+  }, [oneTimePurchases, oneTimeExpenses, oneTimeIncome])
 
   // Compute date range
   const range = useMemo(() => {
@@ -624,8 +711,9 @@ export default function CategoryExplorer({ transactions = [], onTransactionUpdat
           transactions={filteredTxns}
           prevPeriodTransactions={prevPeriodTxns}
           onBack={handleBack}
-          onTransactionClick={onTransactionUpdate ? handleTransactionClick : undefined}
+          onTransactionClick={(onTransactionUpdate || hasLinking) ? handleTransactionClick : undefined}
           categoryColor={findCategory(drillCategory)?.color}
+          txnToOverviewMap={hasLinking ? txnToOverviewMap : undefined}
         />
       ) : (
         <CategoryDonutChart
@@ -635,11 +723,41 @@ export default function CategoryExplorer({ transactions = [], onTransactionUpdat
       )}
 
       {/* Transaction detail drawer */}
-      {selectedTxn && (
-        <TransactionDrawer
-          transaction={selectedTxn}
-          onClose={() => setSelectedTxn(null)}
-          onUpdate={handleTransactionUpdate}
+      {selectedTxn && (() => {
+        const selLinkedKey = txnToOverviewMap[selectedTxn.id] || null
+        const selLinkedItem = selLinkedKey ? overviewItemsByKey[selLinkedKey] : null
+        return (
+          <TransactionDrawer
+            transaction={selectedTxn}
+            onClose={() => setSelectedTxn(null)}
+            onUpdate={handleTransactionUpdate}
+            linkedItem={selLinkedItem}
+            linkedKey={selLinkedKey}
+            onOpenLinkModal={hasLinking ? (txn) => { setLinkModalTxn(txn) } : undefined}
+            onUnlink={onUnlinkTransaction ? (key, txnId) => { onUnlinkTransaction(key, txnId) } : undefined}
+          />
+        )
+      })()}
+
+      {/* Transaction link modal */}
+      {linkModalTxn && (
+        <TransactionLinkModal
+          open={true}
+          transaction={linkModalTxn}
+          oneTimePurchases={oneTimePurchases}
+          oneTimeExpenses={oneTimeExpenses}
+          oneTimeIncome={oneTimeIncome}
+          transactionLinks={transactionLinks}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={(overviewKey, txn) => {
+            onLinkTransaction(overviewKey, txn)
+            setLinkModalTxn(null)
+          }}
+          onUnlink={(overviewKey, txnId) => {
+            onUnlinkTransaction(overviewKey, txnId)
+            setLinkModalTxn(null)
+          }}
+          onClose={() => setLinkModalTxn(null)}
         />
       )}
     </div>

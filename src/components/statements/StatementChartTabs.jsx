@@ -32,7 +32,12 @@ const CHART_DEFS = [
   },
 ]
 
-export default function StatementChartTabs({ transactions = [], creditCards = [], expenses = [], subscriptions = [], monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate }) {
+export default function StatementChartTabs({
+  transactions = [], creditCards = [], expenses = [], subscriptions = [],
+  monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate,
+  oneTimePurchases, oneTimeExpenses, oneTimeIncome,
+  transactionLinks, txnToOverviewMap, onLinkTransaction, onUnlinkTransaction,
+}) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -118,6 +123,13 @@ export default function StatementChartTabs({ transactions = [], creditCards = []
           <CategoryExplorer
             transactions={transactions}
             onTransactionUpdate={onTransactionUpdate}
+            oneTimePurchases={oneTimePurchases}
+            oneTimeExpenses={oneTimeExpenses}
+            oneTimeIncome={oneTimeIncome}
+            transactionLinks={transactionLinks}
+            txnToOverviewMap={txnToOverviewMap}
+            onLinkTransaction={onLinkTransaction}
+            onUnlinkTransaction={onUnlinkTransaction}
           />
         )}
         {activeId === 'monthly' && (
