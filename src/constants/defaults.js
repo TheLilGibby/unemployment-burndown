@@ -56,6 +56,10 @@ export const DEFAULTS = {
   properties: [],
   homeImprovements: [],
   goals: [],
+  advertisingRevenue: {
+    costs: [],
+    revenue: [],
+  },
   notificationPreferences: {
     enabled: true,
     thresholds: {

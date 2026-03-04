@@ -8,6 +8,7 @@ const SECTION_GROUPS = [
       { key: 'jobs', label: 'Jobs / Employment' },
       { key: 'monthlyIncome', label: 'Monthly Income' },
       { key: 'onetimeIncome', label: 'One-Time Income' },
+      { key: 'advertisingRevenue', label: 'Advertising vs Ad Revenue' },
     ],
   },
   {
@@ -56,25 +57,25 @@ const PRESETS = {
     label: 'Full',
     desc: 'Everything visible',
     chartLines: { allExpenses: true, essentialsOnly: true, baseline: true },
-    sections: { jobs: true, whatif: true, plaidAccounts: true, transactions: true, subscriptions: true, creditCards: true, investments: true, onetimes: true, onetimePurchases: true, onetimeIncome: true, monthlyIncome: true, assets: true, properties: true, homeImprovements: true },
+    sections: { jobs: true, whatif: true, plaidAccounts: true, transactions: true, subscriptions: true, creditCards: true, investments: true, onetimes: true, onetimePurchases: true, onetimeIncome: true, monthlyIncome: true, advertisingRevenue: true, assets: true, properties: true, homeImprovements: true },
   },
   essentials: {
     label: 'Essentials',
     desc: 'Savings & core burndown',
     chartLines: { allExpenses: true, essentialsOnly: true, baseline: false },
-    sections: { jobs: false, whatif: false, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: false, monthlyIncome: false, assets: false, properties: false, homeImprovements: false },
+    sections: { jobs: false, whatif: false, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: false, monthlyIncome: false, advertisingRevenue: false, assets: false, properties: false, homeImprovements: false },
   },
   income: {
     label: 'Income Focus',
     desc: 'Jobs & income sources',
     chartLines: { allExpenses: true, essentialsOnly: false, baseline: true },
-    sections: { jobs: true, whatif: true, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: true, monthlyIncome: true, assets: false, properties: false, homeImprovements: false },
+    sections: { jobs: true, whatif: true, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: true, monthlyIncome: true, advertisingRevenue: true, assets: false, properties: false, homeImprovements: false },
   },
   minimal: {
     label: 'Minimal',
     desc: 'Just the chart',
     chartLines: { allExpenses: true, essentialsOnly: false, baseline: false },
-    sections: { jobs: false, whatif: false, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: false, monthlyIncome: false, assets: false, properties: false, homeImprovements: false },
+    sections: { jobs: false, whatif: false, plaidAccounts: false, transactions: false, subscriptions: false, creditCards: false, investments: false, onetimes: false, onetimePurchases: false, onetimeIncome: false, monthlyIncome: false, advertisingRevenue: false, assets: false, properties: false, homeImprovements: false },
   },
 }
 

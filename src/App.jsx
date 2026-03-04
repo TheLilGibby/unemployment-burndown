@@ -305,6 +305,7 @@ const DEFAULT_VIEW = {
     onetimePurchases: true,
     onetimeIncome:   true,
     monthlyIncome:   true,
+    advertisingRevenue: true,
     assets:          true,
     plaidAccounts:   true,
     transactions:    true,
@@ -384,6 +385,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [properties, setProperties] = useState(DEFAULTS.properties)
   const [homeImprovements, setHomeImprovements] = useState(DEFAULTS.homeImprovements)
   const [goals, setGoals] = useState(DEFAULTS.goals)
+  const [advertisingRevenue, setAdvertisingRevenue] = useState(DEFAULTS.advertisingRevenue)
   const [comments, setComments] = useState({})
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
@@ -424,7 +426,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, transactionLinks, transactionOverrides }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides }
   }
 
   function applySnapshot(snapshot) {
@@ -452,6 +454,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.properties) setProperties(snapshot.properties)
     if (snapshot.homeImprovements) setHomeImprovements(snapshot.homeImprovements)
     if (snapshot.goals) setGoals(snapshot.goals)
+    if (snapshot.advertisingRevenue) setAdvertisingRevenue(snapshot.advertisingRevenue)
     if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
     if (snapshot.transactionOverrides) setTransactionOverrides(snapshot.transactionOverrides)
   }
@@ -508,7 +511,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, templates, comments, transactionLinks, transactionOverrides]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -562,6 +565,11 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     const total = v.reduce((s, c) => s + getEffectivePayment(c), 0)
     return _fmtM(total) + '/mo'
   }
+  const summarizeAdvertisingRevenue = (v) => {
+    const costTotal = (v?.costs || []).reduce((s, c) => s + (Number(c.monthlyAmount) || 0), 0)
+    const revTotal  = (v?.revenue || []).reduce((s, r) => s + (Number(r.monthlyAmount) || 0), 0)
+    return `spend ${_fmtM(costTotal)}/mo · revenue ${_fmtM(revTotal)}/mo`
+  }
   const summarizeJobScenarios = (v) => `${v.length} scenario${v.length !== 1 ? 's' : ''}`
   const summarizeProperties      = (v) => `${v.length} propert${v.length !== 1 ? 'ies' : 'y'}`
   const summarizeHomeImprovements = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
@@ -611,6 +619,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const onHomeImprovementsChange  = track(() => homeImprovements, setHomeImprovements,  'Home improvements',   summarizeHomeImprovements,  diffArray)
   const summarizeGoals       = (v) => `${v.length} goal${v.length !== 1 ? 's' : ''}`
   const onGoalsChange        = track(() => goals,           setGoals,           'Goals',              summarizeGoals,        diffArray)
+  const onAdvertisingRevenueChange = track(() => advertisingRevenue, setAdvertisingRevenue, 'Advertising revenue', summarizeAdvertisingRevenue, diffObject)
 
   // Transaction linking handlers
   const txnToOverviewMap = useMemo(() => {
@@ -700,12 +709,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   // Combine all investment arrays (parent + child) for burndown calculation
   const allInvestments = [...investments, ...child1Investments, ...child2Investments]
 
+  // Merge advertising costs into expenses and ad revenue into monthly income for burndown
+  const adCostsAsExpenses = (advertisingRevenue?.costs ?? [])
+    .filter(c => c.monthlyAmount)
+    .map(c => ({ id: `adcost_${c.id}`, category: c.description || 'Ad Cost', monthlyAmount: c.monthlyAmount, essential: false, assignedTo: c.assignedTo }))
+  const expensesForBurndown = [...expensesWithSubs, ...adCostsAsExpenses]
+  const monthlyIncomeForBurndown = [...monthlyIncome, ...(advertisingRevenue?.revenue ?? [])]
+
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
+  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
+  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -985,6 +1001,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               jobs={jobs}
               people={people}
               filterPersonId={filterPersonId}
+              advertisingRevenue={advertisingRevenue}
             />
             <BurndownPage
               current={current}
@@ -1048,6 +1065,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               homeImprovements={homeImprovements}
               onPropertiesChange={onPropertiesChange}
               onHomeImprovementsChange={onHomeImprovementsChange}
+              advertisingRevenue={advertisingRevenue}
+              onAdvertisingRevenueChange={onAdvertisingRevenueChange}
             />
             <ErrorBoundary level="component">
               <FinancialSidebar
@@ -1071,6 +1090,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 jobs={jobs}
                 people={people}
                 filterPersonId={filterPersonId}
+                advertisingRevenue={advertisingRevenue}
               />
             </ErrorBoundary>
             <ErrorBoundary level="section">
@@ -1135,6 +1155,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 homeImprovements={homeImprovements}
                 onPropertiesChange={onPropertiesChange}
                 onHomeImprovementsChange={onHomeImprovementsChange}
+                advertisingRevenue={advertisingRevenue}
+                onAdvertisingRevenueChange={onAdvertisingRevenueChange}
                 snapshots={snapshots}
                 historicalDate={historicalDate}
                 historicalBurndown={historicalBurndown}

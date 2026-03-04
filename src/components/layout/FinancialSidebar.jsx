@@ -113,6 +113,7 @@ function MobileFinancialDrawer({
   totalCCPayments, upcomingOneTimeExpenses, activeAccounts, activeSubscriptions,
   activeCCPayments, activeInvestments, expenses, monthlyIncome, unemployment,
   oneTimeExpenses, oneTimeIncome, upcomingOneTimePurchases = [], activeJobs = [], totalJobIncome = 0, people = [], filterPersonId = null,
+  adCosts = [], totalAdCosts = 0, adRevenue = [], totalAdRevenue = 0,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -225,6 +226,11 @@ function MobileFinancialDrawer({
               items={upcomingOneTimeIncome.map(x => ({ label: x.note || x.description || x.date || 'Income', amount: Number(x.amount) || 0, personColor: getPersonColor(people, x.assignedTo) }))} />
           )}
 
+          {totalAdRevenue > 0 && (
+            <Section label="Ad Revenue" total={totalAdRevenue} sign="+" color="var(--accent-emerald)"
+              items={adRevenue.filter(r => r.monthlyAmount).map(r => ({ label: r.description || 'Ad Revenue', amount: Number(r.monthlyAmount) || 0, personColor: getPersonColor(people, r.assignedTo) }))} />
+          )}
+
           <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--border-default)' }} />
           <p className="text-xs px-2 mb-0.5" style={{ color: 'var(--text-muted)', opacity: 0.5, fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Expenses /mo</p>
 
@@ -246,6 +252,11 @@ function MobileFinancialDrawer({
           {monthlyInvestments > 0 && (
             <Section label="Investments" total={monthlyInvestments} sign="-" color="var(--accent-amber)"
               items={activeInvestments.map(inv => ({ label: inv.name || inv.type || 'Investment', amount: Number(inv.monthlyAmount) || 0, personColor: getPersonColor(people, inv.assignedTo) }))} />
+          )}
+
+          {totalAdCosts > 0 && (
+            <Section label="Ad Costs" total={totalAdCosts} sign="-" color="var(--accent-red)"
+              items={adCosts.filter(c => c.monthlyAmount).map(c => ({ label: c.description || 'Ad Cost', amount: Number(c.monthlyAmount) || 0, personColor: getPersonColor(people, c.assignedTo) }))} />
           )}
 
           {upcomingOneTimeExpenses.length > 0 && (
@@ -300,6 +311,7 @@ export default function FinancialSidebar({
   jobs = [],
   people = [],
   filterPersonId = null,
+  advertisingRevenue = { costs: [], revenue: [] },
 }) {
   // Apply person filter to all data arrays
   const pf = filterPersonId
@@ -335,9 +347,15 @@ export default function FinancialSidebar({
 
   const fMonthlyBenefits = showBenefits ? monthlyBenefits : 0
 
+  // Advertising items (filter by person if active)
+  const adCosts = (advertisingRevenue?.costs ?? []).filter(c => !pf || matchesPersonFilter(c.assignedTo, pf))
+  const adRevenue = (advertisingRevenue?.revenue ?? []).filter(r => !pf || matchesPersonFilter(r.assignedTo, pf))
+  const totalAdCosts = adCosts.reduce((s, c) => s + (Number(c.monthlyAmount) || 0), 0)
+  const totalAdRevenue = adRevenue.reduce((s, r) => s + (Number(r.monthlyAmount) || 0), 0)
+
   // Filtered net burn
-  const fTotalExpenses = totalExpensesOnly + totalSubsCost + totalCCPayments + fMonthlyInvestments
-  const fTotalIncome = fMonthlyBenefits + totalMonthlyIncome
+  const fTotalExpenses = totalExpensesOnly + totalSubsCost + totalCCPayments + fMonthlyInvestments + totalAdCosts
+  const fTotalIncome = fMonthlyBenefits + totalMonthlyIncome + totalAdRevenue
   const fNetBurn = pf ? (fTotalExpenses - fTotalIncome) : currentNetBurn
 
   // Use unfiltered values when no filter is active
@@ -416,6 +434,10 @@ export default function FinancialSidebar({
       totalJobIncome={totalJobIncome}
       people={people}
       filterPersonId={filterPersonId}
+      adCosts={adCosts}
+      totalAdCosts={totalAdCosts}
+      adRevenue={adRevenue}
+      totalAdRevenue={totalAdRevenue}
     />
     <aside
       className="hidden xl:flex flex-col fixed z-40 rounded-xl"
@@ -510,6 +532,17 @@ export default function FinancialSidebar({
           />
         )}
 
+        {/* Ad Revenue */}
+        {totalAdRevenue > 0 && (
+          <Section
+            label="Ad Revenue"
+            total={totalAdRevenue}
+            sign="+"
+            color="var(--accent-emerald)"
+            items={adRevenue.filter(r => r.monthlyAmount).map(r => ({ label: r.description || 'Ad Revenue', amount: Number(r.monthlyAmount) || 0, personColor: getPersonColor(people, r.assignedTo) }))}
+          />
+        )}
+
         {/* Divider: Expenses */}
         <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--border-default)' }} />
         <p className="text-xs px-2 mb-0.5" style={{ color: 'var(--text-muted)', opacity: 0.5, fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Expenses /mo</p>
@@ -555,6 +588,17 @@ export default function FinancialSidebar({
             sign="-"
             color="var(--accent-amber)"
             items={activeInvestments.map(inv => ({ label: inv.name || inv.type || 'Investment', amount: Number(inv.monthlyAmount) || 0, personColor: getPersonColor(people, inv.assignedTo) }))}
+          />
+        )}
+
+        {/* Ad Costs */}
+        {totalAdCosts > 0 && (
+          <Section
+            label="Ad Costs"
+            total={totalAdCosts}
+            sign="-"
+            color="var(--accent-red)"
+            items={adCosts.filter(c => c.monthlyAmount).map(c => ({ label: c.description || 'Ad Cost', amount: Number(c.monthlyAmount) || 0, personColor: getPersonColor(people, c.assignedTo) }))}
           />
         )}
 

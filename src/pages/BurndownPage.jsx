@@ -9,6 +9,7 @@ import OneTimeExpensePanel from '../components/finances/OneTimeExpensePanel'
 import OneTimePurchasePanel from '../components/finances/OneTimePurchasePanel'
 import OneTimeIncomePanel from '../components/finances/OneTimeIncomePanel'
 import MonthlyIncomePanel from '../components/finances/MonthlyIncomePanel'
+import AdvertisingRevenuePanel from '../components/finances/AdvertisingRevenuePanel'
 import JobsPanel from '../components/finances/JobsPanel'
 import AssetsPanel from '../components/finances/AssetsPanel'
 import InvestmentsPanel from '../components/finances/InvestmentsPanel'
@@ -67,6 +68,9 @@ export default function BurndownPage({
   homeImprovements,
   onPropertiesChange,
   onHomeImprovementsChange,
+  // Advertising
+  advertisingRevenue,
+  onAdvertisingRevenueChange,
   // What-if extras
   furloughDate,
   derivedStartDate,
@@ -322,6 +326,13 @@ export default function BurndownPage({
       {viewSettings.sections.monthlyIncome && (
         <SectionCard id="sec-monthlyincome" title="Monthly Income" className="scroll-mt-20">
           <MonthlyIncomePanel items={monthlyIncome} onChange={onMonthlyIncChange} people={people} />
+        </SectionCard>
+      )}
+
+      {/* Advertising vs Ad Revenue — full width */}
+      {viewSettings.sections.advertisingRevenue && (
+        <SectionCard id="sec-advertisingrevenue" title="Advertising vs Ad Revenue" className="scroll-mt-20">
+          <AdvertisingRevenuePanel value={advertisingRevenue} onChange={onAdvertisingRevenueChange} people={people} />
         </SectionCard>
       )}
 
