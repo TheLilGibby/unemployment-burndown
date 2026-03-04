@@ -285,6 +285,7 @@ function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
     existing.amount = Math.round(balance * 100) / 100
     existing.plaidAccountId = plaidId
     existing.plaidLastSync  = new Date().toISOString()
+    if (plaidAcct.subtype) existing.plaidSubtype = plaidAcct.subtype
   } else {
     // Create new entry
     const displayName = plaidAcct.official_name || plaidAcct.name || 'Linked Account'
@@ -300,6 +301,7 @@ function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
       assignedTo:      null,
       plaidAccountId:  plaidId,
       plaidLastSync:   new Date().toISOString(),
+      plaidSubtype:    plaidAcct.subtype || null,
     })
   }
 }
