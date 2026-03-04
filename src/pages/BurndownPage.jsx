@@ -16,6 +16,8 @@ import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
+import PropertyPanel from '../components/finances/PropertyPanel'
+import HomeImprovementPanel from '../components/finances/HomeImprovementPanel'
 import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 
 export default function BurndownPage({
@@ -36,6 +38,8 @@ export default function BurndownPage({
   monthlyIncome,
   assets,
   investments,
+  child1Investments,
+  child2Investments,
   subscriptions,
   creditCards,
   jobs,
@@ -53,9 +57,16 @@ export default function BurndownPage({
   onMonthlyIncChange,
   onAssetsChange,
   onInvestmentsChange,
+  onChild1InvestmentsChange,
+  onChild2InvestmentsChange,
   onSubsChange,
   onCreditCardsChange,
   onJobScenariosChange,
+  // Properties & Home Improvements
+  properties,
+  homeImprovements,
+  onPropertiesChange,
+  onHomeImprovementsChange,
   // What-if extras
   furloughDate,
   derivedStartDate,
@@ -250,6 +261,20 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
+      {/* Child [1] investments — full width */}
+      {viewSettings.sections.child1Investments && (
+        <SectionCard id="sec-child1investments" title="Child [1] Investments" className="scroll-mt-20">
+          <InvestmentsPanel investments={child1Investments} onChange={onChild1InvestmentsChange} people={people} />
+        </SectionCard>
+      )}
+
+      {/* Child [2] investments — full width */}
+      {viewSettings.sections.child2Investments && (
+        <SectionCard id="sec-child2investments" title="Child [2] Investments" className="scroll-mt-20">
+          <InvestmentsPanel investments={child2Investments} onChange={onChild2InvestmentsChange} people={people} />
+        </SectionCard>
+      )}
+
       {/* One-time expenses — full width */}
       {viewSettings.sections.onetimes && (
         <SectionCard id="sec-onetimes" title="One-Time Expenses" className="scroll-mt-20">
@@ -303,6 +328,25 @@ export default function BurndownPage({
       {viewSettings.sections.assets && (
         <SectionCard id="sec-assets" title="Sellable Assets" className="scroll-mt-20">
           <AssetsPanel assets={assets} onChange={onAssetsChange} people={people} />
+        </SectionCard>
+      )}
+
+      {/* Properties — full width */}
+      {viewSettings.sections.properties && (
+        <SectionCard id="sec-properties" title="Properties" className="scroll-mt-20">
+          <PropertyPanel properties={properties} onChange={onPropertiesChange} />
+        </SectionCard>
+      )}
+
+      {/* Home Improvements — full width */}
+      {viewSettings.sections.homeImprovements && (
+        <SectionCard id="sec-homeimprovements" title="Home Improvements" className="scroll-mt-20">
+          <HomeImprovementPanel
+            improvements={homeImprovements}
+            onChange={onHomeImprovementsChange}
+            properties={properties}
+            people={people}
+          />
         </SectionCard>
       )}
 

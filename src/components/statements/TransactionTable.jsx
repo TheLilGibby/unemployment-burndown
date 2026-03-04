@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
+import { isInternalTransfer } from '../../utils/transferDetector'
 
 // Determine payment method label + color from transaction metadata
 function getPaymentMethod(txn) {
@@ -16,7 +17,10 @@ function getPaymentMethod(txn) {
   return null // credit card — show last 4 only
 }
 
-export default function TransactionTable({ transactions = [], txnToOverviewMap, onOpenLinkModal, onOpenCCPicklist }) {
+export default function TransactionTable({
+  transactions = [], txnToOverviewMap, onOpenLinkModal, onOpenCCPicklist,
+  jobs = [], transactionOverrides = {}, onTransactionOverride,
+}) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [filterCategory, setFilterCategory] = useState('')
@@ -24,8 +28,23 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
   const [searchTerm, setSearchTerm] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
+  const [payrollDropdownTxnId, setPayrollDropdownTxnId] = useState(null)
+  const payrollDropdownRef = useRef(null)
 
   const hasLinking = !!onOpenLinkModal
+  const hasPayrollTagging = !!onTransactionOverride && jobs.length > 0
+
+  // Close payroll dropdown on outside click
+  useEffect(() => {
+    if (!payrollDropdownTxnId) return
+    function handleClick(e) {
+      if (payrollDropdownRef.current && !payrollDropdownRef.current.contains(e.target)) {
+        setPayrollDropdownTxnId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [payrollDropdownTxnId])
 
   // Build unique account list for the account filter
   const uniqueAccounts = useMemo(() => {
@@ -258,6 +277,14 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                   <Link2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
                 </th>
               )}
+              {hasPayrollTagging && (
+                <th
+                  className="px-2 py-2 text-center"
+                  style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: 70 }}
+                >
+                  Payroll
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -304,6 +331,16 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                           CC Pmt
                         </span>
                       )
+                    )}
+                    {isInternalTransfer(txn) && !isCCPaymentTransaction(txn) && (
+                      <span
+                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
+                        title="Internal transfer between your own accounts"
+                      >
+                        <ArrowLeftRight size={9} strokeWidth={2} />
+                        Transfer
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -359,6 +396,94 @@ export default function TransactionTable({ transactions = [], txnToOverviewMap, 
                       </button>
                     </td>
                   )}
+                  {hasPayrollTagging && (() => {
+                    const override = transactionOverrides[txn.id] || {}
+                    const isPayroll = override.isPayroll
+                    const taggedJob = isPayroll && override.payrollJobId
+                      ? jobs.find(j => (j.jobId || j.id) === override.payrollJobId)
+                      : null
+                    const isDropdownOpen = payrollDropdownTxnId === txn.id
+                    return (
+                      <td className="px-2 py-2 text-center relative" style={{ width: 70 }}>
+                        {isPayroll ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
+                            className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full transition-colors cursor-pointer"
+                            style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}
+                            title={taggedJob ? `Payroll: ${taggedJob.title || taggedJob.employer}` : 'Payroll tagged'}
+                          >
+                            <Briefcase size={9} strokeWidth={2} />
+                            {taggedJob ? (taggedJob.title || taggedJob.employer).slice(0, 8) : 'Payroll'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={e => { e.stopPropagation(); setPayrollDropdownTxnId(isDropdownOpen ? null : txn.id) }}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors"
+                            style={{ color: 'var(--text-muted)', background: 'transparent' }}
+                            title="Tag as payroll"
+                          >
+                            <Briefcase size={13} strokeWidth={1.5} />
+                          </button>
+                        )}
+                        {isDropdownOpen && (
+                          <div
+                            ref={payrollDropdownRef}
+                            className="absolute right-0 top-full z-50 mt-1 rounded-lg shadow-lg py-1 min-w-[180px]"
+                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+                          >
+                            <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                              Tag as payroll
+                            </div>
+                            {jobs.map(job => {
+                              const jid = job.jobId || job.id
+                              const isSelected = isPayroll && override.payrollJobId === jid
+                              return (
+                                <button
+                                  key={jid}
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    onTransactionOverride(txn.id, { isPayroll: true, payrollJobId: jid })
+                                    setPayrollDropdownTxnId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
+                                  style={{
+                                    color: isSelected ? 'var(--accent-emerald)' : 'var(--text-primary)',
+                                    background: isSelected ? 'color-mix(in srgb, var(--accent-emerald) 10%, transparent)' : 'transparent',
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))'}
+                                  onMouseLeave={e => e.currentTarget.style.background = isSelected ? 'color-mix(in srgb, var(--accent-emerald) 10%, transparent)' : 'transparent'}
+                                >
+                                  <Briefcase size={11} strokeWidth={1.5} />
+                                  <span className="truncate">{job.title || job.employer || 'Untitled'}</span>
+                                  {job.employer && job.title && (
+                                    <span className="text-[10px] ml-auto" style={{ color: 'var(--text-muted)' }}>{job.employer}</span>
+                                  )}
+                                </button>
+                              )
+                            })}
+                            {isPayroll && (
+                              <>
+                                <div className="mx-2 my-1" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    onTransactionOverride(txn.id, { isPayroll: false, payrollJobId: null })
+                                    setPayrollDropdownTxnId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs transition-colors"
+                                  style={{ color: 'var(--accent-red, #ef4444)' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  Remove payroll tag
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })()}
                 </tr>
               )
             })}

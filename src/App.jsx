@@ -299,6 +299,8 @@ const DEFAULT_VIEW = {
     subscriptions: true,
     creditCards:   true,
     investments:   true,
+    child1Investments: true,
+    child2Investments: true,
     onetimes:      true,
     onetimePurchases: true,
     onetimeIncome:   true,
@@ -370,6 +372,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [oneTimePurchases, setOneTimePurchases] = useState(DEFAULTS.oneTimePurchases)
   const [assets, setAssets] = useState(DEFAULTS.assets)
   const [investments, setInvestments] = useState(DEFAULTS.investments)
+  const [child1Investments, setChild1Investments] = useState(DEFAULTS.child1Investments)
+  const [child2Investments, setChild2Investments] = useState(DEFAULTS.child2Investments)
   const [subscriptions, setSubscriptions] = useState(DEFAULTS.subscriptions)
   const [creditCards, setCreditCards] = useState(DEFAULTS.creditCards)
   const [oneTimeIncome, setOneTimeIncome] = useState(DEFAULTS.oneTimeIncome)
@@ -437,6 +441,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.jobs) setJobs(snapshot.jobs)
     if (snapshot.assets) setAssets(snapshot.assets)
     if (snapshot.investments) setInvestments(snapshot.investments)
+    if (snapshot.child1Investments) setChild1Investments(snapshot.child1Investments)
+    if (snapshot.child2Investments) setChild2Investments(snapshot.child2Investments)
     if (snapshot.subscriptions) setSubscriptions(snapshot.subscriptions)
     if (snapshot.creditCards) setCreditCards(snapshot.creditCards)
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
@@ -553,6 +559,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     return _fmtM(total) + '/mo'
   }
   const summarizeJobScenarios = (v) => `${v.length} scenario${v.length !== 1 ? 's' : ''}`
+  const summarizeProperties      = (v) => `${v.length} propert${v.length !== 1 ? 'ies' : 'y'}`
+  const summarizeHomeImprovements = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeRetirement = (v) => {
     const target = v.targetMode === 'income'
       ? Math.round((Number(v.desiredAnnualIncome) || 0) / ((Number(v.withdrawalRatePct) || 4) / 100))
@@ -589,6 +597,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const onJobsChange         = track(() => jobs,            setJobs,            'Jobs',               summarizeJobs,         diffArray)
   const onAssetsChange       = track(() => assets,          setAssets,          'Assets',             summarizeAssets,       diffArray)
   const onInvestmentsChange  = track(() => investments,     setInvestments,     'Investments',        summarizeInvestments,  diffArray)
+  const onChild1InvestmentsChange = track(() => child1Investments, setChild1Investments, 'Child [1] Investments', summarizeInvestments, diffArray)
+  const onChild2InvestmentsChange = track(() => child2Investments, setChild2Investments, 'Child [2] Investments', summarizeInvestments, diffArray)
   const onSubsChange         = track(() => subscriptions,   setSubscriptions,   'Subscriptions',      summarizeSubs,         diffArray)
   const onCreditCardsChange  = track(() => creditCards,     setCreditCards,     'Credit cards',       summarizeCCs,          diffArray)
   const onJobScenariosChange = track(() => jobScenarios,    setJobScenarios,    'Job scenarios',      summarizeJobScenarios, diffArray)
@@ -681,12 +691,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }),
   ]
 
+  // Combine all investment arrays (parent + child) for burndown calculation
+  const allInvestments = [...investments, ...child1Investments, ...child2Investments]
+
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
+  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
+  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -711,7 +724,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       ]
       const tWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
       const tUnemployment = s.unemployment || DEFAULTS.unemployment
-      const tInvestments  = s.investments  || []
+      const tInvestments  = [...(s.investments || []), ...(s.child1Investments || []), ...(s.child2Investments || [])]
       const tOneTime      = s.oneTimeExpenses || []
       const tOneTimeIncome = s.oneTimeIncome || []
       const tMonthlyIncome = s.monthlyIncome || []
@@ -850,7 +863,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           hasWhatIf={hasWhatIf}
           expenses={expenses}
           subscriptions={subscriptions}
-          investments={investments}
+          investments={allInvestments}
           oneTimeExpenses={oneTimeExpenses}
           assets={assets}
           unemployment={unemployment}
@@ -957,7 +970,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               expenses={expenses}
               subscriptions={subscriptions}
               creditCards={creditCards}
-              investments={investments}
+              investments={allInvestments}
               oneTimeExpenses={oneTimeExpenses}
               oneTimePurchases={oneTimePurchases}
               oneTimeIncome={oneTimeIncome}
@@ -984,6 +997,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               monthlyIncome={monthlyIncome}
               assets={assets}
               investments={investments}
+              child1Investments={child1Investments}
+              child2Investments={child2Investments}
               subscriptions={subscriptions}
               creditCards={creditCards}
               jobs={jobs}
@@ -1000,6 +1015,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               onMonthlyIncChange={onMonthlyIncChange}
               onAssetsChange={onAssetsChange}
               onInvestmentsChange={onInvestmentsChange}
+              onChild1InvestmentsChange={onChild1InvestmentsChange}
+              onChild2InvestmentsChange={onChild2InvestmentsChange}
               onSubsChange={onSubsChange}
               onCreditCardsChange={onCreditCardsChange}
               onJobScenariosChange={onJobScenariosChange}
@@ -1021,6 +1038,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               txnToOverviewMap={txnToOverviewMap}
               onLinkTransaction={handleLinkTransaction}
               onUnlinkTransaction={handleUnlinkTransaction}
+              properties={properties}
+              homeImprovements={homeImprovements}
+              onPropertiesChange={onPropertiesChange}
+              onHomeImprovementsChange={onHomeImprovementsChange}
             />
             <ErrorBoundary level="component">
               <FinancialSidebar
@@ -1036,7 +1057,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 expenses={expenses}
                 subscriptions={subscriptions}
                 creditCards={creditCards}
-                investments={investments}
+                investments={allInvestments}
                 oneTimeExpenses={oneTimeExpenses}
                 oneTimeIncome={oneTimeIncome}
                 monthlyIncome={monthlyIncome}
@@ -1103,6 +1124,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 txnToOverviewMap={txnToOverviewMap}
                 onLinkTransaction={handleLinkTransaction}
                 onUnlinkTransaction={handleUnlinkTransaction}
+                properties={properties}
+                homeImprovements={homeImprovements}
+                onPropertiesChange={onPropertiesChange}
+                onHomeImprovementsChange={onHomeImprovementsChange}
                 snapshots={snapshots}
                 historicalDate={historicalDate}
                 historicalBurndown={historicalBurndown}
@@ -1134,6 +1159,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             totalMonthlyIncome={current.totalMonthlyIncome}
             transactionOverrides={transactionOverrides}
             onTransactionOverride={handleTransactionOverride}
+            jobs={jobs}
           />
         } />
 

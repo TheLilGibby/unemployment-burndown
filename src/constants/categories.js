@@ -27,6 +27,7 @@ export const STATEMENT_CATEGORIES = [
       { key: 'venmo_personal',  label: 'Personal',        color: '#6366f1' },
     ],
   },
+  { key: 'transfer',       label: 'Internal Transfers',   color: '#94a3b8' },
   { key: 'other',          label: 'Other',                color: '#6b7280' },
 ]
 

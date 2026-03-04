@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 
 const TABLE = process.env.TOKENS_TABLE || 'PlaidTokens'
 
@@ -56,6 +56,25 @@ export async function incrementCallCount(count = 1) {
       ':now': new Date().toISOString(),
     },
   }))
+}
+
+/**
+ * Reset the monthly call counter to 0 (superadmin override).
+ * Returns the month key that was reset.
+ */
+export async function resetCallCount() {
+  const monthKey = getMonthKey()
+  await getDocClient().send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      userId: '_BUDGET_',
+      itemId: monthKey,
+      callCount: 0,
+      updatedAt: new Date().toISOString(),
+      resetAt: new Date().toISOString(),
+    },
+  }))
+  return monthKey
 }
 
 /**
