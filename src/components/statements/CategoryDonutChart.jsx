@@ -132,7 +132,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
       </div>
 
       {/* Legend breakdown */}
-      <div className="flex-1 min-w-0 space-y-3 w-full">
+      <div className="flex-1 min-w-0 space-y-2 w-full">
         {slices.map((slice, i) => {
           const isHovered = active === i
           return (
