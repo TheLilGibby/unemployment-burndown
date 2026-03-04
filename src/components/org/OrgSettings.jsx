@@ -32,7 +32,16 @@ export default function OrgSettings({ user, onClose }) {
       const res = await fetch(`${API_BASE}/api/org`, {
         headers: { ...authHeaders() },
       })
-      if (!res.ok) throw new Error('Failed to load organization')
+      if (!res.ok) {
+        let message = `Failed to load organization (HTTP ${res.status})`
+        try {
+          const errData = await res.json()
+          message = errData.error || errData.message || message
+        } catch {
+          // Could not parse error response body
+        }
+        throw new Error(message)
+      }
       const data = await safeJson(res)
       setOrg(data)
       setLoading(false)
@@ -51,7 +60,14 @@ export default function OrgSettings({ user, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
       })
-      if (!res.ok) throw new Error('Failed to regenerate code')
+      if (!res.ok) {
+        let message = 'Failed to regenerate code'
+        try {
+          const errData = await res.json()
+          message = errData.error || errData.message || message
+        } catch { /* ignore parse errors */ }
+        throw new Error(message)
+      }
       const data = await safeJson(res)
       setOrg(prev => ({ ...prev, joinCode: data.joinCode }))
     } catch (e) {
@@ -95,12 +111,24 @@ export default function OrgSettings({ user, onClose }) {
           )}
 
           {error && (
-            <p
+            <div
               className="text-sm rounded-lg px-3 py-2"
               style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--accent-red)', border: '1px solid rgba(248,113,113,0.2)' }}
             >
-              {error}
-            </p>
+              <p>{error}</p>
+              {(error.includes('membership required') || error.includes('expired') || error.includes('Authentication')) && (
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Try signing out and back in to refresh your session.
+                </p>
+              )}
+              <button
+                onClick={() => { setError(null); setLoading(true); fetchOrg() }}
+                className="mt-2 text-xs px-2.5 py-1 rounded border transition-colors"
+                style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+              >
+                Retry
+              </button>
+            </div>
           )}
 
           {org && (
