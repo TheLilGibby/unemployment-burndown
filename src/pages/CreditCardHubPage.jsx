@@ -57,7 +57,7 @@ export default function CreditCardHubPage({
     for (const s of toLoad) {
       if (!statements[s.id]) loadStatement(s.id)
     }
-  }, [index, selectedCardId]) // eslint-disable-line
+  }, [index, selectedCardId, statements, loadStatement])
 
   // Collect all transactions from loaded statements, applying any user overrides
   const allTransactions = useMemo(() => {
