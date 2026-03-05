@@ -159,7 +159,7 @@ export default function CashFlowWaterfallChart({
   }
 
   return (
-    <div style={{ width: '100%', height: 300 }}>
+    <div className="sensitive-chart" style={{ width: '100%', height: 300 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
           <XAxis

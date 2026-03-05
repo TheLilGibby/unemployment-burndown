@@ -245,7 +245,7 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
       <div className="flex flex-col sm:flex-row items-start gap-6">
 
         {/* ── Donut ── */}
-        <div style={{ width: 210, height: 210, flexShrink: 0, position: 'relative' }}>
+        <div className="sensitive-chart" style={{ width: 210, height: 210, flexShrink: 0, position: 'relative' }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

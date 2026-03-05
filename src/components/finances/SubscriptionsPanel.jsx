@@ -153,18 +153,18 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
         <div>
           <span className="text-gray-500">Active: </span>
-          <span className="text-white font-semibold">{formatCurrency(activeTotal)}/mo</span>
+          <span className="text-white font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
         </div>
         {inactiveTotal > 0 && (
           <div>
             <span className="text-gray-500">Paused: </span>
-            <span className="text-gray-500 font-semibold line-through">{formatCurrency(inactiveTotal)}/mo</span>
+            <span className="text-gray-500 font-semibold line-through sensitive">{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
         {inactiveTotal > 0 && (
           <div>
             <span className="text-gray-500">Savings if cut: </span>
-            <span className="text-emerald-400 font-semibold">+{formatCurrency(inactiveTotal)}/mo</span>
+            <span className="text-emerald-400 font-semibold sensitive">+{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
       </div>

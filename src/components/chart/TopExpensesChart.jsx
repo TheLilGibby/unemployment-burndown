@@ -107,7 +107,7 @@ export default function TopExpensesChart({ expenses, subscriptions, creditCards,
         })}
       </div>
 
-      <div style={{ width: '100%', height: chartHeight }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}

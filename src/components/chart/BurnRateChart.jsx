@@ -87,7 +87,7 @@ export default function BurnRateChart({ dataPoints }) {
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 280 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />

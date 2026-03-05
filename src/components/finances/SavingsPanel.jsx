@@ -148,7 +148,7 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
 
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex items-center justify-between">
         <span className="text-gray-400 text-sm font-medium">Total Cash Available</span>
-        <span className="text-white text-2xl font-bold">{formatCurrency(total)}</span>
+        <span className="text-white text-2xl font-bold sensitive">{formatCurrency(total)}</span>
       </div>
     </div>
   )

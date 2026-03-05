@@ -103,6 +103,22 @@ body {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-blue) 30%, transparent);
 }
 
+/* ─── Hidden / Demo mode ─────────────────────────────────────── */
+
+[data-hidden-mode="true"] .sensitive {
+  filter: blur(10px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
+[data-hidden-mode="true"] .sensitive-chart {
+  filter: blur(14px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
 /* ─── Mobile-first improvements ────────────────────────────────── */
 
 /* Faster tap response — removes 300ms double-tap delay on iOS */

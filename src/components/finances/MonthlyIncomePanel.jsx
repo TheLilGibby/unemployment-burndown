@@ -177,7 +177,7 @@ export default function MonthlyIncomePanel({ items, onChange, people = [], filte
         <div className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm" style={{ background: 'color-mix(in srgb, var(--accent-emerald) 10%, transparent)' }}>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Total monthly: </span>
-            <span className="font-semibold" style={{ color: 'var(--accent-emerald)' }}>+{formatCurrency(total)}/mo</span>
+            <span className="font-semibold sensitive" style={{ color: 'var(--accent-emerald)' }}>+{formatCurrency(total)}/mo</span>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Sources: </span>

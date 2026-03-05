@@ -275,12 +275,12 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total est. value: </span>
-            <span className="text-white font-semibold">{formatCurrency(grandTotal)}</span>
+            <span className="text-white font-semibold sensitive">{formatCurrency(grandTotal)}</span>
           </div>
           {includedTotal > 0 && (
             <div>
               <span className="text-gray-500">Marked to sell: </span>
-              <span className="text-violet-300 font-semibold">{formatCurrency(includedTotal)}</span>
+              <span className="text-violet-300 font-semibold sensitive">{formatCurrency(includedTotal)}</span>
               <span className="text-gray-600 text-xs ml-1">(shown in what-if)</span>
             </div>
           )}
@@ -293,7 +293,7 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
           {soldItems.length > 0 && (
             <div>
               <span className="text-gray-500">Sold: </span>
-              <span className="text-green-300 font-semibold">{formatCurrency(soldTotal)}</span>
+              <span className="text-green-300 font-semibold sensitive">{formatCurrency(soldTotal)}</span>
               <span className="text-gray-600 text-xs ml-1">({soldItems.length} item{soldItems.length !== 1 ? 's' : ''})</span>
             </div>
           )}

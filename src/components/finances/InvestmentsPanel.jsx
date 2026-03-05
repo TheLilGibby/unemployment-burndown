@@ -161,12 +161,12 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Active monthly: </span>
-            <span className="text-teal-300 font-semibold">{formatCurrency(activeTotal)}/mo</span>
+            <span className="text-teal-300 font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
           </div>
           {pausedTotal > 0 && (
             <div>
               <span className="text-gray-500">Paused: </span>
-              <span className="text-gray-400 font-semibold">{formatCurrency(pausedTotal)}/mo</span>
+              <span className="text-gray-400 font-semibold sensitive">{formatCurrency(pausedTotal)}/mo</span>
             </div>
           )}
         </div>

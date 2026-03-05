@@ -285,7 +285,7 @@ export default function RetirementPanel({ data, onChange, people = [] }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="theme-card rounded-xl border p-3">
           <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Projected</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--accent-blue)' }}>
+          <p className="text-lg font-bold sensitive" style={{ color: 'var(--accent-blue)' }}>
             {formatCurrency(projection.projectedAtRetirement)}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-faint)' }}>at age {data.targetRetirementAge}</p>
@@ -293,7 +293,7 @@ export default function RetirementPanel({ data, onChange, people = [] }) {
 
         <div className="theme-card rounded-xl border p-3">
           <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Target</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-lg font-bold sensitive" style={{ color: 'var(--text-secondary)' }}>
             {formatCurrency(effectiveTarget)}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
@@ -308,7 +308,7 @@ export default function RetirementPanel({ data, onChange, people = [] }) {
           }}>
             {onTrack ? 'On Track' : 'Behind'}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+          <p className="text-xs sensitive" style={{ color: 'var(--text-faint)' }}>
             {onTrack
               ? `${formatCurrency(projection.surplus)} surplus`
               : `${formatCurrency(projection.shortfall)} shortfall`
@@ -318,12 +318,12 @@ export default function RetirementPanel({ data, onChange, people = [] }) {
 
         <div className="theme-card rounded-xl border p-3">
           <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Need /mo</p>
-          <p className="text-lg font-bold" style={{
+          <p className="text-lg font-bold sensitive" style={{
             color: contributionGap > 0 ? 'var(--accent-amber)' : 'var(--accent-emerald)'
           }}>
             {formatCurrency(projection.monthlyToReachGoal)}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+          <p className="text-xs sensitive" style={{ color: 'var(--text-faint)' }}>
             {contributionGap > 0
               ? `+${formatCurrency(contributionGap)} more`
               : "you're covered"

@@ -149,7 +149,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total one-time: </span>
-            <span className="text-orange-300 font-semibold">{formatCurrency(total)}</span>
+            <span className="text-orange-300 font-semibold sensitive">{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>

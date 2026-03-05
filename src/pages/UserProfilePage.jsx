@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useTheme } from '../context/ThemeContext'
+import { useHiddenMode } from '../context/HiddenModeContext'
 import MfaSetup from '../components/auth/MfaSetup'
 import AlertSettings from '../components/notifications/AlertSettings'
 
@@ -20,6 +21,7 @@ export default function UserProfilePage() {
   const [deleting, setDeleting] = useState(false)
   const { preferences, onPreferencesChange, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
   const { theme, setTheme } = useTheme()
+  const { hidden, toggleHidden } = useHiddenMode()
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
@@ -153,6 +155,39 @@ export default function UserProfilePage() {
           </div>
         </div>
 
+
+        {/* Hidden / Demo Mode */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <EyeOff className="w-5 h-5" />
+            Hidden Mode
+          </h2>
+
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div>
+              <div className="font-medium text-gray-900 dark:text-white">Enable hidden mode</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Blur financial numbers so you can demo or share your screen without revealing sensitive data
+              </div>
+            </div>
+            <button
+              onClick={toggleHidden}
+              className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
+              style={{ background: hidden ? '#10b981' : '#d1d5db' }}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
+                style={{ left: hidden ? 22 : 2 }}
+              />
+            </button>
+          </div>
+
+          {hidden && (
+            <p className="mt-3 text-xs text-emerald-500 dark:text-emerald-400 px-4">
+              Hidden mode is active — all financial figures are blurred.
+            </p>
+          )}
+        </div>
 
         {/* Notification Settings */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">

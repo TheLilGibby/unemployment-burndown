@@ -294,7 +294,7 @@ export default function BurndownChart({
       </div>
 
       {/* ── Chart ── */}
-      <div style={{ width: '100%', height: 320 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 12, right: 12, left: 8, bottom: 0 }}>
             <defs>
