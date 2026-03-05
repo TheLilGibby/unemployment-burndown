@@ -38,7 +38,7 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function CategoryDonutChart({ transactions = [], onCategoryClick }) {
+export default function CategoryDonutChart({ transactions = [], onCategoryClick, hiddenCategories = new Set() }) {
   const [active, setActive] = useState(null)
 
   const slices = useMemo(() => {
@@ -47,6 +47,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
     for (const txn of transactions) {
       if (txn.amount <= 0) continue
       const parentKey = getParentCategoryKey(txn.category || 'other_general')
+      if (hiddenCategories.has(parentKey)) continue
       if (!byCategory[parentKey]) byCategory[parentKey] = { total: 0, merchants: {} }
       byCategory[parentKey].total += txn.amount
       const merchant = txn.merchantName || txn.description || 'Unknown'
@@ -64,7 +65,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
 
     const total = raw.reduce((s, x) => s + x.value, 0)
     return raw.map(s => ({ ...s, pct: total > 0 ? (s.value / total) * 100 : 0 }))
-  }, [transactions, onCategoryClick])
+  }, [transactions, onCategoryClick, hiddenCategories])
 
   const total = slices.reduce((s, x) => s + x.value, 0)
 
