@@ -74,6 +74,8 @@ export const DEFAULTS = {
     push: {
       enabled: false,
       ntfyTopic: '',
+      ntfyToken: '',
+      redactAmounts: true,
       sentAlertIds: [],
     },
     categoryAlerts: [],

@@ -13,8 +13,10 @@ import { sendPushNotification, severityToNtfy, buildClickUrl } from '../lib/ntfy
  * Body: {
  *   notifications: [{ id, type, severity, title, message }],   // existing burndown alerts from the frontend
  *   categoryAlerts: [{ categoryKey, categoryLabel, monthlyLimit }], // category spending thresholds
- *   ntfyTopic: string,    // user's ntfy topic
- *   sentAlertIds: string[] // IDs already sent (to avoid duplicates)
+ *   ntfyTopic: string,       // user's ntfy topic
+ *   ntfyToken: string,       // optional access token for private topics
+ *   redactAmounts: boolean,   // if true, strip dollar amounts from push messages
+ *   sentAlertIds: string[]   // IDs already sent (to avoid duplicates)
  * }
  */
 export async function handler(event) {
@@ -27,6 +29,8 @@ export async function handler(event) {
       notifications = [],
       categoryAlerts = [],
       ntfyTopic,
+      ntfyToken = '',
+      redactAmounts = true,
       sentAlertIds = [],
     } = body
 
@@ -44,14 +48,16 @@ export async function handler(event) {
 
       const { priority, tags } = severityToNtfy(notif.severity)
       const click = buildClickUrl(notif.type)
+      const message = redactAmounts ? redactDollarAmounts(notif.message) : notif.message
 
       const res = await sendPushNotification({
         title: notif.title,
-        message: notif.message,
+        message,
         priority,
         tags,
         click,
         topic: ntfyTopic,
+        token: ntfyToken,
       })
       results.push({ id: notif.id, ...res })
     }
@@ -67,7 +73,9 @@ export async function handler(event) {
         const spent = spending[alert.categoryKey] || 0
         if (spent >= alert.monthlyLimit) {
           const { priority, tags } = severityToNtfy('warning')
-          const message = `${alert.categoryLabel} spending has reached $${spent.toFixed(2)} (limit: $${alert.monthlyLimit.toFixed(2)})`
+          const message = redactAmounts
+            ? `${alert.categoryLabel} spending has exceeded your monthly limit. Open the app for details.`
+            : `${alert.categoryLabel} spending has reached $${spent.toFixed(2)} (limit: $${alert.monthlyLimit.toFixed(2)})`
 
           const res = await sendPushNotification({
             title: `${alert.categoryLabel} Over Budget`,
@@ -76,6 +84,7 @@ export async function handler(event) {
             tags: [...tags, 'moneybag'],
             click: buildClickUrl('category_spending'),
             topic: ntfyTopic,
+            token: ntfyToken,
           })
           results.push({ id: alertId, categoryKey: alert.categoryKey, spent, limit: alert.monthlyLimit, ...res })
         }
@@ -131,4 +140,12 @@ async function computeMonthlySpending(orgId) {
 function currentMonth() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * Strip dollar amounts from notification text to prevent data leaks
+ * in public ntfy topics. Replaces "$1,234.56" with "[amount hidden]".
+ */
+function redactDollarAmounts(text) {
+  return text.replace(/\$[\d,]+(?:\.\d{1,2})?/g, '[amount hidden]')
 }

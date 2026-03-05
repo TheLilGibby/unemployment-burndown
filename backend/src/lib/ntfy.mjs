@@ -15,8 +15,9 @@ const APP_URL       = process.env.APP_URL        || 'http://localhost:5173'
  * @param {string[]} [opts.tags]  - Emoji tags (e.g. ['warning', 'moneybag'])
  * @param {string} [opts.click]   - URL to open when notification is tapped
  * @param {string} [opts.topic]   - Override the default topic
+ * @param {string} [opts.token]   - Per-request access token (overrides NTFY_TOKEN env var)
  */
-export async function sendPushNotification({ title, message, priority = '3', tags = [], click, topic }) {
+export async function sendPushNotification({ title, message, priority = '3', tags = [], click, topic, token }) {
   const targetTopic = topic || NTFY_TOPIC
   if (!targetTopic) {
     logger.warn('ntfy: no topic configured — skipping push notification')
@@ -38,8 +39,9 @@ export async function sendPushNotification({ title, message, priority = '3', tag
     headers['Click'] = click
   }
 
-  if (NTFY_TOKEN) {
-    headers['Authorization'] = `Bearer ${NTFY_TOKEN}`
+  const activeToken = token || NTFY_TOKEN
+  if (activeToken) {
+    headers['Authorization'] = `Bearer ${activeToken}`
   }
 
   try {

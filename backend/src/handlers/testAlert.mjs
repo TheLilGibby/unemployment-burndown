@@ -13,7 +13,7 @@ export async function handler(event) {
     const { error: authErr } = requireAuth(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
 
-    const { ntfyTopic } = JSON.parse(event.body || '{}')
+    const { ntfyTopic, ntfyToken } = JSON.parse(event.body || '{}')
     if (!ntfyTopic) return err(400, 'ntfyTopic is required')
 
     const res = await sendPushNotification({
@@ -23,6 +23,7 @@ export async function handler(event) {
       tags: ['white_check_mark', 'bell'],
       click: (process.env.APP_URL || 'http://localhost:5173') + '/burndown',
       topic: ntfyTopic,
+      token: ntfyToken,
     })
 
     return ok({ tested: true, ...res })

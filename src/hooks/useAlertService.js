@@ -43,6 +43,8 @@ export function useAlertService(preferences, onPreferencesChange) {
           notifications: notifications.filter(n => n.severity !== 'info'),
           categoryAlerts: enabledCategoryAlerts,
           ntfyTopic: push.ntfyTopic,
+          ntfyToken: push.ntfyToken || '',
+          redactAmounts: push.redactAmounts !== false,
           sentAlertIds: push.sentAlertIds || [],
         }),
       })
@@ -75,11 +77,11 @@ export function useAlertService(preferences, onPreferencesChange) {
   /**
    * Send a test notification to verify the topic is configured correctly.
    */
-  const sendTestAlert = useCallback(async (ntfyTopic) => {
+  const sendTestAlert = useCallback(async (ntfyTopic, ntfyToken) => {
     const res = await fetch(`${API_BASE}/api/alerts/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ ntfyTopic }),
+      body: JSON.stringify({ ntfyTopic, ntfyToken: ntfyToken || '' }),
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))

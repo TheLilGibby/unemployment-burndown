@@ -1,7 +1,17 @@
 import { useState, useCallback } from 'react'
-import { Smartphone, Plus, Trash2, ExternalLink, TestTube, RefreshCw } from 'lucide-react'
+import { Smartphone, Plus, Trash2, ExternalLink, TestTube, RefreshCw, Eye, EyeOff, Shield, ChevronDown, ChevronUp, Shuffle } from 'lucide-react'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
 import { useAlertService } from '../../hooks/useAlertService'
+
+/**
+ * Generate a cryptographically random topic name (32 chars, alphanumeric).
+ */
+function generateSecureTopic() {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const arr = new Uint8Array(32)
+  crypto.getRandomValues(arr)
+  return Array.from(arr, b => chars[b % chars.length]).join('')
+}
 
 /**
  * AlertSettings — configures push notifications via ntfy.sh
@@ -10,13 +20,16 @@ import { useAlertService } from '../../hooks/useAlertService'
  * Appears in the UserProfilePage under the Notifications section.
  */
 export default function AlertSettings({ preferences, onPreferencesChange }) {
-  const push = preferences?.push || { enabled: false, ntfyTopic: '', sentAlertIds: [] }
+  const push = preferences?.push || { enabled: false, ntfyTopic: '', ntfyToken: '', redactAmounts: true, sentAlertIds: [] }
   const categoryAlerts = preferences?.categoryAlerts || []
   const { sendTestAlert, resetSentAlerts } = useAlertService(preferences, onPreferencesChange)
 
   const [testStatus, setTestStatus] = useState(null) // 'sending' | 'success' | 'error'
   const [testError, setTestError] = useState(null)
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [showTopic, setShowTopic] = useState(false)
+  const [showToken, setShowToken] = useState(false)
+  const [showSecurityTips, setShowSecurityTips] = useState(false)
 
   const updatePush = useCallback((updates) => {
     onPreferencesChange(prev => ({
@@ -32,12 +45,21 @@ export default function AlertSettings({ preferences, onPreferencesChange }) {
     }))
   }, [onPreferencesChange])
 
+  const handleEnablePush = () => {
+    const updates = { enabled: !push.enabled }
+    // Auto-generate a secure topic when enabling for the first time
+    if (!push.enabled && !push.ntfyTopic) {
+      updates.ntfyTopic = generateSecureTopic()
+    }
+    updatePush(updates)
+  }
+
   const handleTestAlert = async () => {
     if (!push.ntfyTopic) return
     setTestStatus('sending')
     setTestError(null)
     try {
-      await sendTestAlert(push.ntfyTopic)
+      await sendTestAlert(push.ntfyTopic, push.ntfyToken)
       setTestStatus('success')
       setTimeout(() => setTestStatus(null), 3000)
     } catch (err) {
@@ -115,7 +137,7 @@ export default function AlertSettings({ preferences, onPreferencesChange }) {
             </div>
           </div>
           <button
-            onClick={() => updatePush({ enabled: !push.enabled })}
+            onClick={handleEnablePush}
             className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
             style={{ background: push.enabled ? '#10b981' : '#d1d5db' }}
           >
@@ -128,22 +150,99 @@ export default function AlertSettings({ preferences, onPreferencesChange }) {
 
         {push.enabled && (
           <div className="space-y-3">
-            {/* Topic input */}
+            {/* Privacy warning */}
+            <div className="px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                <strong>Privacy:</strong> Your topic name acts as a password. Anyone who knows it can read your alerts.
+                Use the auto-generated name or a long random string. Never share it publicly.
+              </p>
+            </div>
+
+            {/* Topic input with password mask + generate button */}
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 ntfy Topic
-                <span className="text-gray-400 ml-1">(unique name — subscribes your phone to this topic)</span>
+                <span className="text-gray-400 ml-1">(acts as a shared secret)</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. my-burndown-alerts"
-                value={push.ntfyTopic || ''}
-                onChange={e => updatePush({ ntfyTopic: e.target.value.trim() })}
-                className={inputClass}
-              />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showTopic ? 'text' : 'password'}
+                    placeholder="auto-generated secure topic"
+                    value={push.ntfyTopic || ''}
+                    onChange={e => updatePush({ ntfyTopic: e.target.value.trim() })}
+                    className={inputClass + ' pr-9'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTopic(!showTopic)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    title={showTopic ? 'Hide topic' : 'Show topic'}
+                  >
+                    {showTopic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updatePush({ ntfyTopic: generateSecureTopic() })}
+                  className="inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+                  title="Generate new random topic"
+                >
+                  <Shuffle className="w-3.5 h-3.5" />
+                  Generate
+                </button>
+              </div>
               <p className="text-xs text-gray-400 mt-1">
                 Install the <strong>ntfy</strong> app on iOS/Android, then subscribe to this same topic name.
               </p>
+            </div>
+
+            {/* Access Token (optional) */}
+            <div>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                Access Token
+                <span className="text-gray-400 ml-1">(optional — for self-hosted or ntfy Pro)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  placeholder="tk_..."
+                  value={push.ntfyToken || ''}
+                  onChange={e => updatePush({ ntfyToken: e.target.value.trim() })}
+                  className={inputClass + ' pr-9'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title={showToken ? 'Hide token' : 'Show token'}
+                >
+                  {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Required if your ntfy server uses access control. Get a token from your ntfy account settings.
+              </p>
+            </div>
+
+            {/* Redact amounts toggle */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">Hide dollar amounts</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Strip exact dollar amounts from push messages for privacy
+                </div>
+              </div>
+              <button
+                onClick={() => updatePush({ redactAmounts: !push.redactAmounts })}
+                className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
+                style={{ background: push.redactAmounts !== false ? '#10b981' : '#d1d5db' }}
+              >
+                <span
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
+                  style={{ left: push.redactAmounts !== false ? 22 : 2 }}
+                />
+              </button>
             </div>
 
             {/* Test + Reset buttons */}
@@ -172,6 +271,49 @@ export default function AlertSettings({ preferences, onPreferencesChange }) {
             {testStatus === 'error' && (
               <p className="text-xs text-red-600 dark:text-red-400">Failed: {testError}</p>
             )}
+
+            {/* Security Tips (collapsible) */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <button
+                onClick={() => setShowSecurityTips(!showSecurityTips)}
+                className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  Security Tips
+                </span>
+                {showSecurityTips ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              {showSecurityTips && (
+                <div className="px-3 pb-3 text-xs text-gray-600 dark:text-gray-400 space-y-2 border-t border-gray-200 dark:border-gray-700 pt-2">
+                  <p>
+                    <strong>How it works:</strong> ntfy.sh topics are public by default.
+                    Your topic name is the only thing preventing others from reading your alerts.
+                  </p>
+                  <p>
+                    <strong>For maximum privacy, self-host ntfy</strong> with access control enabled
+                    (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">auth-default-access: deny-all</code>).
+                    Then set your server URL and access token above.{' '}
+                    <a
+                      href="https://docs.ntfy.sh/config/#access-control"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline inline-flex items-center gap-0.5"
+                    >
+                      Setup guide <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </p>
+                  <p>
+                    <strong>Mobile app auth:</strong> In the ntfy iOS/Android app, you can add your
+                    self-hosted server with username/password or token auth under Settings.
+                  </p>
+                  <p>
+                    <strong>Keep &quot;Hide dollar amounts&quot; on</strong> to prevent exact financial
+                    figures from appearing in push notifications.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
