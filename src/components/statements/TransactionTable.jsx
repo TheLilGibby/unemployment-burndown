@@ -15,7 +15,7 @@ function getPaymentMethod(txn) {
 
   if (isAchLike) return { label: 'ACH', color: '#8b5cf6' }
   if (txn.accountType === 'depository') return { label: 'Bank', color: '#06b6d4' }
-  return null // credit card — show last 4 only
+  return { label: 'CC', color: '#f97316' }
 }
 
 export default function TransactionTable({
