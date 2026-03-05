@@ -77,6 +77,19 @@ Parameters:
     Type: String
     Description: Comma-separated list of superadmin email addresses
     Default: 'goragconsulting@gmail.com'
+  NtfyBaseUrl:
+    Type: String
+    Description: Base URL for ntfy.sh push notification service
+    Default: 'https://ntfy.sh'
+  NtfyTopic:
+    Type: String
+    Description: Default ntfy.sh topic for push notifications
+    Default: ''
+  NtfyToken:
+    Type: String
+    Description: Optional access token for private ntfy topics
+    NoEcho: true
+    Default: ''
 
 Globals:
   Function:
@@ -109,6 +122,9 @@ Globals:
         GITHUB_TOKEN: !Ref GitHubToken
         JOBS_TABLE: !Ref JobsTable
         SUPER_ADMINS: !Ref SuperAdmins
+        NTFY_BASE_URL: !Ref NtfyBaseUrl
+        NTFY_TOPIC: !Ref NtfyTopic
+        NTFY_TOKEN: !Ref NtfyToken
 
   Api:
     Cors:
@@ -676,6 +692,35 @@ Resources:
           Type: Api
           Properties:
             Path: /api/feedback
+            Method: post
+
+  # ---------- Alerts / Push Notifications ----------
+  SendAlertsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/sendAlerts.handler
+      CodeUri: .
+      Timeout: 30
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/evaluate
+            Method: post
+
+  TestAlertFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/testAlert.handler
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/test
             Method: post
 
   # ---------- Snapshots API ----------

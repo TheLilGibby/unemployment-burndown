@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useTheme } from '../context/ThemeContext'
 import MfaSetup from '../components/auth/MfaSetup'
+import AlertSettings from '../components/notifications/AlertSettings'
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -17,7 +18,7 @@ export default function UserProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [deleting, setDeleting] = useState(false)
-  const { preferences, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
+  const { preferences, onPreferencesChange, updatePreferences, updateThreshold, snooze, unsnooze } = useNotificationsContext()
   const { theme, setTheme } = useTheme()
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
@@ -266,6 +267,20 @@ export default function UserProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Push Alerts & Category Spending Alerts */}
+        {preferences.enabled && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Push Alerts & Spending Limits
+            </h2>
+            <AlertSettings
+              preferences={preferences}
+              onPreferencesChange={onPreferencesChange}
+            />
+          </div>
+        )}
 
         {/* Privacy & Data */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
