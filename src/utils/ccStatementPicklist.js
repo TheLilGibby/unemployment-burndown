@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import { resolveCategory } from '../constants/categories'
 
 /**
  * Given a detected CC payment (bank transaction) and the matched card,
@@ -109,7 +110,7 @@ export function picklistForCCPayment({ bankTxn, matchedCardId, statementIndex = 
 export function summarizePicklistByCategory(transactions) {
   const byCategory = {}
   for (const txn of transactions) {
-    const cat = txn.category || 'other'
+    const cat = resolveCategory(txn.category || 'other_general')
     if (!byCategory[cat]) byCategory[cat] = { category: cat, total: 0, count: 0 }
     byCategory[cat].total += Math.abs(txn.amount || 0)
     byCategory[cat].count += 1

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { X, CreditCard, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import { findCategory } from '../../constants/categories'
+import { findCategory, resolveCategory } from '../../constants/categories'
 import { summarizePicklistByCategory } from '../../utils/ccStatementPicklist'
 
 function formatDate(dateStr) {
@@ -35,7 +35,7 @@ export default function CCPaymentPicklistModal({
   const filtered = useMemo(() => {
     let txns = [...transactions]
     if (filterCategory) {
-      txns = txns.filter(t => (t.category || 'other') === filterCategory)
+      txns = txns.filter(t => resolveCategory(t.category || 'other_general') === filterCategory)
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase()

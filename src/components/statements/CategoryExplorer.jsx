@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey, resolveCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
 
@@ -58,7 +58,8 @@ function MiniTooltip({ active, payload, label }) {
 /* ───────── Transaction Detail Drawer ───────── */
 
 function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [] }) {
-  const [editCategory, setEditCategory] = useState(transaction.category || 'other')
+  const resolvedOriginal = resolveCategory(transaction.category || 'other_general')
+  const [editCategory, setEditCategory] = useState(resolvedOriginal)
   const [excluded, setExcluded] = useState(!!transaction.excluded)
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false)
   const [categorySearch, setCategorySearch] = useState('')
@@ -67,8 +68,8 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
   const handleSave = () => {
     if (!hasChanges) { onClose(); return }
-    const oldCategory = transaction.category || 'other'
-    const categoryChanged = editCategory !== oldCategory
+    const oldCategory = transaction.category || 'other_general'
+    const categoryChanged = editCategory !== resolvedOriginal
     onUpdate(transaction.id, { category: editCategory, excluded }, transaction.statementId)
     onClose()
     if (categoryChanged) {
@@ -451,12 +452,12 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
   }, [categoryKey, parentCfg])
 
   const categoryTxns = useMemo(() =>
-    transactions.filter(t => matchKeys.has(t.category || 'other')),
+    transactions.filter(t => matchKeys.has(resolveCategory(t.category || 'other_general'))),
     [transactions, matchKeys]
   )
 
   const prevCategoryTxns = useMemo(() =>
-    (prevPeriodTransactions || []).filter(t => matchKeys.has(t.category || 'other') && t.amount > 0),
+    (prevPeriodTransactions || []).filter(t => matchKeys.has(resolveCategory(t.category || 'other_general')) && t.amount > 0),
     [prevPeriodTransactions, matchKeys]
   )
 
@@ -780,6 +781,40 @@ export default function CategoryExplorer({
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
+  // Category filters
+  const [hiddenCategories, setHiddenCategories] = useState(new Set())
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const filterRef = useRef(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showFilterDropdown) return
+    function handleClick(e) {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setShowFilterDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showFilterDropdown])
+
+  const toggleHideCategory = useCallback((key) => {
+    setHiddenCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [])
+
+  const unhideCategory = useCallback((key) => {
+    setHiddenCategories(prev => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }, [])
+
   // Drill-down
   const [drillCategory, setDrillCategory] = useState(null)
   const [selectedTxn, setSelectedTxn] = useState(null)
@@ -856,14 +891,130 @@ export default function CategoryExplorer({
 
   return (
     <div className="space-y-4">
-      {/* Time period selector */}
-      <TimePeriodSelector
-        value={period}
-        onChange={setPeriod}
-        customStart={customStart}
-        customEnd={customEnd}
-        onCustomChange={handleCustomChange}
-      />
+      {/* Time period selector + category filter */}
+      <div className="space-y-2">
+        <TimePeriodSelector
+          value={period}
+          onChange={setPeriod}
+          customStart={customStart}
+          customEnd={customEnd}
+          onCustomChange={handleCustomChange}
+        />
+
+        {/* Category filter button + hidden pills */}
+        <div className="flex items-center gap-2 flex-wrap ml-5">
+          <div className="relative" ref={filterRef}>
+            <button
+              onClick={() => setShowFilterDropdown(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150"
+              style={{
+                background: hiddenCategories.size > 0 ? 'color-mix(in srgb, var(--accent-blue) 15%, transparent)' : 'var(--bg-subtle, rgba(255,255,255,0.06))',
+                color: hiddenCategories.size > 0 ? 'var(--accent-blue)' : 'var(--text-muted)',
+                border: '1px solid',
+                borderColor: hiddenCategories.size > 0 ? 'color-mix(in srgb, var(--accent-blue) 40%, transparent)' : 'var(--border-subtle)',
+              }}
+            >
+              <Filter size={12} />
+              Filters
+              {hiddenCategories.size > 0 && (
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
+                  style={{ background: 'var(--accent-blue)', color: '#fff' }}
+                >
+                  {hiddenCategories.size}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown */}
+            {showFilterDropdown && (
+              <div
+                className="absolute z-30 mt-1.5 rounded-xl shadow-2xl py-2 overflow-y-auto"
+                style={{
+                  background: 'var(--bg-card, #111827)',
+                  border: '1px solid var(--border-default)',
+                  minWidth: 220,
+                  maxHeight: 340,
+                  left: 0,
+                }}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pb-1.5 mb-1" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>
+                  Hide categories
+                </p>
+                {STATEMENT_CATEGORIES.map(c => {
+                  const isHidden = hiddenCategories.has(c.key)
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => toggleHideCategory(c.key)}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors duration-100 hover:bg-white/5"
+                    >
+                      <span
+                        className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center transition-all duration-100"
+                        style={{
+                          border: '1.5px solid',
+                          borderColor: isHidden ? '#ef4444' : 'var(--border-subtle)',
+                          background: isHidden ? '#ef444420' : 'transparent',
+                        }}
+                      >
+                        {isHidden && <EyeOff size={9} style={{ color: '#ef4444' }} />}
+                      </span>
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: c.color, opacity: isHidden ? 0.35 : 1 }}
+                      />
+                      <span
+                        className="font-medium"
+                        style={{ color: isHidden ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isHidden ? 'line-through' : 'none' }}
+                      >
+                        {c.label}
+                      </span>
+                    </button>
+                  )
+                })}
+                {hiddenCategories.size > 0 && (
+                  <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    <button
+                      onClick={() => setHiddenCategories(new Set())}
+                      className="text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
+                      style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Hidden category pills */}
+          {[...hiddenCategories].map(key => {
+            const cfg = STATEMENT_CATEGORIES.find(c => c.key === key)
+            if (!cfg) return null
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full text-xs font-medium transition-all duration-150"
+                style={{
+                  background: cfg.color + '15',
+                  border: '1px solid ' + cfg.color + '30',
+                  color: cfg.color,
+                }}
+              >
+                <EyeOff size={10} />
+                {cfg.label}
+                <button
+                  onClick={() => unhideCategory(key)}
+                  className="ml-0.5 p-0.5 rounded-full transition-colors hover:bg-white/10"
+                  style={{ color: cfg.color }}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Main content */}
       {drillCategory ? (
@@ -880,6 +1031,7 @@ export default function CategoryExplorer({
         <CategoryDonutChart
           transactions={filteredTxns}
           onCategoryClick={handleCategoryClick}
+          hiddenCategories={hiddenCategories}
         />
       )}
 

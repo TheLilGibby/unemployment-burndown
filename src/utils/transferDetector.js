@@ -34,7 +34,7 @@ const INTERNAL_TRANSFER_PATTERNS = [
 export function isInternalTransfer(txn) {
   const text = `${txn.description || ''} ${txn.merchantName || ''}`
   if (INTERNAL_TRANSFER_PATTERNS.some(p => p.test(text))) return true
-  // Also match if already categorised as 'transfer' (e.g. by Plaid mapping)
-  if (txn.category === 'transfer') return true
+  // Also match if already categorised as transfer (e.g. by Plaid mapping)
+  if (txn.category === 'transfer' || txn.category === 'transfer_general') return true
   return false
 }
