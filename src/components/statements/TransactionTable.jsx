@@ -7,6 +7,10 @@ import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
 
 const FILTER_CATEGORIES_KEY = 'burndown_txn_filter_categories'
+const FILTER_SEARCH_KEY = 'burndown_txn_filter_search'
+const FILTER_ACCOUNT_KEY = 'burndown_txn_filter_account'
+const FILTER_MIN_AMOUNT_KEY = 'burndown_txn_filter_min_amount'
+const FILTER_MAX_AMOUNT_KEY = 'burndown_txn_filter_max_amount'
 
 function loadFilterCategories() {
   try {
@@ -21,6 +25,21 @@ function saveFilterCategories(filterSet) {
   try {
     if (filterSet.size > 0) localStorage.setItem(FILTER_CATEGORIES_KEY, JSON.stringify([...filterSet]))
     else localStorage.removeItem(FILTER_CATEGORIES_KEY)
+  } catch { /* ignore */ }
+}
+
+function loadFilterString(key) {
+  try {
+    return localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
+}
+
+function saveFilterString(key, value) {
+  try {
+    if (value) localStorage.setItem(key, value)
+    else localStorage.removeItem(key)
   } catch { /* ignore */ }
 }
 
@@ -54,10 +73,38 @@ export default function TransactionTable({
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [expandedFilterParent, setExpandedFilterParent] = useState(null)
   const filterDropdownRef = useRef(null)
-  const [filterAccount, setFilterAccount] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [minAmount, setMinAmount] = useState('')
-  const [maxAmount, setMaxAmount] = useState('')
+  const [filterAccount, setFilterAccountRaw] = useState(() => loadFilterString(FILTER_ACCOUNT_KEY))
+  const setFilterAccount = useCallback((v) => {
+    setFilterAccountRaw(prev => {
+      const val = typeof v === 'function' ? v(prev) : v
+      saveFilterString(FILTER_ACCOUNT_KEY, val)
+      return val
+    })
+  }, [])
+  const [searchTerm, setSearchTermRaw] = useState(() => loadFilterString(FILTER_SEARCH_KEY))
+  const setSearchTerm = useCallback((v) => {
+    setSearchTermRaw(prev => {
+      const val = typeof v === 'function' ? v(prev) : v
+      saveFilterString(FILTER_SEARCH_KEY, val)
+      return val
+    })
+  }, [])
+  const [minAmount, setMinAmountRaw] = useState(() => loadFilterString(FILTER_MIN_AMOUNT_KEY))
+  const setMinAmount = useCallback((v) => {
+    setMinAmountRaw(prev => {
+      const val = typeof v === 'function' ? v(prev) : v
+      saveFilterString(FILTER_MIN_AMOUNT_KEY, val)
+      return val
+    })
+  }, [])
+  const [maxAmount, setMaxAmountRaw] = useState(() => loadFilterString(FILTER_MAX_AMOUNT_KEY))
+  const setMaxAmount = useCallback((v) => {
+    setMaxAmountRaw(prev => {
+      const val = typeof v === 'function' ? v(prev) : v
+      saveFilterString(FILTER_MAX_AMOUNT_KEY, val)
+      return val
+    })
+  }, [])
   const [payrollDropdownTxnId, setPayrollDropdownTxnId] = useState(null)
   const payrollDropdownRef = useRef(null)
   const [categoryDropdownTxnId, setCategoryDropdownTxnId] = useState(null)
