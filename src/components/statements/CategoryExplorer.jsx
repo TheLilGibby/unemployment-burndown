@@ -39,7 +39,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
   const handleSave = () => {
     if (!hasChanges) { onClose(); return }
-    onUpdate(transaction.id, { category: editCategory, excluded })
+    onUpdate(transaction.id, { category: editCategory, excluded }, transaction.statementId)
     onClose()
   }
 
@@ -737,8 +737,8 @@ export default function CategoryExplorer({
     setSelectedTxn(txn)
   }, [])
 
-  const handleTransactionUpdate = useCallback((txnId, updates) => {
-    if (onTransactionUpdate) onTransactionUpdate(txnId, updates)
+  const handleTransactionUpdate = useCallback((txnId, updates, statementId) => {
+    if (onTransactionUpdate) onTransactionUpdate(txnId, updates, statementId)
     // Update the selected transaction locally so the UI reflects changes immediately
     setSelectedTxn(prev => prev?.id === txnId ? { ...prev, ...updates } : prev)
   }, [onTransactionUpdate])

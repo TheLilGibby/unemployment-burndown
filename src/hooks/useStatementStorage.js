@@ -80,5 +80,35 @@ export function useStatementStorage() {
     } catch { /* silent */ }
   }, [])
 
-  return { index, statements, loading, error, loadStatement, refreshIndex }
+  // Patch a single transaction in a statement (marks it as user-modified on the backend)
+  const patchTransaction = useCallback(async (statementId, transactionId, updates) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/statements/${statementId}/transactions/${transactionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) return null
+      const data = await safeJson(res)
+      // Update local cache with the patched transaction
+      if (data.transaction) {
+        setStatements(prev => {
+          const stmt = prev[statementId]
+          if (!stmt) return prev
+          return {
+            ...prev,
+            [statementId]: {
+              ...stmt,
+              transactions: stmt.transactions.map(t =>
+                t.id === transactionId ? { ...t, ...data.transaction } : t
+              ),
+            },
+          }
+        })
+      }
+      return data
+    } catch { return null }
+  }, [])
+
+  return { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction }
 }

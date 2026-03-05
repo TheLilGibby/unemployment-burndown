@@ -402,7 +402,7 @@ export default function TransactionTable({
                                   <button
                                     onClick={e => {
                                       e.stopPropagation()
-                                      onTransactionOverride(txn.id, { category: c.key })
+                                      onTransactionOverride(txn.id, { category: c.key }, txn.statementId)
                                       setCategoryDropdownTxnId(null)
                                     }}
                                     className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
@@ -423,7 +423,7 @@ export default function TransactionTable({
                                         key={sub.key}
                                         onClick={e => {
                                           e.stopPropagation()
-                                          onTransactionOverride(txn.id, { category: sub.key })
+                                          onTransactionOverride(txn.id, { category: sub.key }, txn.statementId)
                                           setCategoryDropdownTxnId(null)
                                         }}
                                         className="w-full text-left pl-7 pr-3 py-1 text-[11px] transition-colors flex items-center gap-2"
@@ -545,7 +545,7 @@ export default function TransactionTable({
                                   key={jid}
                                   onClick={e => {
                                     e.stopPropagation()
-                                    onTransactionOverride(txn.id, { isPayroll: true, payrollJobId: jid })
+                                    onTransactionOverride(txn.id, { isPayroll: true, payrollJobId: jid }, txn.statementId)
                                     setPayrollDropdownTxnId(null)
                                   }}
                                   className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
@@ -570,7 +570,7 @@ export default function TransactionTable({
                                 <button
                                   onClick={e => {
                                     e.stopPropagation()
-                                    onTransactionOverride(txn.id, { isPayroll: false, payrollJobId: null })
+                                    onTransactionOverride(txn.id, { isPayroll: false, payrollJobId: null }, txn.statementId)
                                     setPayrollDropdownTxnId(null)
                                   }}
                                   className="w-full text-left px-3 py-1.5 text-xs transition-colors"

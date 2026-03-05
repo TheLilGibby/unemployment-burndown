@@ -785,6 +785,21 @@ Resources:
             Path: /api/statements/{statementId}
             Method: get
 
+  PatchTransactionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/patchTransaction.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/{statementId}/transactions/{transactionId}
+            Method: patch
+
   DeleteStatementsByAccountFunction:
     Type: AWS::Serverless::Function
     Properties:
