@@ -69,7 +69,7 @@ function AccountRow({ item, isSelected, onSelect, isDepository, customization, p
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
+        <div className="flex items-center gap-1.5 mt-0.5 min-h-[16px]">
           {isDepository && item.subtype && (
             <span
               className="px-1 py-0 rounded text-[10px] font-semibold uppercase tracking-wide"
