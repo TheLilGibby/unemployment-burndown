@@ -133,6 +133,16 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                   <TrashIcon />
                 </button>
               </div>
+              {/* Subrow 3: description / notes */}
+              <div className="sm:col-span-7">
+                <input
+                  type="text"
+                  value={inv.description || ''}
+                  onChange={e => update(inv.id, 'description', e.target.value)}
+                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-teal-500 placeholder-gray-600"
+                  placeholder="Add a note..."
+                />
+              </div>
             </div>
           )})}
 

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
 import AccountCustomizeModal from './AccountCustomizeModal'
@@ -157,6 +157,7 @@ export default function AccountsSidebar({
   onCreditCardsChange, onSavingsChange, onStatementsRefresh,
   loading, error,
   accountCustomizations = {}, onAccountCustomizationsChange,
+  collapsed = false, onCollapsedChange,
 }) {
   const [customizeOpen, setCustomizeOpen] = useState(false)
 
@@ -229,8 +230,50 @@ export default function AccountsSidebar({
   const allAccountCount = cards.length + visibleBankAccounts.length
   const hiddenCount = Object.values(accountCustomizations).filter(c => c.hidden).length
 
+  // ---- Desktop collapsed sidebar ----
+  const desktopCollapsed = (
+    <aside
+      className="hidden xl:flex flex-col items-center fixed z-40 rounded-xl"
+      style={{
+        top: '5.5rem',
+        left: '0.75rem',
+        width: '2.75rem',
+        maxHeight: 'calc(100vh - 7rem)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-default)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.08)',
+      }}
+      aria-label="Accounts sidebar (collapsed)"
+    >
+      <button
+        onClick={() => onCollapsedChange?.(false)}
+        className="flex items-center justify-center w-full py-3 transition-colors rounded-t-xl"
+        style={{ color: 'var(--text-muted)' }}
+        title="Expand accounts"
+      >
+        <ChevronRight size={16} />
+      </button>
+      <div
+        className="flex-1 flex items-center justify-center"
+        style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+      >
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wider select-none"
+          style={{ color: 'var(--text-muted)', transform: 'rotate(180deg)' }}
+        >
+          Accounts
+        </span>
+      </div>
+      <div className="py-3 text-center">
+        <span className="text-[10px] font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+          {formatCurrency(totalBalance)}
+        </span>
+      </div>
+    </aside>
+  )
+
   // ---- Desktop sidebar ----
-  const desktopSidebar = (
+  const desktopSidebar = collapsed ? desktopCollapsed : (
     <aside
       className="hidden xl:flex flex-col fixed z-40 rounded-xl"
       style={{
@@ -247,9 +290,19 @@ export default function AccountsSidebar({
       {/* Header */}
       <div className="px-3 pt-3 pb-2 shrink-0">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            Accounts
-          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onCollapsedChange?.(true)}
+              className="p-1 rounded transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Collapse sidebar"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              Accounts
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCustomizeOpen(true)}
@@ -321,120 +374,132 @@ export default function AccountsSidebar({
         />
       </div>
 
-      {/* Footer: status + controls */}
-      <div className="shrink-0 px-3 py-2" style={{ borderTop: '1px solid var(--border-default)' }}>
-        {/* Connection status */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{
-              background: error ? '#f87171' : loading ? '#facc15' : '#34d399',
-            }}
-          />
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            {error ? 'Connection error' : loading ? 'Loading...' : `${stmtCount} statements`}
-          </span>
+      {/* Hidden accounts indicator */}
+      {hiddenCount > 0 && (
+        <div className="shrink-0 px-3 py-1.5" style={{ borderTop: '1px solid var(--border-default)' }}>
           <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-            {allAccountCount} acct{allAccountCount !== 1 ? 's' : ''}
-            {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+            {hiddenCount} hidden acct{hiddenCount !== 1 ? 's' : ''}
           </span>
         </div>
+      )}
 
-        {/* Action buttons */}
-        {plaid && (
-          <div className="flex items-center gap-2">
-            <PlaidLinkButton
-              createLinkToken={plaid.createLinkToken}
-              exchangeToken={plaid.exchangeToken}
-              syncAll={onSync}
-              linkedCount={plaid.linkedItems.length}
-              syncing={plaid.syncing}
+      {/* Footer: status + controls (superadmin only) */}
+      {user?.isSuperAdmin && (
+        <div className="shrink-0 px-3 py-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+          {/* Connection status */}
+          <div className="flex items-center gap-1.5 mb-2">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{
+                background: error ? '#f87171' : loading ? '#facc15' : '#34d399',
+              }}
             />
-            {plaid.linkedItems.length > 0 && (
-              <button
-                onClick={() => onSync()}
-                disabled={plaid.syncing}
-                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
-                style={{
-                  borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                  color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                  background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                  cursor: plaid.syncing ? 'wait' : 'pointer',
-                }}
-              >
-                <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
-                {plaid.syncing ? 'Syncing' : 'Sync'}
-              </button>
-            )}
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {error ? 'Connection error' : loading ? 'Loading...' : `${stmtCount} statements`}
+            </span>
+            <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+              {allAccountCount} acct{allAccountCount !== 1 ? 's' : ''}
+            </span>
           </div>
-        )}
-        {plaid?.error && (
-          <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{plaid.error}</p>
-        )}
-      </div>
+
+          {/* Action buttons */}
+          {plaid && (
+            <div className="flex items-center gap-2">
+              <PlaidLinkButton
+                createLinkToken={plaid.createLinkToken}
+                exchangeToken={plaid.exchangeToken}
+                syncAll={onSync}
+                linkedCount={plaid.linkedItems.length}
+                syncing={plaid.syncing}
+              />
+              {plaid.linkedItems.length > 0 && (
+                <button
+                  onClick={() => onSync()}
+                  disabled={plaid.syncing}
+                  className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
+                  style={{
+                    borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
+                    color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
+                    background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                    cursor: plaid.syncing ? 'wait' : 'pointer',
+                  }}
+                >
+                  <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
+                  {plaid.syncing ? 'Syncing' : 'Sync'}
+                </button>
+              )}
+            </div>
+          )}
+          {plaid?.error && (
+            <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{plaid.error}</p>
+          )}
+        </div>
+      )}
     </aside>
   )
 
   // ---- Mobile compact pills (< xl) ----
   const mobileBanner = (
     <div className="xl:hidden space-y-3">
-      {/* Connection status bar */}
-      <div
-        className="rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1.5"
-        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-      >
-        <div className="flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ background: error ? '#f87171' : loading ? '#facc15' : '#34d399' }}
-          />
-          <span className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-            {error ? 'Error' : loading ? 'Loading' : `${allAccountCount} accounts`}
+      {/* Connection status bar (superadmin only) */}
+      {user?.isSuperAdmin && (
+        <div
+          className="rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1.5"
+          style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+        >
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: error ? '#f87171' : loading ? '#facc15' : '#34d399' }}
+            />
+            <span className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {error ? 'Error' : loading ? 'Loading' : `${allAccountCount} accounts`}
+            </span>
+          </div>
+          <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+            {stmtCount} stmt{stmtCount !== 1 ? 's' : ''}
           </span>
+          {plaid && (
+            <div className="flex items-center gap-2 ml-auto">
+              <PlaidLinkButton
+                createLinkToken={plaid.createLinkToken}
+                exchangeToken={plaid.exchangeToken}
+                syncAll={onSync}
+                linkedCount={plaid.linkedItems.length}
+                syncing={plaid.syncing}
+              />
+              {plaid.linkedItems.length > 0 && (
+                <button
+                  onClick={() => onSync()}
+                  disabled={plaid.syncing}
+                  className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
+                  style={{
+                    borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
+                    color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
+                    background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                    cursor: plaid.syncing ? 'wait' : 'pointer',
+                  }}
+                >
+                  <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
+                  {plaid.syncing ? 'Syncing' : 'Sync'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-          {stmtCount} stmt{stmtCount !== 1 ? 's' : ''}
-        </span>
+      )}
+
+      {/* Compact account pills */}
+      <div className="flex flex-wrap gap-1.5">
         {/* Settings gear for mobile */}
         <button
           onClick={() => setCustomizeOpen(true)}
-          className="p-1 rounded transition-colors"
-          style={{ color: 'var(--text-muted)' }}
+          className="flex items-center justify-center px-2 py-1.5 rounded-lg border transition-colors"
+          style={{ borderColor: 'var(--border-input)', background: 'var(--bg-input)', color: 'var(--text-muted)' }}
           title="Customize accounts"
         >
           <Settings size={12} />
         </button>
-        {plaid && (
-          <div className="flex items-center gap-2 ml-auto">
-            <PlaidLinkButton
-              createLinkToken={plaid.createLinkToken}
-              exchangeToken={plaid.exchangeToken}
-              syncAll={onSync}
-              linkedCount={plaid.linkedItems.length}
-              syncing={plaid.syncing}
-            />
-            {plaid.linkedItems.length > 0 && (
-              <button
-                onClick={() => onSync()}
-                disabled={plaid.syncing}
-                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
-                style={{
-                  borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                  color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                  background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                  cursor: plaid.syncing ? 'wait' : 'pointer',
-                }}
-              >
-                <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
-                {plaid.syncing ? 'Syncing' : 'Sync'}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Compact account pills */}
-      <div className="flex flex-wrap gap-1.5">
         <button
           onClick={() => onSelectCard(null)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all"

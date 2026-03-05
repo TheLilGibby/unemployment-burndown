@@ -46,6 +46,7 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
       sold: false,
       saleDate: '',
       saleAmount: 0,
+      description: '',
     }])
   }
 
@@ -164,6 +165,17 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                   >
                     <TrashIcon />
                   </button>
+                </div>
+
+                {/* Description / notes */}
+                <div className="sm:col-span-7">
+                  <input
+                    type="text"
+                    value={asset.description || ''}
+                    onChange={e => updateAsset(asset.id, 'description', e.target.value)}
+                    className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-violet-500 placeholder-gray-600"
+                    placeholder="Add a note..."
+                  />
                 </div>
 
                 {/* Expanded sell details — shown when item is marked to sell */}
