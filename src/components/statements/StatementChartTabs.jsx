@@ -16,7 +16,7 @@ const CHART_DEFS = [
     id: 'monthly',
     Icon: BarChart3,
     label: 'Monthly Trend',
-    desc: 'Total spending per month over time',
+    desc: 'Monthly inflow vs outflow — see where money truly goes',
   },
   {
     id: 'merchants',
