@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { useNotifications } from '../hooks/useNotifications'
+import { useAlertService } from '../hooks/useAlertService'
 import { useToast } from './ToastContext'
 
 const NotificationsContext = createContext(null)
@@ -16,6 +17,23 @@ export function NotificationsProvider({ children, burndown, preferences, onPrefe
     dismiss,
     dismissAll,
   } = useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange })
+
+  // ── Push notification integration ──
+  const { evaluateAlerts } = useAlertService(preferences, onPreferencesChange)
+  const pushEvalRef = useRef(null)
+
+  useEffect(() => {
+    if (!preferences?.push?.enabled || !preferences?.push?.ntfyTopic) return
+    if (!notifications || notifications.length === 0) return
+
+    // Debounce push evaluation to avoid rapid-fire API calls
+    clearTimeout(pushEvalRef.current)
+    pushEvalRef.current = setTimeout(() => {
+      evaluateAlerts(notifications)
+    }, 10000) // 10s debounce — notifications settle before pushing
+
+    return () => clearTimeout(pushEvalRef.current)
+  }, [notifications, preferences?.push?.enabled, preferences?.push?.ntfyTopic, evaluateAlerts])
 
   const openPanel = useCallback(() => setPanelOpen(true), [])
   const closePanel = useCallback(() => setPanelOpen(false), [])
@@ -54,6 +72,7 @@ export function NotificationsProvider({ children, burndown, preferences, onPrefe
       closePanel,
       togglePanel,
       preferences,
+      onPreferencesChange,
       updatePreferences,
       updateThreshold,
       snooze,
