@@ -20,8 +20,8 @@ const PRIMARY_MAP = {
   MEDICAL:                    'health_general',
   PERSONAL_CARE:              'personalCare_general',
   RENT_AND_UTILITIES:         'utilities_general',
-  TRANSFER_IN:                'venmo_general',
-  TRANSFER_OUT:               'venmo_general',
+  TRANSFER_IN:                'transfer_general',
+  TRANSFER_OUT:               'transfer_general',
   TRANSPORTATION:             'transportation_general',
   TRAVEL:                     'travel_general',
   BANK_FEES:                  'fees_bankFees',
@@ -70,13 +70,14 @@ const DETAILED_OVERRIDES = {
   INVESTMENTS_CRYPTO:                      'investments_crypto',
   INCOME_WAGES:                            'payroll_wages',
   INCOME_DIVIDENDS:                        'payroll_dividends',
+  LOAN_PAYMENTS_CREDIT_CARD:               'ccPayment_general',
   LOAN_PAYMENTS_MORTGAGE_PAYMENT:          'mortgage_general',
   HOME_IMPROVEMENT_FURNITURE:              'homeImprovement_furniture',
   HOME_IMPROVEMENT_HARDWARE:               'homeImprovement_hardware',
   TRANSFER_IN_ACCOUNT_TRANSFER:            'transfer_general',
   TRANSFER_OUT_ACCOUNT_TRANSFER:           'transfer_general',
-  TRANSFER_IN_THIRD_PARTY:                 'venmo_general',
-  TRANSFER_OUT_THIRD_PARTY:                'venmo_general',
+  TRANSFER_IN_THIRD_PARTY:                 'transfer_general',
+  TRANSFER_OUT_THIRD_PARTY:                'transfer_general',
 }
 
 /**

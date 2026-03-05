@@ -15,20 +15,41 @@ const CC_PAYMENT_PATTERNS = [
   /wells\s*fargo\s*(card|credit|payment)/i,
   /bank\s*of\s*america\s*(card|credit|payment)/i,
   /synchrony\s*(payment|auto)/i,
-  /credit\s*card\s*(pmt|payment|pay)/i,
+  /credit\s*card\s*(pmt|payment|pay|autopay)/i,
   /card\s*(payment|pmt)\s*(thank|received|confirmed)?/i,
   /online\s*(payment|transfer).*credit/i,
   /autopay\s*(payment|credit)/i,
+  /payment,?\s*thank\s*you/i,
 ]
 
 /**
  * Check if a transaction description/merchant looks like a credit card payment.
+ * (Pattern-matching only — bank-side fallback.)
  * @param {object} txn - Transaction with description, merchantName
  * @returns {boolean}
  */
 export function isCCPaymentTransaction(txn) {
   const text = `${txn.description || ''} ${txn.merchantName || ''}`.toLowerCase()
   return CC_PAYMENT_PATTERNS.some(p => p.test(text))
+}
+
+/**
+ * Structural detection: identifies CC payments without pattern matching.
+ * - Credit-account side: negative amount on a credit account = payment received
+ * - Already tagged by Plaid category map (LOAN_PAYMENTS_CREDIT_CARD → ccPayment)
+ */
+export function isCCPaymentStructural(txn) {
+  if (txn.accountType === 'credit' && txn.amount < 0) return true
+  if (txn.category === 'ccPayment' || txn.category === 'ccPayment_general') return true
+  return false
+}
+
+/**
+ * Unified CC payment detector — combines structural signals + pattern matching.
+ * Use this as the single entry point for all CC payment detection.
+ */
+export function isCCPayment(txn) {
+  return isCCPaymentStructural(txn) || isCCPaymentTransaction(txn)
 }
 
 /**

@@ -71,6 +71,15 @@ export const DEFAULTS = {
     },
     dismissedIds: [],
     mutedUntil: null,
+    push: {
+      enabled: false,
+      ntfyTopic: '',
+      ntfyToken: '',
+      redactAmounts: true,
+      sentAlertIds: [],
+    },
+    categoryAlerts: [],
+    // categoryAlerts shape: [{ id, categoryKey, categoryLabel, monthlyLimit, enabled }]
   },
   transactionLinks: {},
   transactionOverrides: {},

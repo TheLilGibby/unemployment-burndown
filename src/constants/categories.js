@@ -146,16 +146,6 @@ export const STATEMENT_CATEGORIES = [
     ],
   },
   {
-    key: 'venmo', label: 'Venmo & P2P', color: '#008cff',
-    description: 'Peer-to-peer payment transfers (Venmo, Zelle, CashApp)',
-    subCategories: [
-      { key: 'venmo_general',  label: 'General P2P',       color: '#008cff', description: 'General Venmo, Zelle, CashApp, and other P2P transfers' },
-      { key: 'venmo_rent',     label: 'Rent / Mortgage',   color: '#0d9488', description: 'Rent or mortgage payments made via P2P' },
-      { key: 'venmo_bills',    label: 'Bills & Utilities',  color: '#0891b2', description: 'Bill or utility payments made via P2P' },
-      { key: 'venmo_personal', label: 'Personal',           color: '#6366f1', description: 'Personal transfers, splitting costs, and gifts via P2P' },
-    ],
-  },
-  {
     key: 'payroll', label: 'Payroll', color: '#16a34a',
     description: 'Income from employment and earnings',
     subCategories: [
@@ -179,10 +169,17 @@ export const STATEMENT_CATEGORIES = [
     ],
   },
   {
-    key: 'transfer', label: 'Internal Transfers', color: '#94a3b8',
-    description: 'Transfers between own accounts',
+    key: 'ccPayment', label: 'CC Payment', color: '#f59e0b',
+    description: 'Credit card bill payments',
     subCategories: [
-      { key: 'transfer_general', label: 'General Transfer', color: '#94a3b8', description: 'Internal account-to-account transfers' },
+      { key: 'ccPayment_general', label: 'General CC Payment', color: '#f59e0b', description: 'Credit card bill payments and balance transfers' },
+    ],
+  },
+  {
+    key: 'transfer', label: 'Internal Transfers', color: '#94a3b8',
+    description: 'Transfers between own accounts and P2P payments',
+    subCategories: [
+      { key: 'transfer_general', label: 'General Transfer', color: '#94a3b8', description: 'Internal account-to-account transfers and P2P payments' },
     ],
   },
   {
@@ -216,25 +213,44 @@ export const LEGACY_KEY_MAP = {
   fees: 'fees_general',
   homeImprovement: 'homeImprovement_general',
   investments: 'investments_general',
-  venmo: 'venmo_general',
   payroll: 'payroll_general',
   mortgage: 'mortgage_general',
   rent: 'rent_general',
+  ccPayment: 'ccPayment_general',
   transfer: 'transfer_general',
   other: 'other_general',
 }
 
 /**
- * Resolve a legacy bare-parent key to its _general subcategory key.
- * If the key is already a subcategory key, returns it unchanged.
+ * Migration map for deprecated category keys.
+ * Maps old venmo keys to their two-tier replacement categories.
+ */
+export const DEPRECATED_CATEGORY_MAP = {
+  venmo: 'transfer_general',
+  venmo_rent: 'rent_general',
+  venmo_bills: 'utilities_general',
+  venmo_personal: 'other_general',
+  venmo_general: 'transfer_general',
+}
+
+/**
+ * Resolve a category key to its canonical subcategory key.
+ * Handles both legacy bare-parent keys and deprecated keys.
  */
 export function resolveCategory(key) {
-  return LEGACY_KEY_MAP[key] || key
+  return DEPRECATED_CATEGORY_MAP[key] || LEGACY_KEY_MAP[key] || key
+}
+
+/**
+ * Migrate a category key, replacing deprecated keys with their successors.
+ */
+export function migrateCategory(key) {
+  return DEPRECATED_CATEGORY_MAP[key] || key
 }
 
 /**
  * Look up a category (or sub-category) config by key.
- * Resolves legacy bare-parent keys through LEGACY_KEY_MAP.
+ * Resolves legacy and deprecated keys through resolveCategory.
  * Returns the matching { key, label, color, description } or null.
  */
 export function findCategory(key) {
@@ -249,7 +265,7 @@ export function findCategory(key) {
 
 /**
  * Return the parent category key for a given key.
- * Resolves legacy bare-parent keys through LEGACY_KEY_MAP.
+ * Resolves legacy and deprecated keys through resolveCategory.
  */
 export function getParentCategoryKey(key) {
   const resolved = resolveCategory(key)
@@ -287,4 +303,5 @@ export const categorySchema = {
   })),
   allValidKeys: ALL_CATEGORY_KEYS,
   legacyKeyMap: LEGACY_KEY_MAP,
+  deprecatedKeyMap: DEPRECATED_CATEGORY_MAP,
 }

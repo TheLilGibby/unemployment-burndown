@@ -478,7 +478,16 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (data.activeTemplateId != null) setActiveTemplateId(data.activeTemplateId)
     if (data.comments && typeof data.comments === 'object') setComments(data.comments)
     if (Array.isArray(data.activityLog)) loadEntries(data.activityLog)
-    if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
+    if (data.notificationPreferences) {
+      const np = data.notificationPreferences
+      setNotificationPreferences({
+        ...DEFAULTS.notificationPreferences,
+        ...np,
+        thresholds: { ...DEFAULTS.notificationPreferences.thresholds, ...np.thresholds },
+        push: { ...DEFAULTS.notificationPreferences.push, ...np.push },
+        categoryAlerts: np.categoryAlerts || DEFAULTS.notificationPreferences.categoryAlerts,
+      })
+    }
   }
 
   // When S3 storage loads data on mount, apply it.

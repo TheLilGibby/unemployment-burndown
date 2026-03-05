@@ -24,9 +24,8 @@ const CATEGORIES = [
   'fees_general', 'fees_bankFees', 'fees_interest', 'fees_lateFees',
   'homeImprovement_general', 'homeImprovement_furniture', 'homeImprovement_hardware', 'homeImprovement_contractors',
   'investments_general', 'investments_crypto', 'investments_retirement', 'investments_stocks',
-  'venmo_general', 'venmo_rent', 'venmo_bills', 'venmo_personal',
   'payroll_general', 'payroll_wages', 'payroll_dividends',
-  'mortgage_general', 'rent_general', 'transfer_general',
+  'mortgage_general', 'rent_general', 'ccPayment_general', 'transfer_general',
   'other_general', 'other_government', 'other_charity',
 ]
 
@@ -115,16 +114,13 @@ Category guidelines:
 - investments_crypto: cryptocurrency (Coinbase, Binance, etc.)
 - investments_retirement: 401k, IRA, pension contributions
 - investments_stocks: stocks, ETFs, brokerage (Fidelity, Schwab, etc.)
-- venmo_general: general Venmo, Zelle, CashApp, P2P transfers
-- venmo_rent: rent or mortgage via P2P
-- venmo_bills: bill payments via P2P
-- venmo_personal: personal transfers, splitting costs, gifts via P2P
 - payroll_general: general payroll and income
 - payroll_wages: wages, salary, hourly pay
 - payroll_dividends: dividends, interest income
 - mortgage_general: mortgage payments
-- rent_general: rent payments
-- transfer_general: internal account transfers
+- rent_general: rent payments (including via Venmo/Zelle/P2P)
+- ccPayment_general: credit card bill payments
+- transfer_general: internal account transfers, Venmo, Zelle, CashApp, P2P transfers
 - other_general: anything that doesn't fit above
 - other_government: tax payments, government fees
 - other_charity: donations, charitable contributions
