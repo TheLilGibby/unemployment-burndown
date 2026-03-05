@@ -155,13 +155,35 @@ export async function mergeTransactionsIntoStatements(
     let existing = await readStatement(orgId, stmtId)
 
     if (existing) {
+      // Build a map of user-modified transactions so we can preserve their overrides
+      const userModifiedMap = new Map()
+      for (const t of existing.transactions) {
+        if (t.userModified && t.plaidTransactionId) {
+          userModifiedMap.set(t.plaidTransactionId, t)
+        }
+      }
+
       // Remove incoming transaction IDs (will be re-added fresh)
       const incomingIds = new Set(group.transactions.map(t => t.transaction_id))
       existing.transactions = existing.transactions.filter(
         t => !incomingIds.has(t.plaidTransactionId) && !removedIds.has(t.plaidTransactionId)
       )
-      // Append fresh versions
-      existing.transactions.push(...group.transactions.map(transformTransaction))
+      // Append fresh versions, preserving user-modified fields
+      const freshTxns = group.transactions.map(plaidTxn => {
+        const transformed = transformTransaction(plaidTxn)
+        const prior = userModifiedMap.get(plaidTxn.transaction_id)
+        if (prior && prior.userModifiedFields?.length) {
+          // Restore each field the user explicitly set
+          for (const field of prior.userModifiedFields) {
+            transformed[field] = prior[field]
+          }
+          transformed.userModified = true
+          transformed.userModifiedAt = prior.userModifiedAt
+          transformed.userModifiedFields = prior.userModifiedFields
+        }
+        return transformed
+      })
+      existing.transactions.push(...freshTxns)
       existing.transactions.sort((a, b) => a.date.localeCompare(b.date))
       existing.statementBalance = Math.round(
         existing.transactions.reduce((s, t) => s + t.amount, 0) * 100

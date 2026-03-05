@@ -43,7 +43,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
     if (!hasChanges) { onClose(); return }
     const oldCategory = transaction.category || 'other'
     const categoryChanged = editCategory !== oldCategory
-    onUpdate(transaction.id, { category: editCategory, excluded })
+    onUpdate(transaction.id, { category: editCategory, excluded }, transaction.statementId)
     onClose()
     if (categoryChanged) {
       const newCfg = findCategory(editCategory)
@@ -54,7 +54,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
         ttl: 6000,
         action: {
           label: 'Undo',
-          onClick: () => onUpdate(transaction.id, { category: oldCategory }),
+          onClick: () => onUpdate(transaction.id, { category: oldCategory }, transaction.statementId),
         },
       })
     }
@@ -754,8 +754,8 @@ export default function CategoryExplorer({
     setSelectedTxn(txn)
   }, [])
 
-  const handleTransactionUpdate = useCallback((txnId, updates) => {
-    if (onTransactionUpdate) onTransactionUpdate(txnId, updates)
+  const handleTransactionUpdate = useCallback((txnId, updates, statementId) => {
+    if (onTransactionUpdate) onTransactionUpdate(txnId, updates, statementId)
     // Update the selected transaction locally so the UI reflects changes immediately
     setSelectedTxn(prev => prev?.id === txnId ? { ...prev, ...updates } : prev)
   }, [onTransactionUpdate])

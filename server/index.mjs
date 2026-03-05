@@ -1528,11 +1528,33 @@ async function mergeStatementsFromPlaid(orgId, added, modified, removed, account
     try { existing = await s3Get(statementKey(orgId, stmtId)) } catch { /* new statement */ }
 
     if (existing) {
+      // Build a map of user-modified transactions so we can preserve their overrides
+      const userModifiedMap = new Map()
+      for (const t of existing.transactions) {
+        if (t.userModified && t.plaidTransactionId) {
+          userModifiedMap.set(t.plaidTransactionId, t)
+        }
+      }
+
       const incomingIds = new Set(group.transactions.map(t => t.transaction_id))
       existing.transactions = existing.transactions.filter(
         t => !incomingIds.has(t.plaidTransactionId) && !removedIds.has(t.plaidTransactionId)
       )
-      existing.transactions.push(...group.transactions.map(transformPlaidTxn))
+      // Append fresh versions, preserving user-modified fields
+      const freshTxns = group.transactions.map(plaidTxn => {
+        const transformed = transformPlaidTxn(plaidTxn)
+        const prior = userModifiedMap.get(plaidTxn.transaction_id)
+        if (prior && prior.userModifiedFields?.length) {
+          for (const field of prior.userModifiedFields) {
+            transformed[field] = prior[field]
+          }
+          transformed.userModified = true
+          transformed.userModifiedAt = prior.userModifiedAt
+          transformed.userModifiedFields = prior.userModifiedFields
+        }
+        return transformed
+      })
+      existing.transactions.push(...freshTxns)
       existing.transactions.sort((a, b) => a.date.localeCompare(b.date))
       existing.statementBalance = Math.round(existing.transactions.reduce((s, t) => s + t.amount, 0) * 100) / 100
       existing.syncedAt = new Date().toISOString()
@@ -1725,6 +1747,45 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Statement not found' })
     }
     req.log.error({ err }, 'GET /api/statements/:id failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/statements/:statementId/transactions/:transactionId — update a transaction and mark as user-modified
+app.patch('/api/statements/:statementId/transactions/:transactionId', orgMiddleware, async (req, res) => {
+  const orgId = req.user.orgId
+  const { statementId, transactionId } = req.params
+  const allowedFields = ['category', 'isPayroll', 'payrollJobId']
+  const updates = {}
+  for (const field of allowedFields) {
+    if (field in req.body) updates[field] = req.body[field]
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' })
+  }
+
+  try {
+    const stmt = await s3Get(statementKey(orgId, statementId))
+    if (!stmt) return res.status(404).json({ error: 'Statement not found' })
+
+    const txnIndex = stmt.transactions.findIndex(t => t.id === transactionId)
+    if (txnIndex === -1) return res.status(404).json({ error: 'Transaction not found in statement' })
+
+    const txn = stmt.transactions[txnIndex]
+    Object.assign(txn, updates)
+    txn.userModified = true
+    txn.userModifiedAt = new Date().toISOString()
+    txn.userModifiedFields = [
+      ...new Set([...(txn.userModifiedFields || []), ...Object.keys(updates)])
+    ]
+    stmt.transactions[txnIndex] = txn
+    await s3Put(statementKey(orgId, statementId), stmt)
+    res.json({ updated: true, transaction: txn })
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return res.status(404).json({ error: 'Statement not found' })
+    }
+    req.log.error({ err }, 'PATCH transaction failed')
     res.status(500).json({ error: err.message })
   }
 })

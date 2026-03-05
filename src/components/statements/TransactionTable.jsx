@@ -41,7 +41,7 @@ export default function TransactionTable({
 
   function handleCategoryChange(txn, newCategoryKey) {
     const oldCategory = txn.category || 'other'
-    onTransactionOverride(txn.id, { category: newCategoryKey })
+    onTransactionOverride(txn.id, { category: newCategoryKey }, txn.statementId)
     setCategoryDropdownTxnId(null)
     const newCfg = findCategory(newCategoryKey)
     addToast({
@@ -51,7 +51,7 @@ export default function TransactionTable({
       ttl: 6000,
       action: {
         label: 'Undo',
-        onClick: () => onTransactionOverride(txn.id, { category: oldCategory }),
+        onClick: () => onTransactionOverride(txn.id, { category: oldCategory }, txn.statementId),
       },
     })
   }
@@ -563,7 +563,7 @@ export default function TransactionTable({
                                   key={jid}
                                   onClick={e => {
                                     e.stopPropagation()
-                                    onTransactionOverride(txn.id, { isPayroll: true, payrollJobId: jid })
+                                    onTransactionOverride(txn.id, { isPayroll: true, payrollJobId: jid }, txn.statementId)
                                     setPayrollDropdownTxnId(null)
                                   }}
                                   className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
@@ -588,7 +588,7 @@ export default function TransactionTable({
                                 <button
                                   onClick={e => {
                                     e.stopPropagation()
-                                    onTransactionOverride(txn.id, { isPayroll: false, payrollJobId: null })
+                                    onTransactionOverride(txn.id, { isPayroll: false, payrollJobId: null }, txn.statementId)
                                     setPayrollDropdownTxnId(null)
                                   }}
                                   className="w-full text-left px-3 py-1.5 text-xs transition-colors"

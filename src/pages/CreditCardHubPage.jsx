@@ -32,7 +32,15 @@ export default function CreditCardHubPage({
   const [linkModalTxn, setLinkModalTxn] = useState(null)
   const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
 
-  const { index, statements, loading, error, loadStatement, refreshIndex } = useStatementStorage()
+  const { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
+
+  // Wrap override to also persist user modifications to the statement file
+  const handleTransactionOverride = useCallback((txnId, updates, statementId) => {
+    onTransactionOverride(txnId, updates)
+    if (statementId) {
+      patchTransaction(statementId, txnId, updates)
+    }
+  }, [onTransactionOverride, patchTransaction])
 
   // Wrap syncAll to also refresh the statement index after sync
   const handleSync = useCallback(async (itemId) => {
@@ -64,6 +72,7 @@ export default function CreditCardHubPage({
         const override = transactionOverrides[txn.id]
         txns.push({
           ...txn,
+          statementId: full.id,
           cardId: full.cardId,
           cardLastFour: full.cardLastFour || null,
           accountType: full.accountType || null,
@@ -297,7 +306,7 @@ export default function CreditCardHubPage({
         subscriptions={subscriptions}
         monthlyIncome={totalMonthlyIncome}
         monthlyBenefits={monthlyBenefits}
-        onTransactionUpdate={onTransactionOverride}
+        onTransactionUpdate={handleTransactionOverride}
         oneTimePurchases={oneTimePurchases}
         oneTimeExpenses={oneTimeExpenses}
         oneTimeIncome={oneTimeIncome}
@@ -329,7 +338,7 @@ export default function CreditCardHubPage({
           onOpenCCPicklist={creditCards.length > 0 ? handleOpenCCPicklist : undefined}
           jobs={jobs}
           transactionOverrides={transactionOverrides}
-          onTransactionOverride={onTransactionOverride}
+          onTransactionOverride={handleTransactionOverride}
         />
       </SectionCard>
 
