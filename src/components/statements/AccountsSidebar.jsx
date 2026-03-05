@@ -2,15 +2,49 @@ import { useState, useMemo } from 'react'
 import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
+import AccountCustomizeModal from './AccountCustomizeModal'
+
+const COLOR_CLASSES = {
+  blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  emerald: 'bg-emerald-500',
+  amber: 'bg-amber-400',
+  rose: 'bg-rose-500',
+  cyan: 'bg-cyan-500',
+}
+
+function getInitials(name) {
+  return name
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?'
+}
 
 function ChevronIcon({ open }) {
   return open ? <ChevronDown size={12} /> : <ChevronRight size={12} />
 }
 
-function AccountRow({ item, isSelected, onSelect, isDepository }) {
+function PersonBadge({ person }) {
+  if (!person) return null
+  const bgClass = COLOR_CLASSES[person.color] ?? 'bg-gray-500'
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0 ${bgClass}`}
+      title={person.name}
+    >
+      {getInitials(person.name)}
+    </span>
+  )
+}
+
+function AccountRow({ item, isSelected, onSelect, isDepository, customization, person }) {
   const utilPct = !isDepository && item.creditLimit > 0
     ? Math.round((item.balance / item.creditLimit) * 100)
     : null
+
+  const displayName = customization?.nickname || item.name
 
   return (
     <button
@@ -21,10 +55,13 @@ function AccountRow({ item, isSelected, onSelect, isDepository }) {
         borderLeft: isSelected ? '2px solid var(--accent-blue)' : '2px solid transparent',
       }}
     >
+      {/* Person badge */}
+      <PersonBadge person={person} />
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-xs truncate" style={{ color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)' }}>
-            {item.name}
+            {displayName}
           </span>
           {item.last4 && (
             <span className="text-[10px] shrink-0" style={{ color: 'var(--text-faint)' }}>
@@ -68,7 +105,7 @@ function AccountRow({ item, isSelected, onSelect, isDepository }) {
   )
 }
 
-function AccountGroup({ label, icon: Icon, iconColor, items, subtotal, subtotalColor, selectedCardId, onSelectCard, isDepository }) {
+function AccountGroup({ label, icon: Icon, iconColor, items, subtotal, subtotalColor, selectedCardId, onSelectCard, isDepository, customizations, people }) {
   const [open, setOpen] = useState(true)
 
   if (items.length === 0) return null
@@ -93,15 +130,21 @@ function AccountGroup({ label, icon: Icon, iconColor, items, subtotal, subtotalC
       </button>
       {open && (
         <div className="space-y-0.5">
-          {items.map(item => (
-            <AccountRow
-              key={item.id}
-              item={item}
-              isSelected={selectedCardId === item.id}
-              onSelect={onSelectCard}
-              isDepository={isDepository}
-            />
-          ))}
+          {items.map(item => {
+            const cust = customizations?.[item.id]
+            const person = cust?.assignedTo ? people.find(p => p.id === cust.assignedTo) : null
+            return (
+              <AccountRow
+                key={item.id}
+                item={item}
+                isSelected={selectedCardId === item.id}
+                onSelect={onSelectCard}
+                isDepository={isDepository}
+                customization={cust}
+                person={person}
+              />
+            )
+          })}
         </div>
       )}
     </div>
@@ -113,8 +156,9 @@ export default function AccountsSidebar({
   plaid, onSync, people = [], user,
   onCreditCardsChange, onSavingsChange, onStatementsRefresh,
   loading, error,
+  accountCustomizations = {}, onAccountCustomizationsChange,
 }) {
-  const [managing, setManaging] = useState(false)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
 
   // Build bank accounts list (same logic as CreditCardHubPage)
   const plaidBankAccountIds = useMemo(() => new Set(
@@ -145,19 +189,29 @@ export default function AccountsSidebar({
       }
     }), [savingsAccounts, plaidBankAccountIds, statementIndex])
 
-  const cards = useMemo(() => creditCards.map(card => {
+  const allCards = useMemo(() => creditCards.map(card => {
     const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
     return { ...card, statementCount: stmts.length, isDepository: false }
   }), [creditCards, statementIndex])
 
-  const totalBalance = useMemo(() => {
-    const bankTotal = bankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
-    const creditTotal = creditCards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
-    return bankTotal + creditTotal
-  }, [bankAccounts, creditCards])
+  // Filter hidden accounts for display
+  const cards = useMemo(() =>
+    allCards.filter(c => !accountCustomizations[c.id]?.hidden),
+    [allCards, accountCustomizations]
+  )
+  const visibleBankAccounts = useMemo(() =>
+    bankAccounts.filter(a => !accountCustomizations[a.id]?.hidden),
+    [bankAccounts, accountCustomizations]
+  )
 
-  const creditSubtotal = creditCards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
-  const bankSubtotal = bankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
+  const totalBalance = useMemo(() => {
+    const bankTotal = visibleBankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
+    const creditTotal = cards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
+    return bankTotal + creditTotal
+  }, [visibleBankAccounts, cards])
+
+  const creditSubtotal = cards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
+  const bankSubtotal = visibleBankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
 
   const lastSync = plaid?.lastSync
     ? new Date(plaid.lastSync).toLocaleDateString('en-US', {
@@ -172,7 +226,8 @@ export default function AccountsSidebar({
       : null
 
   const stmtCount = statementIndex?.statements?.length || 0
-  const allAccountCount = cards.length + bankAccounts.length
+  const allAccountCount = cards.length + visibleBankAccounts.length
+  const hiddenCount = Object.values(accountCustomizations).filter(c => c.hidden).length
 
   // ---- Desktop sidebar ----
   const desktopSidebar = (
@@ -197,10 +252,10 @@ export default function AccountsSidebar({
           </span>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setManaging(m => !m)}
+              onClick={() => setCustomizeOpen(true)}
               className="p-1 rounded transition-colors"
-              style={{ color: managing ? 'var(--accent-blue)' : 'var(--text-muted)' }}
-              title="Manage accounts"
+              style={{ color: customizeOpen ? 'var(--accent-blue)' : 'var(--text-muted)' }}
+              title="Customize accounts"
             >
               <Settings size={14} />
             </button>
@@ -243,9 +298,11 @@ export default function AccountsSidebar({
           selectedCardId={selectedCardId}
           onSelectCard={onSelectCard}
           isDepository={false}
+          customizations={accountCustomizations}
+          people={people}
         />
 
-        {cards.length > 0 && bankAccounts.length > 0 && (
+        {cards.length > 0 && visibleBankAccounts.length > 0 && (
           <div className="my-1 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
         )}
 
@@ -253,12 +310,14 @@ export default function AccountsSidebar({
           label="Banking"
           icon={Landmark}
           iconColor="var(--accent-emerald)"
-          items={bankAccounts}
+          items={visibleBankAccounts}
           subtotal={bankSubtotal}
           subtotalColor="var(--accent-emerald)"
           selectedCardId={selectedCardId}
           onSelectCard={onSelectCard}
           isDepository={true}
+          customizations={accountCustomizations}
+          people={people}
         />
       </div>
 
@@ -277,6 +336,7 @@ export default function AccountsSidebar({
           </span>
           <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
             {allAccountCount} acct{allAccountCount !== 1 ? 's' : ''}
+            {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
           </span>
         </div>
 
@@ -335,6 +395,15 @@ export default function AccountsSidebar({
         <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
           {stmtCount} stmt{stmtCount !== 1 ? 's' : ''}
         </span>
+        {/* Settings gear for mobile */}
+        <button
+          onClick={() => setCustomizeOpen(true)}
+          className="p-1 rounded transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Customize accounts"
+        >
+          <Settings size={12} />
+        </button>
         {plaid && (
           <div className="flex items-center gap-2 ml-auto">
             <PlaidLinkButton
@@ -381,6 +450,9 @@ export default function AccountsSidebar({
 
         {cards.map(item => {
           const isSelected = selectedCardId === item.id
+          const cust = accountCustomizations[item.id]
+          const person = cust?.assignedTo ? people.find(p => p.id === cust.assignedTo) : null
+          const displayName = cust?.nickname || item.name
           return (
             <button
               key={item.id}
@@ -392,15 +464,19 @@ export default function AccountsSidebar({
                 color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
               }}
             >
+              {person && <PersonBadge person={person} />}
               <CreditCard size={12} />
-              <span className="truncate max-w-[120px]">{item.name}</span>
+              <span className="truncate max-w-[120px]">{displayName}</span>
               <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{formatCurrency(item.balance || 0)}</span>
             </button>
           )
         })}
 
-        {bankAccounts.map(item => {
+        {visibleBankAccounts.map(item => {
           const isSelected = selectedCardId === item.id
+          const cust = accountCustomizations[item.id]
+          const person = cust?.assignedTo ? people.find(p => p.id === cust.assignedTo) : null
+          const displayName = cust?.nickname || item.name
           return (
             <button
               key={item.id}
@@ -412,8 +488,9 @@ export default function AccountsSidebar({
                 color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
               }}
             >
+              {person && <PersonBadge person={person} />}
               <Landmark size={12} style={{ color: 'var(--accent-emerald)' }} />
-              <span className="truncate max-w-[120px]">{item.name}</span>
+              <span className="truncate max-w-[120px]">{displayName}</span>
               <span className="text-[10px]" style={{ color: 'var(--accent-emerald)' }}>{formatCurrency(item.balance || 0)}</span>
             </button>
           )
@@ -426,6 +503,17 @@ export default function AccountsSidebar({
     <>
       {desktopSidebar}
       {mobileBanner}
+
+      {/* Customize modal */}
+      <AccountCustomizeModal
+        open={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        creditCards={allCards}
+        bankAccounts={bankAccounts}
+        customizations={accountCustomizations}
+        onCustomizationsChange={onAccountCustomizationsChange}
+        people={people}
+      />
     </>
   )
 }

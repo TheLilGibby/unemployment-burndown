@@ -21,6 +21,7 @@ export default function CreditCardHubPage({
   expenses = [], subscriptions = [], monthlyBenefits = 0, totalMonthlyIncome = 0,
   transactionOverrides = {}, onTransactionOverride,
   jobs = [],
+  accountCustomizations = {}, onAccountCustomizationsChange,
 }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
@@ -187,6 +188,8 @@ export default function CreditCardHubPage({
         onStatementsRefresh={refreshIndex}
         loading={loading}
         error={error}
+        accountCustomizations={accountCustomizations}
+        onAccountCustomizationsChange={onAccountCustomizationsChange}
       />
 
       <main className="xl:ml-[17rem] max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">

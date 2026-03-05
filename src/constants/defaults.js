@@ -83,6 +83,7 @@ export const DEFAULTS = {
   },
   transactionLinks: {},
   transactionOverrides: {},
+  accountCustomizations: {},
   plaidMeta: {},
   jobScenarios: [],
   retirement: {
