@@ -20,13 +20,6 @@ export const STATEMENT_CATEGORIES = [
       { key: 'investments_stocks',     label: 'Stocks',     color: '#059669' },
     ],
   },
-  { key: 'venmo',          label: 'Venmo & P2P',          color: '#008cff',
-    subCategories: [
-      { key: 'venmo_rent',      label: 'Rent / Mortgage', color: '#0d9488' },
-      { key: 'venmo_bills',     label: 'Bills & Utilities', color: '#0891b2' },
-      { key: 'venmo_personal',  label: 'Personal',        color: '#6366f1' },
-    ],
-  },
   { key: 'payroll',        label: 'Payroll',               color: '#16a34a' },
   { key: 'mortgage',       label: 'Mortgage',              color: '#7c3aed' },
   { key: 'rent',           label: 'Rent',                  color: '#0d9488' },
@@ -39,10 +32,11 @@ export const STATEMENT_CATEGORIES = [
  * Returns the matching { key, label, color } or null.
  */
 export function findCategory(key) {
+  const resolved = DEPRECATED_CATEGORY_MAP[key] || key
   for (const cat of STATEMENT_CATEGORIES) {
-    if (cat.key === key) return cat
+    if (cat.key === resolved) return cat
     if (cat.subCategories) {
-      const sub = cat.subCategories.find(s => s.key === key)
+      const sub = cat.subCategories.find(s => s.key === resolved)
       if (sub) return sub
     }
   }
@@ -55,11 +49,30 @@ export function findCategory(key) {
  * If it's a sub-category, returns the parent's key.
  */
 export function getParentCategoryKey(key) {
+  const resolved = DEPRECATED_CATEGORY_MAP[key] || key
   for (const cat of STATEMENT_CATEGORIES) {
-    if (cat.key === key) return key
-    if (cat.subCategories?.some(s => s.key === key)) return cat.key
+    if (cat.key === resolved) return resolved
+    if (cat.subCategories?.some(s => s.key === resolved)) return cat.key
   }
   return 'other'
+}
+
+/**
+ * Migration map for deprecated category keys.
+ * Maps old venmo keys to their replacement categories.
+ */
+export const DEPRECATED_CATEGORY_MAP = {
+  venmo: 'transfer',
+  venmo_rent: 'rent',
+  venmo_bills: 'utilities',
+  venmo_personal: 'other',
+}
+
+/**
+ * Migrate a category key, replacing deprecated keys with their successors.
+ */
+export function migrateCategory(key) {
+  return DEPRECATED_CATEGORY_MAP[key] || key
 }
 
 /** Flat list of every valid category key (top-level + sub-categories). */
