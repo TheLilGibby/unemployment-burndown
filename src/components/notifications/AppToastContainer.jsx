@@ -10,7 +10,7 @@ const SEVERITY_COLORS = {
 }
 
 function SeverityIcon({ severity }) {
-  const size = 13
+  const size = 14
   if (severity === 'critical' || severity === 'error') return <AlertCircle size={size} />
   if (severity === 'warning') return <AlertTriangle size={size} />
   if (severity === 'success') return <CheckCircle2 size={size} />
@@ -24,32 +24,46 @@ export default function AppToastContainer() {
 
   return (
     <div
-      className="fixed bottom-3 right-3 z-[70] flex flex-col gap-1.5"
-      style={{ maxWidth: 280 }}
+      className="fixed top-3 right-3 z-[70] flex flex-col gap-2"
+      style={{ maxWidth: 320 }}
     >
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className="rounded-md px-2.5 py-2 flex items-start gap-2"
+          className="rounded-2xl px-3.5 py-2.5 flex items-start gap-2.5"
           style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            animation: 'slideInRight 0.2s ease-out',
+            background: 'rgba(30, 30, 30, 0.65)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow:
+              '0 8px 32px rgba(0, 0, 0, 0.35), ' +
+              '0 2px 8px rgba(0, 0, 0, 0.2), ' +
+              'inset 0 0.5px 0 rgba(255, 255, 255, 0.1)',
+            animation: 'appleSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <span
-            className="flex-shrink-0 mt-px"
-            style={{ color: SEVERITY_COLORS[toast.severity] }}
+            className="flex-shrink-0 mt-0.5 rounded-full p-1"
+            style={{
+              color: SEVERITY_COLORS[toast.severity],
+              background: `color-mix(in srgb, ${SEVERITY_COLORS[toast.severity]} 15%, transparent)`,
+            }}
           >
             <SeverityIcon severity={toast.severity} />
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium leading-snug" style={{ color: 'var(--text-primary)', fontSize: 11 }}>
+            <p
+              className="font-semibold leading-snug"
+              style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: 12 }}
+            >
               {toast.title}
             </p>
             {toast.message && (
-              <p className="text-xs leading-snug mt-0.5" style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+              <p
+                className="leading-snug mt-0.5"
+                style={{ color: 'rgba(255, 255, 255, 0.55)', fontSize: 11 }}
+              >
                 {toast.message}
               </p>
             )}
@@ -59,8 +73,15 @@ export default function AppToastContainer() {
                   toast.action.onClick()
                   removeToast(toast.id)
                 }}
-                className="text-xs font-semibold mt-1 hover:underline"
-                style={{ color: 'var(--accent-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                className="font-semibold mt-1.5 hover:brightness-125 transition-all"
+                style={{
+                  color: SEVERITY_COLORS[toast.severity] || 'var(--accent-blue)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                }}
               >
                 {toast.action.label}
               </button>
@@ -68,18 +89,45 @@ export default function AppToastContainer() {
           </div>
           <button
             onClick={() => removeToast(toast.id)}
-            className="flex-shrink-0 p-0.5 rounded hover:opacity-60 transition-opacity"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex-shrink-0 rounded-full p-1 transition-all hover:bg-white/10"
+            style={{ color: 'rgba(255, 255, 255, 0.4)' }}
             title="Dismiss"
           >
-            <X size={11} />
+            <X size={12} />
           </button>
         </div>
       ))}
       <style>{`
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+        @keyframes appleSlideIn {
+          from {
+            transform: translateY(-100%) scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+
+        [data-theme="light"] .fixed.top-3.right-3 > div {
+          background: rgba(255, 255, 255, 0.72) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          box-shadow:
+            0 8px 32px rgba(0, 0, 0, 0.12),
+            0 2px 8px rgba(0, 0, 0, 0.06),
+            inset 0 0.5px 0 rgba(255, 255, 255, 0.6) !important;
+        }
+
+        [data-theme="light"] .fixed.top-3.right-3 > div p:first-child {
+          color: rgba(0, 0, 0, 0.85) !important;
+        }
+
+        [data-theme="light"] .fixed.top-3.right-3 > div p:nth-child(2) {
+          color: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        [data-theme="light"] .fixed.top-3.right-3 > div > button:last-child {
+          color: rgba(0, 0, 0, 0.3) !important;
         }
       `}</style>
     </div>
