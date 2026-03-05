@@ -30,7 +30,7 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
   }
 
   function addSub() {
-    onChange([...subscriptions, { id: Date.now(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null }])
+    onChange([...subscriptions, { id: Date.now(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null, description: '' }])
   }
 
   const activeTotal = subscriptions
@@ -122,11 +122,21 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                 <CommentButton itemId={`sub_${sub.id}`} label={sub.name || 'Subscription'} />
                 <button
                   onClick={() => deleteSub(sub.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center flex-shrink-0"
                   title="Remove subscription"
                 >
                   <TrashIcon />
                 </button>
+              </div>
+              {/* Subrow 3: description / notes */}
+              <div className="sm:col-span-7">
+                <input
+                  type="text"
+                  value={sub.description || ''}
+                  onChange={e => updateSub(sub.id, 'description', e.target.value)}
+                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  placeholder="Add a note..."
+                />
               </div>
             </div>
           )

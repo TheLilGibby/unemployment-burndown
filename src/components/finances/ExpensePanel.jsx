@@ -59,7 +59,7 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
   }
 
   function addExpense() {
-    onChange([...expenses, { id: Date.now(), category: 'New Expense', monthlyAmount: 0, essential: false, assignedTo: null }])
+    onChange([...expenses, { id: Date.now(), category: 'New Expense', monthlyAmount: 0, essential: false, assignedTo: null, description: '' }])
   }
 
   const totalMonthly = expenses.reduce((sum, e) => sum + (Number(e.monthlyAmount) || 0), 0)
@@ -192,6 +192,16 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
               >
                 <TrashIcon />
               </button>
+            </div>
+            {/* Subrow 3: description / notes */}
+            <div className="sm:col-span-8">
+              <input
+                type="text"
+                value={expense.description || ''}
+                onChange={e => updateExpense(expense.id, 'description', e.target.value)}
+                className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                placeholder="Add a note..."
+              />
             </div>
           </div>
         )})}
