@@ -22,6 +22,7 @@ export default function CreditCardHubPage({
   transactionOverrides = {}, onTransactionOverride,
   jobs = [],
   accountCustomizations = {}, onAccountCustomizationsChange,
+  membersByUserId = {},
 }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
@@ -213,6 +214,7 @@ export default function CreditCardHubPage({
         txnToOverviewMap={txnToOverviewMap}
         onLinkTransaction={onLinkTransaction}
         onUnlinkTransaction={onUnlinkTransaction}
+        membersByUserId={membersByUserId}
       />
 
       {/* Statement list */}

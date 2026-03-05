@@ -26,6 +26,7 @@ import GoalsPage from './pages/GoalsPage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
+import { useOrgMembers } from './hooks/useOrgMembers'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { getEffectivePayment } from './utils/ccPayment'
 import { CommentsProvider } from './context/CommentsContext'
@@ -423,6 +424,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
+  const { membersByUserId } = useOrgMembers(user)
 
   function buildSnapshot() {
     return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations }
@@ -1188,6 +1190,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             jobs={jobs}
             accountCustomizations={accountCustomizations}
             onAccountCustomizationsChange={setAccountCustomizations}
+            membersByUserId={membersByUserId}
           />
         } />
 

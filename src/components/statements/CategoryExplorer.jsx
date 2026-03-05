@@ -7,8 +7,41 @@ import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey, resolveCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
+import { PROFILE_COLORS } from '../profile/ProfileBubble'
 
 /* ───────── helpers ───────── */
+
+function TransactionUserBadge({ userId, membersByUserId }) {
+  if (!userId) return null
+  const member = membersByUserId[userId]
+  if (!member) return null
+  const color = PROFILE_COLORS[member.profileColor] || PROFILE_COLORS.blue
+  const initial = member.email ? member.email[0].toUpperCase() : '?'
+  return (
+    <span
+      title={member.email}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        border: `2px solid ${color}`,
+        fontSize: 9,
+        fontWeight: 700,
+        color,
+        background: color + '22',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {member.avatarDataUrl ? (
+        <img src={member.avatarDataUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+      ) : initial}
+    </span>
+  )
+}
 
 const RECENT_CATEGORIES_KEY = 'burndown_recent_categories'
 const HIDDEN_CATEGORIES_KEY = 'burndown_hidden_categories'
@@ -73,7 +106,7 @@ function MiniTooltip({ active, payload, label }) {
 
 /* ───────── Transaction Detail Drawer ───────── */
 
-function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [] }) {
+function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [], membersByUserId = {} }) {
   const resolvedOriginal = resolveCategory(transaction.category || 'other_general')
   const [editCategory, setEditCategory] = useState(resolvedOriginal)
   const [excluded, setExcluded] = useState(!!transaction.excluded)
@@ -178,8 +211,23 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
               }
             />
             {transaction.pending && (
-              <DetailRow label="Status" value="Pending" color="#eab308" last />
+              <DetailRow label="Status" value="Pending" color="#eab308" />
             )}
+            {transaction.syncedByUserId && membersByUserId[transaction.syncedByUserId] && (() => {
+              const member = membersByUserId[transaction.syncedByUserId]
+              const badgeColor = PROFILE_COLORS[member.profileColor] || PROFILE_COLORS.blue
+              return (
+                <div
+                  className="flex items-center justify-between px-3 py-2"
+                >
+                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Synced by</span>
+                  <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: badgeColor }}>
+                    <TransactionUserBadge userId={transaction.syncedByUserId} membersByUserId={membersByUserId} />
+                    {member.email}
+                  </span>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Link to overview item */}
@@ -449,7 +497,7 @@ function DetailRow({ label, value, mono, color, last }) {
 
 /* ───────── Category Detail View ───────── */
 
-function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap }) {
+function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap, membersByUserId = {} }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [merchantFilter, setMerchantFilter] = useState(null)
@@ -681,6 +729,14 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--bg-subtle, var(--bg-card))', borderBottom: '1px solid var(--border-subtle)' }}>
+                {Object.keys(membersByUserId).length > 1 && (
+                  <th
+                    className="px-2 py-1.5 text-center"
+                    style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: 32 }}
+                  >
+                    User
+                  </th>
+                )}
                 <th
                   className="text-left px-3 py-1.5 cursor-pointer select-none"
                   style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
@@ -728,6 +784,11 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
                   onMouseEnter={e => { if (onTransactionClick) e.currentTarget.style.background = color + '0a' }}
                   onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-subtle, rgba(255,255,255,0.02))' }}
                 >
+                  {Object.keys(membersByUserId).length > 1 && (
+                    <td className="px-2 py-2 text-center" style={{ width: 32 }}>
+                      <TransactionUserBadge userId={txn.syncedByUserId} membersByUserId={membersByUserId} />
+                    </td>
+                  )}
                   <td className="px-3 py-2 tabular-nums whitespace-nowrap text-xs" style={{ color: 'var(--text-muted)' }}>
                     {txn.date ? new Date(txn.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                   </td>
@@ -791,6 +852,7 @@ export default function CategoryExplorer({
   oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
   transactionLinks = {}, txnToOverviewMap = {},
   onLinkTransaction, onUnlinkTransaction,
+  membersByUserId = {},
 }) {
   // Time period
   const [period, setPeriod] = useState('thisMonth')
@@ -1044,6 +1106,7 @@ export default function CategoryExplorer({
           onTransactionClick={(onTransactionUpdate || hasLinking) ? handleTransactionClick : undefined}
           categoryColor={findCategory(drillCategory)?.color}
           txnToOverviewMap={hasLinking ? txnToOverviewMap : undefined}
+          membersByUserId={membersByUserId}
         />
       ) : (
         <CategoryDonutChart
@@ -1067,6 +1130,7 @@ export default function CategoryExplorer({
             onOpenLinkModal={hasLinking ? (txn) => { setLinkModalTxn(txn) } : undefined}
             onUnlink={onUnlinkTransaction ? (key, txnId) => { onUnlinkTransaction(key, txnId) } : undefined}
             recentCategories={recentCategories}
+            membersByUserId={membersByUserId}
           />
         )
       })()}

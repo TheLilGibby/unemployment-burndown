@@ -197,7 +197,7 @@ export async function handler(event) {
 
       if (addedTxns.length > 0 || modifiedTxns.length > 0 || removedTxns.length > 0) {
         await mergeTransactionsIntoStatements(
-          user.orgId, addedTxns, modifiedTxns, removedTxns, accountInfoMap, cardIdMap
+          user.orgId, addedTxns, modifiedTxns, removedTxns, accountInfoMap, cardIdMap, user.sub
         )
         totalTxnsSynced  += addedTxns.length + modifiedTxns.length
         totalTxnsRemoved += removedTxns.length

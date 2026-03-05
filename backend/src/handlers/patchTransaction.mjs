@@ -43,6 +43,7 @@ export async function handler(event) {
     Object.assign(txn, updates)
     txn.userModified = true
     txn.userModifiedAt = new Date().toISOString()
+    txn.userModifiedBy = user.sub
     // Track which fields the user has explicitly set
     txn.userModifiedFields = [
       ...new Set([...(txn.userModifiedFields || []), ...Object.keys(updates)])

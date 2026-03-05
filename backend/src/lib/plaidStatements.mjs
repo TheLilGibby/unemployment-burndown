@@ -201,6 +201,7 @@ function transformTransaction(plaidTxn) {
     pending:            plaidTxn.pending || false,
     plaidTransactionId: plaidTxn.transaction_id,
     paymentChannel:     plaidTxn.payment_channel || null, // "online", "in store", "other"
+    syncedByUserId:     null, // filled in by caller
   }
 }
 
@@ -224,9 +225,13 @@ function groupByAccountMonth(plaidTxns) {
 /**
  * Build a full statement object for a given account + month.
  */
-function buildStatement(accountId, month, plaidTxns, accountInfo, cardId) {
+function buildStatement(accountId, month, plaidTxns, accountInfo, cardId, syncedByUserId) {
   const stmtId = `plaid_${accountId}_${month}`
-  const txns = plaidTxns.map(transformTransaction)
+  const txns = plaidTxns.map(t => {
+    const transformed = transformTransaction(t)
+    if (syncedByUserId) transformed.syncedByUserId = syncedByUserId
+    return transformed
+  })
   txns.sort((a, b) => a.date.localeCompare(b.date))
   const totalBalance = txns.reduce((sum, t) => sum + t.amount, 0)
 
@@ -258,9 +263,10 @@ function buildStatement(accountId, month, plaidTxns, accountInfo, cardId) {
  * @param {object[]} removed        – Removed transactions (only { transaction_id })
  * @param {object}   accountInfoMap – { accountId: { name, mask, type, subtype, institutionName } }
  * @param {object}   cardIdMap      – { plaidAccountId: appCardOrAccountId }
+ * @param {string}   [syncedByUserId] – The userId of the auth user who triggered this sync
  */
 export async function mergeTransactionsIntoStatements(
-  orgId, added, modified, removed, accountInfoMap, cardIdMap
+  orgId, added, modified, removed, accountInfoMap, cardIdMap, syncedByUserId
 ) {
   // 1. Group added + modified transactions by account + month
   const allUpserts = [...added, ...modified]
@@ -300,6 +306,7 @@ export async function mergeTransactionsIntoStatements(
       // Append fresh versions, preserving user-modified fields
       const freshTxns = group.transactions.map(plaidTxn => {
         const transformed = transformTransaction(plaidTxn)
+        if (syncedByUserId) transformed.syncedByUserId = syncedByUserId
         const prior = userModifiedMap.get(plaidTxn.transaction_id)
         if (prior && prior.userModifiedFields?.length) {
           // Restore each field the user explicitly set
@@ -322,7 +329,7 @@ export async function mergeTransactionsIntoStatements(
     } else {
       // Brand new statement
       const stmt = buildStatement(
-        group.accountId, group.month, group.transactions, accountInfo, cardId
+        group.accountId, group.month, group.transactions, accountInfo, cardId, syncedByUserId
       )
       await writeStatement(orgId, stmtId, stmt)
     }

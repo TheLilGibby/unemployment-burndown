@@ -37,6 +37,7 @@ export default function StatementChartTabs({
   monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate,
   oneTimePurchases, oneTimeExpenses, oneTimeIncome,
   transactionLinks, txnToOverviewMap, onLinkTransaction, onUnlinkTransaction,
+  membersByUserId = {},
 }) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
@@ -130,6 +131,7 @@ export default function StatementChartTabs({
             txnToOverviewMap={txnToOverviewMap}
             onLinkTransaction={onLinkTransaction}
             onUnlinkTransaction={onUnlinkTransaction}
+            membersByUserId={membersByUserId}
           />
         )}
         {activeId === 'monthly' && (
