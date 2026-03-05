@@ -69,6 +69,7 @@ const DETAILED_OVERRIDES = {
   INVESTMENTS_CRYPTO:                      'investments_crypto',
   INCOME_WAGES:                            'payroll',
   INCOME_DIVIDENDS:                        'payroll',
+  LOAN_PAYMENTS_CREDIT_CARD:               'ccPayment',
   LOAN_PAYMENTS_MORTGAGE_PAYMENT:          'mortgage',
   HOME_IMPROVEMENT_FURNITURE:              'homeImprovement',
   HOME_IMPROVEMENT_HARDWARE:               'homeImprovement',

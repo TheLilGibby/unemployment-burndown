@@ -11,7 +11,7 @@ import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
 import TransactionLinkModal from '../components/linking/TransactionLinkModal'
 import CCPaymentPicklistModal from '../components/linking/CCPaymentPicklistModal'
-import { detectCCPayments } from '../utils/ccPaymentDetector'
+import { detectCCPayments, isCCPayment } from '../utils/ccPaymentDetector'
 import { picklistForCCPayment } from '../utils/ccStatementPicklist'
 
 export default function CreditCardHubPage({
@@ -70,7 +70,7 @@ export default function CreditCardHubPage({
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
         const override = transactionOverrides[txn.id]
-        txns.push({
+        const merged = {
           ...txn,
           statementId: full.id,
           cardId: full.cardId,
@@ -79,7 +79,12 @@ export default function CreditCardHubPage({
           accountSubtype: full.accountSubtype || null,
           accountName: full.accountName || null,
           ...(override || {}),
-        })
+        }
+        // Auto-tag CC payment transactions unless user manually set a category
+        if (!override?.category && isCCPayment(merged)) {
+          merged.category = 'ccPayment'
+        }
+        txns.push(merged)
       }
     }
     return txns
@@ -92,14 +97,18 @@ export default function CreditCardHubPage({
       const full = statements[stmtMeta.id]
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
-        txns.push({
+        const merged = {
           ...txn,
           cardId: full.cardId,
           cardLastFour: full.cardLastFour || null,
           accountType: full.accountType || null,
           accountSubtype: full.accountSubtype || null,
           accountName: full.accountName || null,
-        })
+        }
+        if (isCCPayment(merged)) {
+          merged.category = 'ccPayment'
+        }
+        txns.push(merged)
       }
     }
     return txns
