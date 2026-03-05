@@ -19,8 +19,8 @@ const PRIMARY_MAP = {
   MEDICAL:                    'health',
   PERSONAL_CARE:              'personalCare',
   RENT_AND_UTILITIES:         'utilities',
-  TRANSFER_IN:                'venmo',
-  TRANSFER_OUT:               'venmo',
+  TRANSFER_IN:                'transfer',
+  TRANSFER_OUT:               'transfer',
   TRANSPORTATION:             'transportation',
   TRAVEL:                     'travel',
   BANK_FEES:                  'fees',
@@ -74,8 +74,8 @@ const DETAILED_OVERRIDES = {
   HOME_IMPROVEMENT_HARDWARE:               'homeImprovement',
   TRANSFER_IN_ACCOUNT_TRANSFER:            'transfer',
   TRANSFER_OUT_ACCOUNT_TRANSFER:           'transfer',
-  TRANSFER_IN_THIRD_PARTY:                 'venmo',
-  TRANSFER_OUT_THIRD_PARTY:                'venmo',
+  TRANSFER_IN_THIRD_PARTY:                 'transfer',
+  TRANSFER_OUT_THIRD_PARTY:                'transfer',
 }
 
 /**
