@@ -1,25 +1,26 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
 
-const FILTER_CATEGORY_KEY = 'burndown_txn_filter_category'
+const FILTER_CATEGORIES_KEY = 'burndown_txn_filter_categories'
 
-function loadFilterCategory() {
+function loadFilterCategories() {
   try {
-    return localStorage.getItem(FILTER_CATEGORY_KEY) || ''
+    const raw = localStorage.getItem(FILTER_CATEGORIES_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
   } catch {
-    return ''
+    return new Set()
   }
 }
 
-function saveFilterCategory(value) {
+function saveFilterCategories(filterSet) {
   try {
-    if (value) localStorage.setItem(FILTER_CATEGORY_KEY, value)
-    else localStorage.removeItem(FILTER_CATEGORY_KEY)
+    if (filterSet.size > 0) localStorage.setItem(FILTER_CATEGORIES_KEY, JSON.stringify([...filterSet]))
+    else localStorage.removeItem(FILTER_CATEGORIES_KEY)
   } catch { /* ignore */ }
 }
 
@@ -42,11 +43,17 @@ export default function TransactionTable({
 }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
-  const [filterCategory, setFilterCategoryRaw] = useState(loadFilterCategory)
-  const setFilterCategory = useCallback((val) => {
-    saveFilterCategory(val)
-    setFilterCategoryRaw(val)
+  const [filterCategories, setFilterCategoriesRaw] = useState(loadFilterCategories)
+  const setFilterCategories = useCallback((updater) => {
+    setFilterCategoriesRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      saveFilterCategories(next)
+      return next
+    })
   }, [])
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const [expandedFilterParent, setExpandedFilterParent] = useState(null)
+  const filterDropdownRef = useRef(null)
   const [filterAccount, setFilterAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [minAmount, setMinAmount] = useState('')
@@ -102,6 +109,36 @@ export default function TransactionTable({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [categoryDropdownTxnId])
 
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!showFilterDropdown) return
+    function handleClick(e) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
+        setShowFilterDropdown(false)
+        setExpandedFilterParent(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showFilterDropdown])
+
+  function toggleFilterCategory(key) {
+    setFilterCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function removeFilterCategory(key) {
+    setFilterCategories(prev => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }
+
   // Build unique account list for the account filter
   const uniqueAccounts = useMemo(() => {
     const seen = new Map()
@@ -123,8 +160,17 @@ export default function TransactionTable({
     const max = maxAmount !== '' ? parseFloat(maxAmount) : null
 
     let filtered = transactions
-    if (filterCategory) {
-      filtered = filtered.filter(t => resolveCategory(t.category || 'other_general') === filterCategory)
+    if (filterCategories.size > 0) {
+      filtered = filtered.filter(t => {
+        const resolved = resolveCategory(t.category || 'other_general')
+        const parentKey = getParentCategoryKey(resolved)
+        // Match if any filter key matches: either a parent key (matches all its subs) or a specific sub key
+        for (const fk of filterCategories) {
+          if (fk === parentKey) return true
+          if (fk === resolved) return true
+        }
+        return false
+      })
     }
     if (filterAccount) {
       filtered = filtered.filter(t => t.accountName === filterAccount)
@@ -150,7 +196,7 @@ export default function TransactionTable({
       else if (sortField === 'merchant') cmp = (a.merchantName || '').localeCompare(b.merchantName || '')
       return sortDir === 'desc' ? -cmp : cmp
     })
-  }, [transactions, sortField, sortDir, filterCategory, filterAccount, searchTerm, minAmount, maxAmount])
+  }, [transactions, sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
 
   function toggleSort(field) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -164,20 +210,10 @@ export default function TransactionTable({
       : <ArrowDown size={12} strokeWidth={2} style={{ color: 'var(--accent-blue)', display: 'inline', verticalAlign: 'middle' }} />
   }
 
-  const usedCategoryGroups = useMemo(() => {
-    const resolvedCats = new Set(transactions.map(t => resolveCategory(t.category || 'other_general')))
-    return STATEMENT_CATEGORIES
-      .map(parent => ({
-        ...parent,
-        usedSubs: parent.subCategories.filter(sub => resolvedCats.has(sub.key)),
-      }))
-      .filter(parent => parent.usedSubs.length > 0)
-  }, [transactions])
-
-  const hasActiveFilters = filterCategory || filterAccount || searchTerm || minAmount || maxAmount
+  const hasActiveFilters = filterCategories.size > 0 || filterAccount || searchTerm || minAmount || maxAmount
 
   function clearFilters() {
-    setFilterCategory('')
+    setFilterCategories(new Set())
     setFilterAccount('')
     setSearchTerm('')
     setMinAmount('')
@@ -212,21 +248,139 @@ export default function TransactionTable({
             className="text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60"
             style={{ ...inputStyle, minWidth: 160 }}
           />
-          <select
-            value={filterCategory}
-            onChange={e => setFilterCategory(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-lg outline-none"
-            style={inputStyle}
-          >
-            <option value="">All Categories</option>
-            {usedCategoryGroups.map(group => (
-              <optgroup key={group.key} label={group.label}>
-                {group.usedSubs.map(sub => (
-                  <option key={sub.key} value={sub.key}>{sub.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          {/* Category filter pill */}
+          <div className="relative" ref={filterDropdownRef}>
+            <button
+              onClick={() => { setShowFilterDropdown(v => !v); setExpandedFilterParent(null) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-150"
+              style={{
+                background: filterCategories.size > 0 ? 'color-mix(in srgb, var(--accent-blue) 15%, transparent)' : 'var(--bg-subtle, rgba(255,255,255,0.06))',
+                color: filterCategories.size > 0 ? 'var(--accent-blue)' : 'var(--text-muted)',
+                border: '1px solid',
+                borderColor: filterCategories.size > 0 ? 'color-mix(in srgb, var(--accent-blue) 40%, transparent)' : 'var(--border-subtle)',
+              }}
+            >
+              <Filter size={13} />
+              Categories
+              {filterCategories.size > 0 && (
+                <span
+                  className="inline-flex items-center justify-center w-4.5 h-4.5 rounded-full text-[10px] font-bold"
+                  style={{ background: 'var(--accent-blue)', color: '#fff', minWidth: 18, height: 18, padding: '0 4px' }}
+                >
+                  {filterCategories.size}
+                </span>
+              )}
+            </button>
+
+            {showFilterDropdown && (
+              <div
+                className="absolute z-30 mt-1.5 rounded-xl shadow-2xl py-2 overflow-y-auto"
+                style={{
+                  background: 'var(--bg-card, #111827)',
+                  border: '1px solid var(--border-default)',
+                  minWidth: 240,
+                  maxHeight: 380,
+                  left: 0,
+                }}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pb-1.5 mb-1" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>
+                  Filter by category
+                </p>
+                {STATEMENT_CATEGORIES.map(c => {
+                  const isParentActive = filterCategories.has(c.key)
+                  const hasActiveSubs = c.subCategories.some(s => filterCategories.has(s.key))
+                  const isExpanded = expandedFilterParent === c.key
+                  const hasMultipleSubs = c.subCategories.length > 1
+                  return (
+                    <div key={c.key}>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => toggleFilterCategory(c.key)}
+                          className="flex-1 flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors duration-100 hover:bg-white/5"
+                          style={{
+                            color: isParentActive ? c.color : 'var(--text-primary)',
+                            background: isParentActive ? c.color + '18' : 'transparent',
+                          }}
+                        >
+                          <span
+                            className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center transition-all duration-100"
+                            style={{
+                              border: '1.5px solid',
+                              borderColor: isParentActive ? c.color : 'var(--border-subtle)',
+                              background: isParentActive ? c.color + '30' : 'transparent',
+                            }}
+                          >
+                            {isParentActive && (
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                          <span className="font-medium truncate">{c.label}</span>
+                        </button>
+                        {hasMultipleSubs && (
+                          <button
+                            onClick={() => setExpandedFilterParent(isExpanded ? null : c.key)}
+                            className="px-2 py-1.5 transition-colors hover:bg-white/5"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Show subcategories"
+                          >
+                            <ChevronRight
+                              size={12}
+                              style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s' }}
+                            />
+                          </button>
+                        )}
+                      </div>
+                      {isExpanded && c.subCategories.filter(s => s.key !== c.key + '_general').map(sub => {
+                        const isSubActive = filterCategories.has(sub.key)
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => toggleFilterCategory(sub.key)}
+                            className="w-full flex items-center gap-2 pl-9 pr-3 py-1 text-left text-[11px] transition-colors duration-100 hover:bg-white/5"
+                            style={{
+                              color: isSubActive ? sub.color : 'var(--text-secondary)',
+                              background: isSubActive ? sub.color + '18' : 'transparent',
+                            }}
+                          >
+                            <span
+                              className="w-3 h-3 rounded flex-shrink-0 flex items-center justify-center transition-all duration-100"
+                              style={{
+                                border: '1.5px solid',
+                                borderColor: isSubActive ? sub.color : 'var(--border-subtle)',
+                                background: isSubActive ? sub.color + '30' : 'transparent',
+                              }}
+                            >
+                              {isSubActive && (
+                                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sub.color }} />
+                            <span className="truncate">{sub.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+                {filterCategories.size > 0 && (
+                  <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    <button
+                      onClick={() => setFilterCategories(new Set())}
+                      className="text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
+                      style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
+                    >
+                      Clear category filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {uniqueAccounts.length > 1 && (
             <select
               value={filterAccount}
@@ -243,6 +397,64 @@ export default function TransactionTable({
             </select>
           )}
         </div>
+
+        {/* Active category filter pills */}
+        {filterCategories.size > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[...filterCategories].map(key => {
+              // Check if it's a parent key or sub key
+              const parentCfg = STATEMENT_CATEGORIES.find(c => c.key === key)
+              if (parentCfg) {
+                return (
+                  <span
+                    key={key}
+                    className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full text-xs font-medium transition-all duration-150"
+                    style={{
+                      background: parentCfg.color + '15',
+                      border: '1px solid ' + parentCfg.color + '30',
+                      color: parentCfg.color,
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: parentCfg.color }} />
+                    {parentCfg.label}
+                    <button
+                      onClick={() => removeFilterCategory(key)}
+                      className="ml-0.5 p-0.5 rounded-full transition-colors hover:bg-white/10"
+                      style={{ color: parentCfg.color }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                )
+              }
+              const subCfg = findCategory(key)
+              if (subCfg) {
+                return (
+                  <span
+                    key={key}
+                    className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full text-xs font-medium transition-all duration-150"
+                    style={{
+                      background: subCfg.color + '15',
+                      border: '1px solid ' + subCfg.color + '30',
+                      color: subCfg.color,
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: subCfg.color }} />
+                    {subCfg.label}
+                    <button
+                      onClick={() => removeFilterCategory(key)}
+                      className="ml-0.5 p-0.5 rounded-full transition-colors hover:bg-white/10"
+                      style={{ color: subCfg.color }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                )
+              }
+              return null
+            })}
+          </div>
+        )}
 
         {/* Row 2: amount range + count + clear */}
         <div className="flex flex-wrap gap-2 items-center">
