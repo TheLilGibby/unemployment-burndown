@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
 import { useDragReorder } from '../../hooks/useDragReorder'
@@ -16,12 +17,44 @@ function TrashIcon() {
 
 export default function ExpensePanel({ expenses, onChange, people = [], filterPersonId = null }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(expenses, onChange)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkCategory, setBulkCategory] = useState('')
+
+  function toggleSelected(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === expenses.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(expenses.map(e => e.id)))
+    }
+  }
+
+  function applyBulkCategory() {
+    if (!bulkCategory.trim() || selectedIds.size === 0) return
+    onChange(expenses.map(e => selectedIds.has(e.id) ? { ...e, category: bulkCategory.trim() } : e))
+    setSelectedIds(new Set())
+    setBulkCategory('')
+  }
 
   function updateExpense(id, field, val) {
     onChange(expenses.map(e => e.id === id ? { ...e, [field]: val } : e))
   }
 
   function deleteExpense(id) {
+    setSelectedIds(prev => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
     onChange(expenses.filter(e => e.id !== id))
   }
 
@@ -34,8 +67,47 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
 
   return (
     <div className="space-y-3">
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 bg-blue-900/30 border border-blue-600/40 rounded-lg px-3 py-2">
+          <span className="text-xs text-blue-300 font-medium whitespace-nowrap">
+            {selectedIds.size} selected
+          </span>
+          <input
+            type="text"
+            value={bulkCategory}
+            onChange={e => setBulkCategory(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && applyBulkCategory()}
+            placeholder="New category name..."
+            className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500"
+          />
+          <button
+            onClick={applyBulkCategory}
+            disabled={!bulkCategory.trim()}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          >
+            Update Category
+          </button>
+          <button
+            onClick={() => { setSelectedIds(new Set()); setBulkCategory('') }}
+            className="text-gray-400 hover:text-white transition-colors text-xs"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Column headers — desktop only */}
-      <div className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1" style={{ gridTemplateColumns: '20px 1fr 110px 80px 32px 32px 32px' }}>
+      <div className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1" style={{ gridTemplateColumns: '24px 20px 1fr 110px 80px 32px 32px 32px' }}>
+        <span className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={expenses.length > 0 && selectedIds.size === expenses.length}
+            onChange={toggleSelectAll}
+            className="accent-blue-500 cursor-pointer"
+            title="Select all"
+          />
+        </span>
         <span></span>
         <span>Category</span>
         <span>Monthly</span>
@@ -61,8 +133,16 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
             } ${dimmed ? 'opacity-25' : ''}`}
             {...getItemProps(expense.id)}
           >
-            {/* Subrow 1: drag · category name */}
+            {/* Subrow 1: checkbox · drag · category name */}
             <div className="flex items-center gap-2 sm:contents">
+              <div className="flex items-center justify-center flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(expense.id)}
+                  onChange={() => toggleSelected(expense.id)}
+                  className="accent-blue-500 cursor-pointer"
+                />
+              </div>
               <div
                 className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
                 {...dragHandleProps(expense.id)}
