@@ -4,9 +4,33 @@ import {
   ResponsiveContainer, CartesianGrid, ReferenceLine,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
-import { getParentCategoryKey } from '../../constants/categories'
+import { getParentCategoryKey, STATEMENT_CATEGORIES } from '../../constants/categories'
+
+const CATEGORY_LABEL = Object.fromEntries(
+  STATEMENT_CATEGORIES.map(c => [c.key, c.label])
+)
+const CATEGORY_COLOR = Object.fromEntries(
+  STATEMENT_CATEGORIES.map(c => [c.key, c.color])
+)
 
 const RETAINED_CATEGORIES = new Set(['investments', 'transfer', 'ccPayment'])
+
+function CategoryBreakdown({ categories, fallbackColor }) {
+  if (!categories?.length) return null
+  return (
+    <div className="ml-2 mt-0.5 mb-0.5 space-y-0.5" style={{ borderLeft: '2px solid #374151', paddingLeft: 8 }}>
+      {categories.map(c => (
+        <div key={c.key} className="flex justify-between gap-3 text-xs" style={{ color: '#9ca3af' }}>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: CATEGORY_COLOR[c.key] || fallbackColor }} />
+            {CATEGORY_LABEL[c.key] || c.key}
+          </span>
+          <span className="font-medium whitespace-nowrap">{formatCurrency(c.amount)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -14,7 +38,7 @@ function CustomTooltip({ active, payload, label }) {
   if (!d) return null
   return (
     <div
-      className="rounded-xl px-3 py-2.5 shadow-2xl min-w-[200px]"
+      className="rounded-xl px-3 py-2.5 shadow-2xl min-w-[220px] max-w-[320px]"
       style={{ background: '#111827', border: '1px solid #374151' }}
     >
       <p className="text-sm font-semibold text-white mb-1.5">{label}</p>
@@ -25,12 +49,14 @@ function CustomTooltip({ active, payload, label }) {
             {formatCurrency(d.inflow)}
           </span>
         </div>
+        <CategoryBreakdown categories={d.incomeCategories} fallbackColor="#34d399" />
         <div className="flex justify-between gap-4 text-xs">
           <span style={{ color: '#fca5a5' }}>True Expenses</span>
           <span className="font-semibold" style={{ color: '#f87171' }}>
             {formatCurrency(Math.abs(d.trueExpenses))}
           </span>
         </div>
+        <CategoryBreakdown categories={d.expenseCategories} fallbackColor="#f87171" />
         <div className="flex justify-between gap-4 text-xs">
           <span style={{ color: '#93c5fd' }}>Retained (Investments/Transfers)</span>
           <span className="font-semibold" style={{ color: '#60a5fa' }}>
@@ -62,17 +88,20 @@ export default function MonthlySpendingBarChart({ transactions = [], creditCards
       if (!month) continue
 
       if (!byMonth[month]) {
-        byMonth[month] = { inflow: 0, trueExpenses: 0, retained: 0 }
+        byMonth[month] = { inflow: 0, trueExpenses: 0, retained: 0, incomeByCategory: {}, expenseByCategory: {} }
       }
 
+      const parentKey = getParentCategoryKey(txn.category)
       if (txn.amount < 0) {
-        byMonth[month].inflow += Math.abs(txn.amount)
+        const abs = Math.abs(txn.amount)
+        byMonth[month].inflow += abs
+        byMonth[month].incomeByCategory[parentKey] = (byMonth[month].incomeByCategory[parentKey] || 0) + abs
       } else if (txn.amount > 0) {
-        const parentKey = getParentCategoryKey(txn.category)
         if (RETAINED_CATEGORIES.has(parentKey)) {
           byMonth[month].retained += txn.amount
         } else {
           byMonth[month].trueExpenses += txn.amount
+          byMonth[month].expenseByCategory[parentKey] = (byMonth[month].expenseByCategory[parentKey] || 0) + txn.amount
         }
       }
     }
@@ -84,12 +113,19 @@ export default function MonthlySpendingBarChart({ transactions = [], creditCards
         const [yr, mo] = month.split('-')
         const label = new Date(Number(yr), Number(mo) - 1)
           .toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+        const sortedCategories = (obj) =>
+          Object.entries(obj)
+            .map(([key, val]) => ({ key, amount: Math.round(val) }))
+            .filter(c => c.amount > 0)
+            .sort((a, b) => b.amount - a.amount)
         return {
           month: label,
           inflow: Math.round(d.inflow),
           trueExpenses: Math.round(-d.trueExpenses),
           retained: Math.round(-d.retained),
           net: Math.round(d.inflow - d.trueExpenses - d.retained),
+          incomeCategories: sortedCategories(d.incomeByCategory),
+          expenseCategories: sortedCategories(d.expenseByCategory),
         }
       })
   }, [transactions])
