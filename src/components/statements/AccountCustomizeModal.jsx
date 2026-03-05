@@ -71,7 +71,7 @@ function AccountCustomizeRow({ account, customization, onChange, people, isDepos
     >
       {/* Account type icon */}
       {isDepository
-        ? <Landmark size={14} style={{ color: 'var(--accent-emerald)' }} className="shrink-0" />
+        ? <Landmark size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
         : <CreditCard size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
       }
 
@@ -88,7 +88,7 @@ function AccountCustomizeRow({ account, customization, onChange, people, isDepos
               className="text-xs bg-transparent border-b outline-none w-full"
               style={{ color: 'var(--text-primary)', borderColor: 'var(--accent-blue)' }}
             />
-            <button onClick={saveNickname} className="p-0.5 rounded" style={{ color: 'var(--accent-emerald)' }}>
+            <button onClick={saveNickname} className="p-0.5 rounded" style={{ color: 'var(--accent-blue)' }}>
               <Check size={12} />
             </button>
           </div>
@@ -134,7 +134,7 @@ function AccountCustomizeRow({ account, customization, onChange, people, isDepos
       {/* Balance */}
       <span
         className="text-xs font-semibold tabular-nums shrink-0"
-        style={{ color: isDepository ? 'var(--accent-emerald)' : 'var(--text-primary)' }}
+        style={{ color: 'var(--text-primary)' }}
       >
         {formatCurrency(Math.abs(account.balance || account.amount || 0))}
       </span>
@@ -248,7 +248,7 @@ export default function AccountCustomizeModal({
               {bankAccounts.length > 0 && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
-                    <Landmark size={12} style={{ color: 'var(--accent-emerald)' }} />
+                    <Landmark size={12} style={{ color: 'var(--text-muted)' }} />
                     <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                       Banking
                     </span>

@@ -98,7 +98,7 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
               {person ? (
                 <PersonAvatar person={person} />
               ) : isPlaid && stmt.accountType === 'depository' ? (
-                <Landmark size={18} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
+                <Landmark size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
               ) : (
                 <UserBadge user={user} />
               )}

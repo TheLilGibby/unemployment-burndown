@@ -72,10 +72,10 @@ function AccountRow({ item, isSelected, onSelect, isDepository, customization, p
         <div className="flex items-center gap-1.5 mt-0.5">
           {isDepository && item.subtype && (
             <span
-              className="px-1 py-0 rounded text-[9px] font-semibold uppercase tracking-wide"
+              className="px-1 py-0 rounded text-[10px] font-semibold uppercase tracking-wide"
               style={{
-                background: 'color-mix(in srgb, var(--accent-emerald) 15%, transparent)',
-                color: 'var(--accent-emerald)',
+                background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
+                color: 'var(--text-muted)',
               }}
             >
               {item.subtype}
@@ -97,7 +97,7 @@ function AccountRow({ item, isSelected, onSelect, isDepository, customization, p
       </div>
       <span
         className="text-xs font-semibold tabular-nums shrink-0"
-        style={{ color: isDepository ? 'var(--accent-emerald)' : 'var(--text-primary)' }}
+        style={{ color: 'var(--text-primary)' }}
       >
         {formatCurrency(Math.abs(item.balance || 0))}
       </span>
@@ -362,10 +362,10 @@ export default function AccountsSidebar({
         <AccountGroup
           label="Banking"
           icon={Landmark}
-          iconColor="var(--accent-emerald)"
+          iconColor="var(--text-muted)"
           items={visibleBankAccounts}
           subtotal={bankSubtotal}
-          subtotalColor="var(--accent-emerald)"
+          subtotalColor="var(--text-primary)"
           selectedCardId={selectedCardId}
           onSelectCard={onSelectCard}
           isDepository={true}
@@ -554,9 +554,9 @@ export default function AccountsSidebar({
               }}
             >
               {person && <PersonBadge person={person} />}
-              <Landmark size={12} style={{ color: 'var(--accent-emerald)' }} />
+              <Landmark size={12} style={{ color: 'var(--text-muted)' }} />
               <span className="truncate max-w-[120px]">{displayName}</span>
-              <span className="text-[10px]" style={{ color: 'var(--accent-emerald)' }}>{formatCurrency(item.balance || 0)}</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{formatCurrency(item.balance || 0)}</span>
             </button>
           )
         })}

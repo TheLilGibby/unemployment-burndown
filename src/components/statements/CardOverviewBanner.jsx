@@ -190,7 +190,7 @@ export default function CardOverviewBanner({
               >
                 {/* Type icon — always on the left */}
                 {item.isDepository ? (
-                  <Landmark size={16} strokeWidth={1.75} style={{ color: 'var(--accent-emerald)' }} />
+                  <Landmark size={16} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
                 ) : (
                   <CreditCard size={16} strokeWidth={1.75} />
                 )}
@@ -236,14 +236,14 @@ export default function CardOverviewBanner({
                         <span
                           className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
                           style={{
-                            background: 'color-mix(in srgb, var(--accent-emerald) 15%, transparent)',
-                            color: 'var(--accent-emerald)',
+                            background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
+                            color: 'var(--text-muted)',
                           }}
                         >
                           {item.subtype}
                         </span>
                       )}
-                      <span style={{ color: item.isDepository ? 'var(--accent-emerald)' : undefined }}>
+                      <span style={{ color: item.isDepository ? 'var(--text-primary)' : undefined }}>
                         {formatCurrency(item.balance || 0)}
                       </span>
                       {utilPct !== null && (
@@ -347,7 +347,7 @@ export default function CardOverviewBanner({
           {bankAccounts.length > 0 && (
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Bank balance: </span>
-              <span className="font-semibold" style={{ color: 'var(--accent-emerald)' }}>
+              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {formatCurrency(bankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0))}
               </span>
             </div>
