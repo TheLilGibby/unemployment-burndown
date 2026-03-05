@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, X, Tag, EyeOff, Eye, Link2, Unlink, Filter } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, X, Tag, EyeOff, Eye, Link2, Unlink, Search, ChevronDown } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
@@ -9,6 +9,30 @@ import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
 
 /* ───────── helpers ───────── */
+
+const RECENT_CATEGORIES_KEY = 'burndown_recent_categories'
+const MAX_RECENT_CATEGORIES = 5
+
+function loadRecentCategoryKeys() {
+  try {
+    const raw = localStorage.getItem(RECENT_CATEGORIES_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentCategoryKey(categoryKey) {
+  try {
+    const current = loadRecentCategoryKeys()
+    const deduped = [categoryKey, ...current.filter(k => k !== categoryKey)]
+    const trimmed = deduped.slice(0, MAX_RECENT_CATEGORIES)
+    localStorage.setItem(RECENT_CATEGORIES_KEY, JSON.stringify(trimmed))
+    return trimmed
+  } catch {
+    return [categoryKey]
+  }
+}
 
 function filterByRange(transactions, start, end) {
   return transactions.filter(txn => {
@@ -37,7 +61,9 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
   const resolvedOriginal = resolveCategory(transaction.category || 'other_general')
   const [editCategory, setEditCategory] = useState(resolvedOriginal)
   const [excluded, setExcluded] = useState(!!transaction.excluded)
-  const hasChanges = editCategory !== resolvedOriginal || excluded !== !!transaction.excluded
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
+  const hasChanges = editCategory !== (transaction.category || 'other') || excluded !== !!transaction.excluded
   const { addToast } = useToast()
 
   const handleSave = () => {
@@ -63,6 +89,15 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
   const cat = findCategory(editCategory)
 
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch.trim()) return STATEMENT_CATEGORIES
+    const q = categorySearch.toLowerCase()
+    return STATEMENT_CATEGORIES.filter(c =>
+      c.label.toLowerCase().includes(q) ||
+      c.subCategories?.some(s => s.label.toLowerCase().includes(q))
+    )
+  }, [categorySearch])
+
   return (
     <>
       {/* Backdrop */}
@@ -74,7 +109,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
       {/* Drawer */}
       <div
-        className="fixed top-0 right-0 bottom-0 z-50 overflow-y-auto"
+        className="fixed top-0 right-0 bottom-0 z-50 flex flex-col"
         style={{
           width: 'min(380px, 90vw)',
           background: 'var(--bg-card, #111827)',
@@ -85,8 +120,8 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
       >
         {/* Header */}
         <div
-          className="sticky top-0 flex items-center justify-between px-4 py-3"
-          style={{ background: 'var(--bg-card, #111827)', borderBottom: '1px solid var(--border-subtle)', zIndex: 1 }}
+          className="flex items-center justify-between px-4 py-2.5"
+          style={{ background: 'var(--bg-card, #111827)', borderBottom: '1px solid var(--border-subtle)' }}
         >
           <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transaction Detail</h3>
           <button
@@ -98,50 +133,54 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
           </button>
         </div>
 
-        <div className="p-4 space-y-3">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {/* Amount */}
-          <div className="text-center py-2">
+          <div className="text-center py-1">
             <p
-              className="text-3xl font-bold tabular-nums"
+              className="text-2xl font-bold tabular-nums"
               style={{ color: transaction.amount < 0 ? 'var(--accent-emerald)' : 'var(--text-primary)' }}
             >
               {transaction.amount < 0 ? '-' : ''}{formatCurrency(Math.abs(transaction.amount))}
             </p>
             {excluded && (
-              <span className="inline-flex items-center gap-1 text-xs mt-1 px-2 py-0.5 rounded-full" style={{ background: '#ef444420', color: '#ef4444' }}>
-                <EyeOff size={10} /> Excluded from totals
+              <span className="inline-flex items-center gap-1 text-[10px] mt-0.5 px-2 py-0.5 rounded-full" style={{ background: '#ef444420', color: '#ef4444' }}>
+                <EyeOff size={9} /> Excluded
               </span>
             )}
           </div>
 
-          {/* Details grid */}
-          <div className="space-y-2">
+          {/* Details — Apple Settings-style inline rows */}
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-subtle, rgba(255,255,255,0.04))' }}>
             <DetailRow label="Merchant" value={transaction.merchantName || '—'} />
             <DetailRow label="Description" value={transaction.description || '—'} mono />
             <DetailRow
               label="Date"
               value={transaction.date
-                ? new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })
+                ? new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
                 : '—'
               }
             />
             {transaction.pending && (
-              <DetailRow label="Status" value="Pending" color="#eab308" />
+              <DetailRow label="Status" value="Pending" color="#eab308" last />
             )}
           </div>
 
           {/* Link to overview item */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: 'var(--text-muted)' }}>
-              <Link2 size={11} className="inline mr-1" style={{ verticalAlign: 'middle' }} />
-              Linked Item
-            </label>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+              <span className="text-[9px] font-medium uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-faint)' }}>
+                <Link2 size={9} /> Linked Item
+              </span>
+              <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+            </div>
             {linkedItem ? (
               <div
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg"
                 style={{ background: 'color-mix(in srgb, var(--accent-blue) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)' }}
               >
-                <Link2 size={13} style={{ color: 'var(--accent-blue)' }} />
+                <Link2 size={12} style={{ color: 'var(--accent-blue)' }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                     {linkedItem.description}
@@ -162,7 +201,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
             ) : (
               <button
                 onClick={() => onOpenLinkModal?.(transaction)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
                 style={{
                   color: 'var(--accent-blue)',
                   border: '1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)',
@@ -176,18 +215,37 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
           {/* Category selector */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              <Tag size={11} className="inline mr-1" style={{ verticalAlign: 'middle' }} />
-              Category
-            </label>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+              <span className="text-[9px] font-medium uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-faint)' }}>
+                <Tag size={9} /> Category
+              </span>
+              <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+            </div>
+
+            {/* Current selection chip */}
+            {cat && (
+              <div
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg mb-2"
+                style={{ background: cat.color + '12', border: '1px solid ' + cat.color + '30' }}
+              >
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cat.color }} />
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{cat.label}</span>
+                {editCategory !== (transaction.category || 'other') && (
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
+                    changed
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Recently used categories */}
             {recentCategories.length > 0 && (
               <div className="mb-2">
-                <p className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1" style={{ color: 'var(--text-faint)' }}>
+                <p className="text-[10px] font-medium uppercase tracking-wider mb-1 px-0.5" style={{ color: 'var(--text-faint)' }}>
                   Recent
                 </p>
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <div className="flex flex-wrap gap-1.5">
                   {recentCategories.map(rc => {
                     const isSelected = editCategory === rc.key
                     return (
@@ -208,97 +266,128 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
                     )
                   })}
                 </div>
-                <div className="h-px mb-2" style={{ background: 'var(--border-subtle)' }} />
               </div>
             )}
 
-            <div className="space-y-0.5">
-              {STATEMENT_CATEGORIES.map(c => {
-                const generalKey = c.key + '_general'
-                const editParent = getParentCategoryKey(editCategory)
-                const isParentSelected = editParent === c.key
-                const isGeneralSelected = editCategory === generalKey
-                return (
-                  <div key={c.key}>
-                    <button
-                      onClick={() => setEditCategory(generalKey)}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all duration-100"
-                      style={{
-                        background: isGeneralSelected ? c.color + '18' : 'transparent',
-                        border: '1px solid',
-                        borderColor: isGeneralSelected ? c.color + '60' : 'transparent',
-                        color: isGeneralSelected ? '#f9fafb' : 'var(--text-muted)',
-                      }}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
-                      <span className="font-medium">{c.label}</span>
-                      {isGeneralSelected && generalKey !== resolvedOriginal && (
-                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
-                          new
-                        </span>
-                      )}
-                    </button>
-                    {isParentSelected && c.subCategories.filter(s => s.key !== generalKey).length > 0 && (
-                      <div className="ml-5 mt-1 mb-1 space-y-1">
-                        {c.subCategories.filter(s => s.key !== generalKey).map(sub => (
-                          <button
-                            key={sub.key}
-                            onClick={() => setEditCategory(sub.key)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-sm transition-all duration-100"
-                            style={{
-                              background: editCategory === sub.key ? sub.color + '18' : 'transparent',
-                              border: '1px solid',
-                              borderColor: editCategory === sub.key ? sub.color + '60' : 'transparent',
-                              color: editCategory === sub.key ? '#f9fafb' : 'var(--text-muted)',
-                            }}
-                          >
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: sub.color }} />
-                            <span className="font-medium">{sub.label}</span>
-                            {editCategory === sub.key && sub.key !== resolvedOriginal && (
-                              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
-                                new
-                              </span>
-                            )}
-                          </button>
-                        ))}
+            {/* Collapsible all-categories picker */}
+            <button
+              onClick={() => { setCategoryPickerOpen(!categoryPickerOpen); setCategorySearch('') }}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-100"
+              style={{
+                background: 'var(--bg-subtle, rgba(255,255,255,0.06))',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <span>All Categories</span>
+              <ChevronDown
+                size={14}
+                style={{
+                  transition: 'transform 0.15s ease',
+                  transform: categoryPickerOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              />
+            </button>
+
+            {categoryPickerOpen && (
+              <div className="mt-1.5 space-y-1.5" style={{ animation: 'fadeIn 0.15s ease-out' }}>
+                {/* Search */}
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                  style={{ background: 'var(--bg-subtle, rgba(255,255,255,0.06))', border: '1px solid var(--border-subtle)' }}
+                >
+                  <Search size={12} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    value={categorySearch}
+                    onChange={e => setCategorySearch(e.target.value)}
+                    placeholder="Search categories..."
+                    className="flex-1 bg-transparent text-xs outline-none"
+                    style={{ color: 'var(--text-primary)' }}
+                    autoFocus
+                  />
+                </div>
+
+                {/* 2-column grid */}
+                <div className="grid grid-cols-2 gap-1">
+                  {filteredCategories.map(c => {
+                    const isSelected = editCategory === c.key
+                    const isSubSelected = c.subCategories?.some(s => s.key === editCategory)
+                    return (
+                      <div key={c.key} className={c.subCategories && (isSelected || isSubSelected) ? 'col-span-2' : ''}>
+                        <button
+                          onClick={() => { setEditCategory(c.key); if (!c.subCategories) setCategoryPickerOpen(false) }}
+                          className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all duration-100"
+                          style={{
+                            background: isSelected ? c.color + '18' : 'transparent',
+                            border: '1px solid',
+                            borderColor: isSelected ? c.color + '60' : 'transparent',
+                            color: isSelected ? '#f9fafb' : 'var(--text-muted)',
+                          }}
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                          <span className="font-medium truncate">{c.label}</span>
+                        </button>
+                        {c.subCategories && (isSelected || isSubSelected) && (
+                          <div className="grid grid-cols-3 gap-1 mt-1 mb-1 ml-3">
+                            {c.subCategories.map(sub => (
+                              <button
+                                key={sub.key}
+                                onClick={() => { setEditCategory(sub.key); setCategoryPickerOpen(false) }}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-left text-[11px] transition-all duration-100"
+                                style={{
+                                  background: editCategory === sub.key ? sub.color + '18' : 'transparent',
+                                  border: '1px solid',
+                                  borderColor: editCategory === sub.key ? sub.color + '60' : 'var(--border-subtle)',
+                                  color: editCategory === sub.key ? '#f9fafb' : 'var(--text-muted)',
+                                }}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sub.color }} />
+                                <span className="font-medium">{sub.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Exclude toggle */}
           <div
-            className="flex items-center justify-between px-3 py-2.5 rounded-lg"
+            className="flex items-center justify-between px-2.5 py-2 rounded-lg"
             style={{ border: '1px solid var(--border-subtle)' }}
           >
             <div className="flex items-center gap-2">
-              {excluded ? <EyeOff size={14} style={{ color: '#ef4444' }} /> : <Eye size={14} style={{ color: 'var(--text-muted)' }} />}
-              <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Exclude from totals</span>
+              {excluded ? <EyeOff size={13} style={{ color: '#ef4444' }} /> : <Eye size={13} style={{ color: 'var(--text-muted)' }} />}
+              <span className="text-xs" style={{ color: 'var(--text-primary)' }}>Exclude from totals</span>
             </div>
             <button
               onClick={() => setExcluded(!excluded)}
-              className="relative w-10 h-5 rounded-full transition-colors duration-200"
+              className="relative w-9 h-[18px] rounded-full transition-colors duration-200"
               style={{ background: excluded ? '#ef4444' : 'var(--border-subtle)' }}
             >
               <span
-                className="absolute top-0.5 w-4 h-4 rounded-full transition-transform duration-200"
+                className="absolute top-[2px] w-[14px] h-[14px] rounded-full transition-transform duration-200"
                 style={{
                   background: '#fff',
                   left: 2,
-                  transform: excluded ? 'translateX(20px)' : 'translateX(0)',
+                  transform: excluded ? 'translateX(18px)' : 'translateX(0)',
                 }}
               />
             </button>
           </div>
+        </div>
 
-          {/* Save button */}
+        {/* Sticky save button */}
+        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-card, #111827)' }}>
           <button
             onClick={handleSave}
             disabled={!hasChanges}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-150"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-150"
             style={{
               background: hasChanges ? 'var(--accent-blue)' : 'var(--bg-subtle)',
               color: hasChanges ? '#fff' : 'var(--text-muted)',
@@ -316,21 +405,28 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
           from { transform: translateX(100%); opacity: 0.8; }
           to   { transform: translateX(0);    opacity: 1; }
         }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
     </>
   )
 }
 
-function DetailRow({ label, value, mono, color }) {
+function DetailRow({ label, value, mono, color, last }) {
   return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p
-        className={`text-sm ${mono ? 'font-mono' : ''}`}
+    <div
+      className="flex items-baseline justify-between px-3 py-2"
+      style={{ borderBottom: last ? 'none' : '1px solid var(--border-subtle)' }}
+    >
+      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span
+        className={`text-xs font-medium text-right max-w-[60%] ${mono ? 'font-mono' : ''}`}
         style={{ color: color || 'var(--text-primary)', wordBreak: 'break-word' }}
       >
         {value}
-      </p>
+      </span>
     </div>
   )
 }
@@ -726,23 +822,14 @@ export default function CategoryExplorer({
 
   const hasLinking = !!(onLinkTransaction && (oneTimePurchases.length || oneTimeExpenses.length || oneTimeIncome.length))
 
-  // Compute recently used categories (last 3 distinct) from most recent transactions
+  // Persist recently used categories to localStorage
+  const [recentCategoryKeys, setRecentCategoryKeys] = useState(loadRecentCategoryKeys)
+
   const recentCategories = useMemo(() => {
-    const sorted = [...transactions]
-      .filter(t => t.date && t.category)
-      .sort((a, b) => b.date.localeCompare(a.date))
-    const seen = new Set()
-    const result = []
-    for (const txn of sorted) {
-      const key = txn.category
-      if (seen.has(key)) continue
-      seen.add(key)
-      const cfg = findCategory(key)
-      if (cfg) result.push(cfg)
-      if (result.length >= 3) break
-    }
-    return result
-  }, [transactions])
+    return recentCategoryKeys
+      .map(key => findCategory(key))
+      .filter(Boolean)
+  }, [recentCategoryKeys])
 
   // Build a lookup for overview items by key
   const overviewItemsByKey = useMemo(() => {
@@ -793,6 +880,11 @@ export default function CategoryExplorer({
 
   const handleTransactionUpdate = useCallback((txnId, updates, statementId) => {
     if (onTransactionUpdate) onTransactionUpdate(txnId, updates, statementId)
+    // Persist recently used category to localStorage
+    if (updates.category) {
+      const newKeys = saveRecentCategoryKey(updates.category)
+      setRecentCategoryKeys(newKeys)
+    }
     // Update the selected transaction locally so the UI reflects changes immediately
     setSelectedTxn(prev => prev?.id === txnId ? { ...prev, ...updates } : prev)
   }, [onTransactionUpdate])
