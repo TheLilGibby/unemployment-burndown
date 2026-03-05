@@ -89,6 +89,7 @@ export default function NetPositionChart({ dataPoints }) {
         ))}
       </div>
 
+      <div className="sensitive-chart">
       <ResponsiveContainer width="100%" height={340}>
         <ComposedChart data={data} margin={{ top: 10, right: 15, left: 10, bottom: 5 }}>
           <defs>
@@ -164,6 +165,7 @@ export default function NetPositionChart({ dataPoints }) {
           <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="4 2" opacity={0.6} />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-3 text-xs">

@@ -28,7 +28,7 @@ export default function TaxComparisonChart({ scenarios }) {
   }))
 
   return (
-    <div style={{ width: '100%', height: 280 }}>
+    <div className="sensitive-chart" style={{ width: '100%', height: 280 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
           <XAxis

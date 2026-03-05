@@ -157,7 +157,7 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total improvements: </span>
-            <span className="text-amber-300 font-semibold">{formatCurrency(total)}</span>
+            <span className="text-amber-300 font-semibold sensitive">{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>
@@ -176,7 +176,7 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
             return entries.map(([label, amt]) => (
               <div key={label}>
                 <span className="text-gray-500">{label}: </span>
-                <span className="text-amber-300/80 font-medium">{formatCurrency(amt)}</span>
+                <span className="text-amber-300/80 font-medium sensitive">{formatCurrency(amt)}</span>
               </div>
             ))
           })()}

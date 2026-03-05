@@ -220,15 +220,15 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
         <div>
           <span className="text-gray-500">Total monthly: </span>
-          <span className="text-white font-semibold">{formatCurrency(totalMonthly)}/mo</span>
+          <span className="text-white font-semibold sensitive">{formatCurrency(totalMonthly)}/mo</span>
         </div>
         <div>
           <span className="text-gray-500">Essential: </span>
-          <span className="text-blue-300 font-semibold">{formatCurrency(essentialTotal)}</span>
+          <span className="text-blue-300 font-semibold sensitive">{formatCurrency(essentialTotal)}</span>
         </div>
         <div>
           <span className="text-gray-500">Discretionary: </span>
-          <span className="text-gray-300 font-semibold">{formatCurrency(totalMonthly - essentialTotal)}</span>
+          <span className="text-gray-300 font-semibold sensitive">{formatCurrency(totalMonthly - essentialTotal)}</span>
         </div>
       </div>
       <p className="text-xs text-gray-600">

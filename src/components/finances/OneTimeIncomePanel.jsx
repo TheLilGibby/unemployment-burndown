@@ -148,7 +148,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
         <div className="bg-emerald-900/20 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total injections: </span>
-            <span className="text-emerald-400 font-semibold">+{formatCurrency(total)}</span>
+            <span className="text-emerald-400 font-semibold sensitive">+{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>

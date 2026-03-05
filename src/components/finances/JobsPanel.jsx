@@ -261,7 +261,7 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
         <div className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm" style={{ background: 'color-mix(in srgb, var(--accent-emerald) 10%, transparent)' }}>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Active income: </span>
-            <span className="font-semibold" style={{ color: 'var(--accent-emerald)' }}>{formatCurrency(activeIncome)}/mo</span>
+            <span className="font-semibold sensitive" style={{ color: 'var(--accent-emerald)' }}>{formatCurrency(activeIncome)}/mo</span>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Jobs: </span>

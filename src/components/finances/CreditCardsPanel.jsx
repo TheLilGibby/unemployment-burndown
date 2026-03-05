@@ -365,12 +365,12 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
         >
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Balance owed: </span>
-            <span className="font-semibold" style={{ color: '#f87171' }}>{formatCurrency(totalBalance)}</span>
+            <span className="font-semibold sensitive" style={{ color: '#f87171' }}>{formatCurrency(totalBalance)}</span>
           </div>
           {totalLimit > 0 && (
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Total credit: </span>
-              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalLimit)}</span>
+              <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalLimit)}</span>
             </div>
           )}
           {overallUtil !== null && (
@@ -386,9 +386,9 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
           )}
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Payments: </span>
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalEffective)}/mo</span>
+            <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalEffective)}/mo</span>
             {totalEffective !== totalMinimum && (
-              <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>(min {formatCurrency(totalMinimum)})</span>
+              <span className="text-xs ml-1 sensitive" style={{ color: 'var(--text-muted)' }}>(min {formatCurrency(totalMinimum)})</span>
             )}
           </div>
           {avgApr !== null && (

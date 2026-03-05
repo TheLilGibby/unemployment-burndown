@@ -170,7 +170,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total purchases: </span>
-            <span className="text-red-300 font-semibold">{formatCurrency(total)}</span>
+            <span className="text-red-300 font-semibold sensitive">{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>
@@ -188,7 +188,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
             return entries.map(([medium, amt]) => (
               <div key={medium}>
                 <span className="text-gray-500">{medium}: </span>
-                <span className="text-red-300/80 font-medium">{formatCurrency(amt)}</span>
+                <span className="text-red-300/80 font-medium sensitive">{formatCurrency(amt)}</span>
               </div>
             ))
           })()}

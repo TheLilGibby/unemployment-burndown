@@ -189,7 +189,7 @@ export default function AdvertisingRevenuePanel({ value, onChange, people = [] }
             Advertising Costs
           </h3>
           {totalCosts > 0 && (
-            <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent-red)' }}>
+            <span className="text-xs font-semibold tabular-nums sensitive" style={{ color: 'var(--accent-red)' }}>
               -{formatCurrency(totalCosts)}/mo
             </span>
           )}
@@ -215,7 +215,7 @@ export default function AdvertisingRevenuePanel({ value, onChange, people = [] }
             Ad Revenue
           </h3>
           {totalRevenue > 0 && (
-            <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent-emerald)' }}>
+            <span className="text-xs font-semibold tabular-nums sensitive" style={{ color: 'var(--accent-emerald)' }}>
               +{formatCurrency(totalRevenue)}/mo
             </span>
           )}
@@ -245,19 +245,19 @@ export default function AdvertisingRevenuePanel({ value, onChange, people = [] }
           {totalCosts > 0 && (
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Ad spend: </span>
-              <span className="font-semibold" style={{ color: 'var(--accent-red)' }}>-{formatCurrency(totalCosts)}/mo</span>
+              <span className="font-semibold sensitive" style={{ color: 'var(--accent-red)' }}>-{formatCurrency(totalCosts)}/mo</span>
             </div>
           )}
           {totalRevenue > 0 && (
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Ad revenue: </span>
-              <span className="font-semibold" style={{ color: 'var(--accent-emerald)' }}>+{formatCurrency(totalRevenue)}/mo</span>
+              <span className="font-semibold sensitive" style={{ color: 'var(--accent-emerald)' }}>+{formatCurrency(totalRevenue)}/mo</span>
             </div>
           )}
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Net: </span>
             <span
-              className="font-semibold"
+              className="font-semibold sensitive"
               style={{ color: netRevenue >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)' }}
             >
               {netRevenue >= 0 ? '+' : ''}{formatCurrency(netRevenue)}/mo
