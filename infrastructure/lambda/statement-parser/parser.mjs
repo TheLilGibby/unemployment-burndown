@@ -7,12 +7,27 @@ const log = pino({ name: 'statement-parser' })
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-1' })
 const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-haiku-4-5-20251001-v1:0'
 
+// Two-tier subcategory keys — keep in sync with src/constants/categories.js
 const CATEGORIES = [
-  'dining', 'groceries', 'gas', 'travel', 'entertainment', 'shopping',
-  'subscriptions', 'health', 'utilities', 'transportation', 'education',
-  'personalCare', 'fees', 'homeImprovement', 'investments',
-  'investments_crypto', 'investments_retirement', 'investments_stocks',
-  'venmo', 'venmo_rent', 'venmo_bills', 'venmo_personal', 'other',
+  'dining_general', 'dining_coffee', 'dining_fastFood', 'dining_bars',
+  'groceries_general', 'groceries_delivery', 'groceries_alcohol',
+  'gas_general', 'gas_ev',
+  'travel_general', 'travel_flights', 'travel_lodging', 'travel_rentalCars',
+  'entertainment_general', 'entertainment_events', 'entertainment_gaming',
+  'shopping_general', 'shopping_online', 'shopping_clothing', 'shopping_electronics',
+  'subscriptions_general', 'subscriptions_streaming', 'subscriptions_software',
+  'health_general', 'health_dental', 'health_vision', 'health_pharmacy', 'health_fitness', 'health_veterinary',
+  'utilities_general', 'utilities_electric', 'utilities_internet', 'utilities_phone', 'utilities_water',
+  'transportation_general', 'transportation_rideshare', 'transportation_publicTransit', 'transportation_parking',
+  'education_general', 'education_tuition', 'education_books',
+  'personalCare_general', 'personalCare_hairBeauty', 'personalCare_laundry',
+  'fees_general', 'fees_bankFees', 'fees_interest', 'fees_lateFees',
+  'homeImprovement_general', 'homeImprovement_furniture', 'homeImprovement_hardware', 'homeImprovement_contractors',
+  'investments_general', 'investments_crypto', 'investments_retirement', 'investments_stocks',
+  'venmo_general', 'venmo_rent', 'venmo_bills', 'venmo_personal',
+  'payroll_general', 'payroll_wages', 'payroll_dividends',
+  'mortgage_general', 'rent_general', 'transfer_general',
+  'other_general', 'other_government', 'other_charity',
 ]
 
 const SYSTEM_PROMPT = `You are a credit card statement parser. Given the raw text of a credit card statement (from an email body or PDF), extract structured data.
@@ -41,30 +56,78 @@ Return ONLY valid JSON with this exact schema — no markdown, no explanation:
   "parsingConfidence": number between 0 and 1
 }
 
+Categories use a two-tier system: parentCategory_subCategory. Pick the most specific subcategory that fits. Use _general when no specific subcategory applies.
+
 Category guidelines:
-- dining: restaurants, cafes, coffee shops, fast food, bars
-- groceries: supermarkets, grocery stores, food delivery (groceries)
-- gas: gas stations, fuel
-- travel: airlines, hotels, car rentals, booking sites
-- entertainment: streaming, movies, concerts, games, sports
-- shopping: retail, online shopping, Amazon, department stores
-- subscriptions: recurring services, memberships, software subscriptions
-- health: pharmacy, doctor, dentist, gym, medical
-- utilities: electric, water, internet, phone, cable
-- transportation: rideshare, public transit, parking, tolls
-- education: tuition, books, courses, school supplies
-- personalCare: salon, spa, cosmetics, clothing care
-- fees: late fees, annual fees, interest charges, finance charges
-- homeImprovement: home improvement stores, furniture, hardware, contractors, renovations
-- investments: general investment transactions
-- investments_crypto: cryptocurrency purchases, exchanges (Coinbase, Binance, etc.)
+- dining_general: restaurants, takeout, food delivery
+- dining_coffee: coffee shops, cafes (Starbucks, Dunkin, etc.)
+- dining_fastFood: fast food chains and quick-service restaurants
+- dining_bars: bars, pubs, nightclubs
+- groceries_general: supermarkets, grocery stores
+- groceries_delivery: grocery delivery (Instacart, Amazon Fresh)
+- groceries_alcohol: liquor stores, wine shops, beer/wine/spirits from stores
+- gas_general: gas stations, fuel
+- gas_ev: EV charging stations
+- travel_general: travel agencies, booking services
+- travel_flights: airlines, air travel
+- travel_lodging: hotels, motels, Airbnb, lodging
+- travel_rentalCars: car rentals
+- entertainment_general: general entertainment and recreation
+- entertainment_events: concerts, sporting events, museums, amusement parks
+- entertainment_gaming: video games, gaming subscriptions and hardware
+- shopping_general: retail, department stores, miscellaneous shopping
+- shopping_online: Amazon, eBay, online marketplaces
+- shopping_clothing: clothing, shoes, jewelry, fashion accessories
+- shopping_electronics: electronics, computers, phones, tech accessories
+- subscriptions_general: general recurring subscriptions and memberships
+- subscriptions_streaming: Netflix, Spotify, streaming services
+- subscriptions_software: software subscriptions, SaaS, cloud services
+- health_general: doctor visits, general medical expenses
+- health_dental: dentists, orthodontists
+- health_vision: optometrists, glasses, contacts
+- health_pharmacy: pharmacies, prescriptions, medications
+- health_fitness: gyms, fitness centers, personal training
+- health_veterinary: veterinary services, pet healthcare
+- utilities_general: general utility bills
+- utilities_electric: electric and natural gas bills
+- utilities_internet: internet, cable, broadband
+- utilities_phone: cell phone, telephone service
+- utilities_water: water, sewer, waste management
+- transportation_general: general transportation
+- transportation_rideshare: Uber, Lyft, taxis
+- transportation_publicTransit: bus, subway, train
+- transportation_parking: parking fees, tolls
+- education_general: general educational expenses, courses
+- education_tuition: tuition, school fees
+- education_books: textbooks, school supplies, bookstores
+- personalCare_general: general personal care
+- personalCare_hairBeauty: salons, barbers, spas, beauty
+- personalCare_laundry: laundromats, dry cleaners
+- fees_general: general fees
+- fees_bankFees: ATM fees, overdraft fees, account fees
+- fees_interest: credit card interest, finance charges
+- fees_lateFees: late payment penalties
+- homeImprovement_general: general home improvement
+- homeImprovement_furniture: furniture, home decor
+- homeImprovement_hardware: hardware stores, tools, building materials
+- homeImprovement_contractors: contractors, renovation services
+- investments_general: general investment transactions
+- investments_crypto: cryptocurrency (Coinbase, Binance, etc.)
 - investments_retirement: 401k, IRA, pension contributions
-- investments_stocks: stock/ETF purchases, brokerage transactions (Fidelity, Schwab, etc.)
-- venmo: general Venmo, Zelle, CashApp, or other P2P transfers
-- venmo_rent: rent or mortgage payments made via Venmo/Zelle/P2P
-- venmo_bills: bill or utility payments made via Venmo/Zelle/P2P
-- venmo_personal: personal transfers, splitting costs, gifts via Venmo/Zelle/P2P
-- other: anything that doesn't fit above
+- investments_stocks: stocks, ETFs, brokerage (Fidelity, Schwab, etc.)
+- venmo_general: general Venmo, Zelle, CashApp, P2P transfers
+- venmo_rent: rent or mortgage via P2P
+- venmo_bills: bill payments via P2P
+- venmo_personal: personal transfers, splitting costs, gifts via P2P
+- payroll_general: general payroll and income
+- payroll_wages: wages, salary, hourly pay
+- payroll_dividends: dividends, interest income
+- mortgage_general: mortgage payments
+- rent_general: rent payments
+- transfer_general: internal account transfers
+- other_general: anything that doesn't fit above
+- other_government: tax payments, government fees
+- other_charity: donations, charitable contributions
 
 Important:
 - Amounts should be numbers (not strings). Charges are positive, refunds/credits are negative.
@@ -107,7 +170,7 @@ export async function parseStatementWithBedrock(textContent, senderInfo) {
   if (parsed.transactions) {
     parsed.transactions = parsed.transactions.map(txn => ({
       ...txn,
-      category: CATEGORIES.includes(txn.category) ? txn.category : 'other',
+      category: CATEGORIES.includes(txn.category) ? txn.category : 'other_general',
       amount: Number(txn.amount) || 0,
       isRefund: Boolean(txn.isRefund),
     }))

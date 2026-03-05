@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey, resolveCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
 
@@ -34,15 +34,16 @@ function MiniTooltip({ active, payload, label }) {
 /* ───────── Transaction Detail Drawer ───────── */
 
 function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [] }) {
-  const [editCategory, setEditCategory] = useState(transaction.category || 'other')
+  const resolvedOriginal = resolveCategory(transaction.category || 'other_general')
+  const [editCategory, setEditCategory] = useState(resolvedOriginal)
   const [excluded, setExcluded] = useState(!!transaction.excluded)
-  const hasChanges = editCategory !== (transaction.category || 'other') || excluded !== !!transaction.excluded
+  const hasChanges = editCategory !== resolvedOriginal || excluded !== !!transaction.excluded
   const { addToast } = useToast()
 
   const handleSave = () => {
     if (!hasChanges) { onClose(); return }
-    const oldCategory = transaction.category || 'other'
-    const categoryChanged = editCategory !== oldCategory
+    const oldCategory = transaction.category || 'other_general'
+    const categoryChanged = editCategory !== resolvedOriginal
     onUpdate(transaction.id, { category: editCategory, excluded }, transaction.statementId)
     onClose()
     if (categoryChanged) {
@@ -213,31 +214,33 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
 
             <div className="space-y-0.5">
               {STATEMENT_CATEGORIES.map(c => {
-                const isSelected = editCategory === c.key
-                const isSubSelected = c.subCategories?.some(s => s.key === editCategory)
+                const generalKey = c.key + '_general'
+                const editParent = getParentCategoryKey(editCategory)
+                const isParentSelected = editParent === c.key
+                const isGeneralSelected = editCategory === generalKey
                 return (
                   <div key={c.key}>
                     <button
-                      onClick={() => setEditCategory(c.key)}
+                      onClick={() => setEditCategory(generalKey)}
                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all duration-100"
                       style={{
-                        background: isSelected ? c.color + '18' : 'transparent',
+                        background: isGeneralSelected ? c.color + '18' : 'transparent',
                         border: '1px solid',
-                        borderColor: isSelected ? c.color + '60' : 'transparent',
-                        color: isSelected ? '#f9fafb' : 'var(--text-muted)',
+                        borderColor: isGeneralSelected ? c.color + '60' : 'transparent',
+                        color: isGeneralSelected ? '#f9fafb' : 'var(--text-muted)',
                       }}
                     >
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
                       <span className="font-medium">{c.label}</span>
-                      {isSelected && c.key !== (transaction.category || 'other') && (
+                      {isGeneralSelected && generalKey !== resolvedOriginal && (
                         <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
                           new
                         </span>
                       )}
                     </button>
-                    {c.subCategories && (isSelected || isSubSelected) && (
+                    {isParentSelected && c.subCategories.filter(s => s.key !== generalKey).length > 0 && (
                       <div className="ml-5 mt-1 mb-1 space-y-1">
-                        {c.subCategories.map(sub => (
+                        {c.subCategories.filter(s => s.key !== generalKey).map(sub => (
                           <button
                             key={sub.key}
                             onClick={() => setEditCategory(sub.key)}
@@ -251,7 +254,7 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
                           >
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: sub.color }} />
                             <span className="font-medium">{sub.label}</span>
-                            {editCategory === sub.key && sub.key !== (transaction.category || 'other') && (
+                            {editCategory === sub.key && sub.key !== resolvedOriginal && (
                               <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
                                 new
                               </span>
@@ -353,12 +356,12 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
   }, [categoryKey, parentCfg])
 
   const categoryTxns = useMemo(() =>
-    transactions.filter(t => matchKeys.has(t.category || 'other')),
+    transactions.filter(t => matchKeys.has(resolveCategory(t.category || 'other_general'))),
     [transactions, matchKeys]
   )
 
   const prevCategoryTxns = useMemo(() =>
-    (prevPeriodTransactions || []).filter(t => matchKeys.has(t.category || 'other') && t.amount > 0),
+    (prevPeriodTransactions || []).filter(t => matchKeys.has(resolveCategory(t.category || 'other_general')) && t.amount > 0),
     [prevPeriodTransactions, matchKeys]
   )
 

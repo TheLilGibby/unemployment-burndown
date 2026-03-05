@@ -52,12 +52,12 @@ function isInternalTransferDesc(text) {
 function transformTransaction(plaidTxn) {
   let category = mapPlaidCategory(plaidTxn.personal_finance_category)
 
-  // Upgrade generic venmo/other transfers to 'transfer' when the description
+  // Upgrade generic venmo/other transfers to 'transfer_general' when the description
   // matches internal-transfer patterns (e.g. "Withdrawal Home Banking Transfer To Share")
-  if (category !== 'transfer') {
+  if (category !== 'transfer_general') {
     const desc = `${plaidTxn.name || ''} ${plaidTxn.merchant_name || ''}`
     if (isInternalTransferDesc(desc)) {
-      category = 'transfer'
+      category = 'transfer_general'
     }
   }
 

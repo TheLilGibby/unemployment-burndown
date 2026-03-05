@@ -46,7 +46,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
     const byCategory = {}
     for (const txn of transactions) {
       if (txn.amount <= 0) continue
-      const parentKey = getParentCategoryKey(txn.category || 'other')
+      const parentKey = getParentCategoryKey(txn.category || 'other_general')
       if (!byCategory[parentKey]) byCategory[parentKey] = { total: 0, merchants: {} }
       byCategory[parentKey].total += txn.amount
       const merchant = txn.merchantName || txn.description || 'Unknown'
@@ -54,7 +54,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick 
     }
 
     const raw = Object.entries(byCategory).map(([key, data]) => {
-      const cfg = findCategory(key) || { key, label: key, color: '#6b7280' }
+      const cfg = STATEMENT_CATEGORIES.find(c => c.key === key) || { key, label: key, color: '#6b7280' }
       const topItems = Object.entries(data.merchants)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 4)
