@@ -76,18 +76,18 @@ function transformTransaction(plaidTxn) {
 
   const desc = `${plaidTxn.name || ''} ${plaidTxn.merchant_name || ''}`
 
-  // Upgrade generic transfers to 'transfer' when the description
+  // Upgrade generic transfers to 'transfer_general' when the description
   // matches internal-transfer patterns (e.g. "Withdrawal Home Banking Transfer To Share")
-  if (category !== 'transfer') {
+  if (category !== 'transfer_general') {
     if (isInternalTransferDesc(desc)) {
-      category = 'transfer'
+      category = 'transfer_general'
     }
   }
 
   // Tag credit card payments that Plaid didn't classify as LOAN_PAYMENTS_CREDIT_CARD
-  if (category !== 'ccPayment' && category !== 'transfer') {
+  if (category !== 'ccPayment_general' && category !== 'transfer_general') {
     if (isCCPaymentDesc(desc)) {
-      category = 'ccPayment'
+      category = 'ccPayment_general'
     }
   }
 

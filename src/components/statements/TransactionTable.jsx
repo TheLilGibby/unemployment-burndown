@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
@@ -40,7 +40,7 @@ export default function TransactionTable({
   const hasPayrollTagging = !!onTransactionOverride && jobs.length > 0
 
   function handleCategoryChange(txn, newCategoryKey) {
-    const oldCategory = txn.category || 'other'
+    const oldCategory = txn.category || 'other_general'
     onTransactionOverride(txn.id, { category: newCategoryKey }, txn.statementId)
     setCategoryDropdownTxnId(null)
     const newCfg = findCategory(newCategoryKey)
@@ -102,7 +102,7 @@ export default function TransactionTable({
 
     let filtered = transactions
     if (filterCategory) {
-      filtered = filtered.filter(t => t.category === filterCategory)
+      filtered = filtered.filter(t => resolveCategory(t.category || 'other_general') === filterCategory)
     }
     if (filterAccount) {
       filtered = filtered.filter(t => t.accountName === filterAccount)
@@ -142,18 +142,14 @@ export default function TransactionTable({
       : <ArrowDown size={12} strokeWidth={2} style={{ color: 'var(--accent-blue)', display: 'inline', verticalAlign: 'middle' }} />
   }
 
-  const usedCategories = useMemo(() => {
-    const cats = new Set(transactions.map(t => t.category).filter(Boolean))
-    const result = []
-    for (const c of STATEMENT_CATEGORIES) {
-      if (cats.has(c.key)) result.push(c)
-      if (c.subCategories) {
-        for (const sub of c.subCategories) {
-          if (cats.has(sub.key)) result.push(sub)
-        }
-      }
-    }
-    return result
+  const usedCategoryGroups = useMemo(() => {
+    const resolvedCats = new Set(transactions.map(t => resolveCategory(t.category || 'other_general')))
+    return STATEMENT_CATEGORIES
+      .map(parent => ({
+        ...parent,
+        usedSubs: parent.subCategories.filter(sub => resolvedCats.has(sub.key)),
+      }))
+      .filter(parent => parent.usedSubs.length > 0)
   }, [transactions])
 
   const hasActiveFilters = filterCategory || filterAccount || searchTerm || minAmount || maxAmount
@@ -201,8 +197,12 @@ export default function TransactionTable({
             style={inputStyle}
           >
             <option value="">All Categories</option>
-            {usedCategories.map(cat => (
-              <option key={cat.key} value={cat.key}>{cat.label}</option>
+            {usedCategoryGroups.map(group => (
+              <optgroup key={group.key} label={group.label}>
+                {group.usedSubs.map(sub => (
+                  <option key={sub.key} value={sub.key}>{sub.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
           {uniqueAccounts.length > 1 && (
@@ -415,28 +415,32 @@ export default function TransactionTable({
                               Select category
                             </div>
                             {STATEMENT_CATEGORIES.map(c => {
-                              const isSelected = txn.category === c.key
-                              const hasSubSelected = c.subCategories?.some(s => s.key === txn.category)
+                              const resolvedTxnCat = resolveCategory(txn.category || 'other_general')
+                              const txnParent = getParentCategoryKey(resolvedTxnCat)
+                              const isParentSelected = txnParent === c.key
+                              const generalKey = c.key + '_general'
+                              // Find the _general sub to check if parent itself is "selected"
+                              const isGeneralSelected = resolvedTxnCat === generalKey
                               return (
                                 <div key={c.key}>
                                   <button
                                     onClick={e => {
                                       e.stopPropagation()
-                                      handleCategoryChange(txn, c.key)
+                                      handleCategoryChange(txn, generalKey)
                                     }}
                                     className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
                                     style={{
-                                      color: isSelected ? c.color : 'var(--text-primary)',
-                                      background: isSelected ? c.color + '18' : 'transparent',
+                                      color: isGeneralSelected ? c.color : 'var(--text-primary)',
+                                      background: isGeneralSelected ? c.color + '18' : 'transparent',
                                     }}
-                                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = isSelected ? c.color + '18' : 'transparent' }}
+                                    onMouseEnter={e => { if (!isGeneralSelected) e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = isGeneralSelected ? c.color + '18' : 'transparent' }}
                                   >
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
                                     <span className="truncate">{c.label}</span>
                                   </button>
-                                  {c.subCategories && (isSelected || hasSubSelected) && c.subCategories.map(sub => {
-                                    const isSubSel = txn.category === sub.key
+                                  {isParentSelected && c.subCategories.filter(s => s.key !== generalKey).map(sub => {
+                                    const isSubSel = resolvedTxnCat === sub.key
                                     return (
                                       <button
                                         key={sub.key}

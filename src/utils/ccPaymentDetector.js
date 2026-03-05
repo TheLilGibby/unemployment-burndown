@@ -40,7 +40,7 @@ export function isCCPaymentTransaction(txn) {
  */
 export function isCCPaymentStructural(txn) {
   if (txn.accountType === 'credit' && txn.amount < 0) return true
-  if (txn.category === 'ccPayment') return true
+  if (txn.category === 'ccPayment' || txn.category === 'ccPayment_general') return true
   return false
 }
 
