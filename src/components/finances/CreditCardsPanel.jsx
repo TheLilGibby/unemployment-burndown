@@ -107,6 +107,7 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
       assignedTo: null,
       paymentStrategy: 'minimum',
       paymentAmount: 0,
+      description: '',
     }])
   }
 
@@ -316,6 +317,22 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
                   />
                 )}
                 <UtilBadge balance={Number(card.balance) || 0} limit={Number(card.creditLimit) || 0} />
+                {/* Description / notes */}
+                <div className="w-full min-w-0">
+                  <label className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      Notes
+                    </span>
+                    <input
+                      type="text"
+                      value={card.description || ''}
+                      onChange={e => updateCard(card.id, 'description', e.target.value)}
+                      className="rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500/60 w-full"
+                      style={{ background: 'var(--bg-page)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                      placeholder="Add a note..."
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           )})}

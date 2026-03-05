@@ -350,28 +350,47 @@ export default function AccountsSidebar({
               linkedCount={plaid.linkedItems.length}
               syncing={plaid.syncing}
             />
-            {plaid.linkedItems.length > 0 && (
-              <button
-                onClick={() => onSync()}
-                disabled={plaid.syncing}
-                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
-                style={{
-                  borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                  color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                  background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                  cursor: plaid.syncing ? 'wait' : 'pointer',
-                }}
-              >
-                <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
-                {plaid.syncing ? 'Syncing' : 'Sync'}
-              </button>
-            )}
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {error ? 'Connection error' : loading ? 'Loading...' : `${stmtCount} statements`}
+            </span>
+            <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+              {allAccountCount} acct{allAccountCount !== 1 ? 's' : ''}
+            </span>
           </div>
-        )}
-        {plaid?.error && (
-          <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{plaid.error}</p>
-        )}
-      </div>
+
+          {/* Action buttons */}
+          {plaid && (
+            <div className="flex items-center gap-2">
+              <PlaidLinkButton
+                createLinkToken={plaid.createLinkToken}
+                exchangeToken={plaid.exchangeToken}
+                syncAll={onSync}
+                linkedCount={plaid.linkedItems.length}
+                syncing={plaid.syncing}
+              />
+              {plaid.linkedItems.length > 0 && (
+                <button
+                  onClick={() => onSync()}
+                  disabled={plaid.syncing}
+                  className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
+                  style={{
+                    borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
+                    color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
+                    background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                    cursor: plaid.syncing ? 'wait' : 'pointer',
+                  }}
+                >
+                  <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
+                  {plaid.syncing ? 'Syncing' : 'Sync'}
+                </button>
+              )}
+            </div>
+          )}
+          {plaid?.error && (
+            <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{plaid.error}</p>
+          )}
+        </div>
+      )}
     </aside>
   )
 
@@ -413,25 +432,42 @@ export default function AccountsSidebar({
               linkedCount={plaid.linkedItems.length}
               syncing={plaid.syncing}
             />
-            {plaid.linkedItems.length > 0 && (
-              <button
-                onClick={() => onSync()}
-                disabled={plaid.syncing}
-                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
-                style={{
-                  borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                  color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                  background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                  cursor: plaid.syncing ? 'wait' : 'pointer',
-                }}
-              >
-                <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
-                {plaid.syncing ? 'Syncing' : 'Sync'}
-              </button>
-            )}
+            <span className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {error ? 'Error' : loading ? 'Loading' : `${allAccountCount} accounts`}
+            </span>
           </div>
-        )}
-      </div>
+          <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+            {stmtCount} stmt{stmtCount !== 1 ? 's' : ''}
+          </span>
+          {plaid && (
+            <div className="flex items-center gap-2 ml-auto">
+              <PlaidLinkButton
+                createLinkToken={plaid.createLinkToken}
+                exchangeToken={plaid.exchangeToken}
+                syncAll={onSync}
+                linkedCount={plaid.linkedItems.length}
+                syncing={plaid.syncing}
+              />
+              {plaid.linkedItems.length > 0 && (
+                <button
+                  onClick={() => onSync()}
+                  disabled={plaid.syncing}
+                  className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
+                  style={{
+                    borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
+                    color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
+                    background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                    cursor: plaid.syncing ? 'wait' : 'pointer',
+                  }}
+                >
+                  <RefreshCw size={10} className={plaid.syncing ? 'animate-spin' : ''} />
+                  {plaid.syncing ? 'Syncing' : 'Sync'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Compact account pills */}
       <div className="flex flex-wrap gap-1.5">
