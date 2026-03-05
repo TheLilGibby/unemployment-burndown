@@ -3,7 +3,7 @@
  * These are moves between the user's own accounts at the same institution
  * (e.g. checking → savings, share → share, etc.).
  */
-const INTERNAL_TRANSFER_PATTERNS = [
+export const INTERNAL_TRANSFER_PATTERNS = [
   // Credit union share transfers
   /\btransfer\s+(to|from)\s+share\b/i,
   /\bwithdrawal\s+home\s+banking\s+transfer\b/i,

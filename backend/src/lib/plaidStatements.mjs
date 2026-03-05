@@ -46,6 +46,105 @@ function isInternalTransferDesc(text) {
   return INTERNAL_TRANSFER_PATTERNS.some(p => p.test(text))
 }
 
+// Extended patterns for cross-institution / investment transfers (pair detection)
+const TRANSFER_CANDIDATE_PATTERNS = [
+  ...INTERNAL_TRANSFER_PATTERNS,
+  /\bach\s*(transfer|deposit|withdrawal|credit|debit)\b/i,
+  /\bwire\s*(transfer|deposit|incoming|outgoing)\b/i,
+  /\beft\s*(deposit|withdrawal|transfer)\b/i,
+  /\bzelle\b/i, /\bvenmo\b/i, /\bcashapp\b/i, /\bcash\s+app\b/i,
+  /\bapple\s+cash\b/i, /\bpaypal\s+(transfer|instant)\b/i,
+  /\bcoinbase\b/i, /\brobinhood\b/i, /\bfidelity\b/i, /\bschwab\b/i,
+  /\bvanguard\b/i, /\betrade\b/i, /\bameritrade\b/i, /\bbinance\b/i,
+  /\bkraken\b/i, /\bgemini\b/i,
+  /\bfunds\s+transfer\b/i, /\bbank\s+transfer\b/i,
+]
+
+function isTransferCandidateDesc(text) {
+  return TRANSFER_CANDIDATE_PATTERNS.some(p => p.test(text))
+}
+
+/**
+ * Detect transfer pairs across statements. Backend-local version that mirrors
+ * the logic in src/utils/transferPairDetector.js.
+ */
+function detectTransferPairsBackend(statements, maxDayGap = 2) {
+  const allTxns = []
+  for (const stmt of statements) {
+    if (!stmt?.transactions) continue
+    for (const txn of stmt.transactions) {
+      allTxns.push({ ...txn, _stmtId: stmt.id, _issuer: stmt.issuer || '' })
+    }
+  }
+
+  const candidates = allTxns.filter(t => {
+    if (Math.abs(t.amount || 0) === 0) return false
+    const desc = `${t.description || ''} ${t.merchantName || ''}`
+    const cat = t.category || ''
+    return isInternalTransferDesc(desc) || isTransferCandidateDesc(desc) ||
+           cat === 'transfer_general' || cat.startsWith('investments_')
+  })
+
+  const byAmount = new Map()
+  for (const txn of candidates) {
+    const key = Math.abs(txn.amount).toFixed(2)
+    if (!byAmount.has(key)) byAmount.set(key, [])
+    byAmount.get(key).push(txn)
+  }
+
+  const paired = new Set()
+  const pairs = []
+
+  for (const [, group] of byAmount) {
+    if (group.length < 2) continue
+    const positives = group.filter(t => t.amount > 0)
+    const negatives = group.filter(t => t.amount < 0)
+    const potentialMatches = []
+
+    for (const pos of positives) {
+      for (const neg of negatives) {
+        if (pos._stmtId === neg._stmtId) continue
+        const posDate = new Date(pos.date + 'T00:00:00Z')
+        const negDate = new Date(neg.date + 'T00:00:00Z')
+        const dayDiff = Math.abs(Math.round((posDate - negDate) / 86400000))
+        if (dayDiff > maxDayGap) continue
+
+        let confidence = 50
+        if (dayDiff === 0) confidence += 30
+        else if (dayDiff === 1) confidence += 15
+        else confidence += 5
+        if (pos._issuer && neg._issuer && pos._issuer.toLowerCase() === neg._issuer.toLowerCase()) {
+          confidence += 15
+        }
+        const posDesc = `${pos.description || ''} ${pos.merchantName || ''}`
+        const negDesc = `${neg.description || ''} ${neg.merchantName || ''}`
+        if (isInternalTransferDesc(posDesc) && isInternalTransferDesc(negDesc)) {
+          confidence += 5
+        }
+        potentialMatches.push({ pos, neg, confidence, dayDiff })
+      }
+    }
+
+    potentialMatches.sort((a, b) => b.confidence - a.confidence || a.dayDiff - b.dayDiff)
+
+    for (const match of potentialMatches) {
+      const posId = match.pos.id
+      const negId = match.neg.id
+      if (!posId || !negId || paired.has(posId) || paired.has(negId)) continue
+      paired.add(posId)
+      paired.add(negId)
+      pairs.push({
+        txnAId: posId, txnAStmtId: match.pos._stmtId,
+        txnBId: negId, txnBStmtId: match.neg._stmtId,
+        pairId: `xfer_pair_${posId}_${negId}`,
+        confidence: match.confidence, dayDiff: match.dayDiff,
+      })
+    }
+  }
+
+  return pairs
+}
+
 // Generic patterns for credit card payments (bank-side fallback)
 const CC_PAYMENT_PATTERNS = [
   /credit\s*card\s*(pmt|payment|pay|autopay)/i,
@@ -252,7 +351,54 @@ export async function mergeTransactionsIntoStatements(
     }
   }
 
-  // 7. Rebuild index entries for all touched statements
+  // 7. Detect transfer pairs across all touched statements + their counterparts
+  {
+    // Read all Plaid statements from index for pair detection
+    const plaidEntries = index.statements.filter(s => s.id.startsWith('plaid_'))
+    const statementsForPairing = []
+    for (const entry of plaidEntries) {
+      const stmt = touchedStmtIds.has(entry.id)
+        ? await readStatement(orgId, entry.id)
+        : await readStatement(orgId, entry.id)
+      if (stmt) statementsForPairing.push(stmt)
+    }
+
+    const pairs = detectTransferPairsBackend(statementsForPairing)
+
+    if (pairs.length > 0) {
+      // Build lookup: txnId → pair metadata
+      const pairMap = new Map()
+      for (const p of pairs) {
+        pairMap.set(p.txnAId, { pairId: p.pairId, counterpartId: p.txnBId, counterpartStmtId: p.txnBStmtId })
+        pairMap.set(p.txnBId, { pairId: p.pairId, counterpartId: p.txnAId, counterpartStmtId: p.txnAStmtId })
+      }
+
+      // Apply pair metadata to statements
+      for (const stmt of statementsForPairing) {
+        let modified = false
+        for (const txn of stmt.transactions) {
+          const info = pairMap.get(txn.id)
+          if (!info) continue
+          txn.transferPairId = info.pairId
+          txn.transferPairTxnId = info.counterpartId
+          txn.transferPairStatementId = info.counterpartStmtId
+
+          // Auto-categorize unless user has manually set category
+          const userFields = txn.userModifiedFields || []
+          if (!userFields.includes('category') && txn.category !== 'transfer_general') {
+            txn.category = 'transfer_general'
+          }
+          modified = true
+        }
+        if (modified) {
+          await writeStatement(orgId, stmt.id, stmt)
+          touchedStmtIds.add(stmt.id)
+        }
+      }
+    }
+  }
+
+  // 8. Rebuild index entries for all touched statements
   // Remove old entries for touched IDs
   index.statements = index.statements.filter(s => !touchedStmtIds.has(s.id))
 

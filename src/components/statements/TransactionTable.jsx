@@ -38,6 +38,7 @@ function getPaymentMethod(txn) {
 export default function TransactionTable({
   transactions = [], txnToOverviewMap, onOpenLinkModal, onOpenCCPicklist,
   jobs = [], transactionOverrides = {}, onTransactionOverride,
+  pairLookup,
 }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
@@ -387,16 +388,28 @@ export default function TransactionTable({
                         </span>
                       )
                     )}
-                    {isInternalTransfer(txn) && !isCCPayment(txn) && (
-                      <span
-                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
-                        title="Internal transfer between your own accounts"
-                      >
-                        <ArrowLeftRight size={9} strokeWidth={2} />
-                        Transfer
-                      </span>
-                    )}
+                    {isInternalTransfer(txn) && !isCCPayment(txn) && (() => {
+                      const pairInfo = pairLookup?.get(txn.id)
+                      return pairInfo ? (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa' }}
+                          title={`Paired transfer with ${pairInfo.counterpart.accountName || 'another account'} (${pairInfo.counterpart.date})`}
+                        >
+                          <ArrowLeftRight size={9} strokeWidth={2} />
+                          Paired
+                        </span>
+                      ) : (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
+                          title="Internal transfer between your own accounts"
+                        >
+                          <ArrowLeftRight size={9} strokeWidth={2} />
+                          Transfer
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td className="px-3 py-2 relative">
                     {onTransactionOverride ? (
