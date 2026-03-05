@@ -30,6 +30,7 @@ export default function CreditCardHubPage({
   )
   const [linkModalTxn, setLinkModalTxn] = useState(null)
   const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
 
@@ -192,7 +193,7 @@ export default function CreditCardHubPage({
         onAccountCustomizationsChange={onAccountCustomizationsChange}
       />
 
-      <main className="xl:ml-[17rem] max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
+      <main className={`${sidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5 transition-[margin] duration-200`}>
 
       {/* Spending charts */}
       <StatementChartTabs
