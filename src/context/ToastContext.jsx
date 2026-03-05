@@ -9,9 +9,9 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
   const idCounter = useRef(0)
 
-  const addToast = useCallback(({ title, message, severity = 'info', ttl = TOAST_TTL }) => {
+  const addToast = useCallback(({ title, message, severity = 'info', ttl = TOAST_TTL, action }) => {
     const id = `toast_${Date.now()}_${++idCounter.current}`
-    const toast = { id, title, message, severity }
+    const toast = { id, title, message, severity, action }
     setToasts(prev => [...prev, toast].slice(-MAX_TOASTS))
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))

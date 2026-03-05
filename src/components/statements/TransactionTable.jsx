@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
+import { useToast } from '../../context/ToastContext'
 import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
 
@@ -33,8 +34,27 @@ export default function TransactionTable({
   const [categoryDropdownTxnId, setCategoryDropdownTxnId] = useState(null)
   const categoryDropdownRef = useRef(null)
 
+  const { addToast } = useToast()
+
   const hasLinking = !!onOpenLinkModal
   const hasPayrollTagging = !!onTransactionOverride && jobs.length > 0
+
+  function handleCategoryChange(txn, newCategoryKey) {
+    const oldCategory = txn.category || 'other'
+    onTransactionOverride(txn.id, { category: newCategoryKey }, txn.statementId)
+    setCategoryDropdownTxnId(null)
+    const newCfg = findCategory(newCategoryKey)
+    addToast({
+      title: 'Category changed',
+      message: `${(txn.merchantName || txn.description || 'Transaction').slice(0, 25)} \u2192 ${newCfg?.label || newCategoryKey}`,
+      severity: 'info',
+      ttl: 6000,
+      action: {
+        label: 'Undo',
+        onClick: () => onTransactionOverride(txn.id, { category: oldCategory }, txn.statementId),
+      },
+    })
+  }
 
   // Close payroll dropdown on outside click
   useEffect(() => {
@@ -402,8 +422,7 @@ export default function TransactionTable({
                                   <button
                                     onClick={e => {
                                       e.stopPropagation()
-                                      onTransactionOverride(txn.id, { category: c.key }, txn.statementId)
-                                      setCategoryDropdownTxnId(null)
+                                      handleCategoryChange(txn, c.key)
                                     }}
                                     className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
                                     style={{
@@ -423,8 +442,7 @@ export default function TransactionTable({
                                         key={sub.key}
                                         onClick={e => {
                                           e.stopPropagation()
-                                          onTransactionOverride(txn.id, { category: sub.key }, txn.statementId)
-                                          setCategoryDropdownTxnId(null)
+                                          handleCategoryChange(txn, sub.key)
                                         }}
                                         className="w-full text-left pl-7 pr-3 py-1 text-[11px] transition-colors flex items-center gap-2"
                                         style={{

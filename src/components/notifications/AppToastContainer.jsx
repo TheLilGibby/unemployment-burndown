@@ -53,6 +53,18 @@ export default function AppToastContainer() {
                 {toast.message}
               </p>
             )}
+            {toast.action && (
+              <button
+                onClick={() => {
+                  toast.action.onClick()
+                  removeToast(toast.id)
+                }}
+                className="text-xs font-semibold mt-1 hover:underline"
+                style={{ color: 'var(--accent-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              >
+                {toast.action.label}
+              </button>
+            )}
           </div>
           <button
             onClick={() => removeToast(toast.id)}

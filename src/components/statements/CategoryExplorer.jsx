@@ -5,6 +5,7 @@ import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
+import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
 
 /* ───────── helpers ───────── */
@@ -36,11 +37,27 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
   const [editCategory, setEditCategory] = useState(transaction.category || 'other')
   const [excluded, setExcluded] = useState(!!transaction.excluded)
   const hasChanges = editCategory !== (transaction.category || 'other') || excluded !== !!transaction.excluded
+  const { addToast } = useToast()
 
   const handleSave = () => {
     if (!hasChanges) { onClose(); return }
+    const oldCategory = transaction.category || 'other'
+    const categoryChanged = editCategory !== oldCategory
     onUpdate(transaction.id, { category: editCategory, excluded }, transaction.statementId)
     onClose()
+    if (categoryChanged) {
+      const newCfg = findCategory(editCategory)
+      addToast({
+        title: 'Category changed',
+        message: `${(transaction.merchantName || transaction.description || 'Transaction').slice(0, 25)} \u2192 ${newCfg?.label || editCategory}`,
+        severity: 'info',
+        ttl: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => onUpdate(transaction.id, { category: oldCategory }, transaction.statementId),
+        },
+      })
+    }
   }
 
   const cat = findCategory(editCategory)
