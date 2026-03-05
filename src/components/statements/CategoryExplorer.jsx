@@ -11,6 +11,7 @@ import TransactionLinkModal from '../linking/TransactionLinkModal'
 /* ───────── helpers ───────── */
 
 const RECENT_CATEGORIES_KEY = 'burndown_recent_categories'
+const HIDDEN_CATEGORIES_KEY = 'burndown_hidden_categories'
 const MAX_RECENT_CATEGORIES = 5
 
 function loadRecentCategoryKeys() {
@@ -32,6 +33,21 @@ function saveRecentCategoryKey(categoryKey) {
   } catch {
     return [categoryKey]
   }
+}
+
+function loadHiddenCategories() {
+  try {
+    const raw = localStorage.getItem(HIDDEN_CATEGORIES_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveHiddenCategories(hiddenSet) {
+  try {
+    localStorage.setItem(HIDDEN_CATEGORIES_KEY, JSON.stringify([...hiddenSet]))
+  } catch { /* ignore */ }
 }
 
 function filterByRange(transactions, start, end) {
@@ -782,7 +798,7 @@ export default function CategoryExplorer({
   const [customEnd, setCustomEnd] = useState('')
 
   // Category filters
-  const [hiddenCategories, setHiddenCategories] = useState(new Set())
+  const [hiddenCategories, setHiddenCategories] = useState(loadHiddenCategories)
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const filterRef = useRef(null)
 
@@ -803,6 +819,7 @@ export default function CategoryExplorer({
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      saveHiddenCategories(next)
       return next
     })
   }, [])
@@ -811,6 +828,7 @@ export default function CategoryExplorer({
     setHiddenCategories(prev => {
       const next = new Set(prev)
       next.delete(key)
+      saveHiddenCategories(next)
       return next
     })
   }, [])
@@ -975,7 +993,7 @@ export default function CategoryExplorer({
                 {hiddenCategories.size > 0 && (
                   <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                     <button
-                      onClick={() => setHiddenCategories(new Set())}
+                      onClick={() => { const empty = new Set(); saveHiddenCategories(empty); setHiddenCategories(empty) }}
                       className="text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
                       style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
                     >

@@ -1,10 +1,27 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
+
+const FILTER_CATEGORY_KEY = 'burndown_txn_filter_category'
+
+function loadFilterCategory() {
+  try {
+    return localStorage.getItem(FILTER_CATEGORY_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function saveFilterCategory(value) {
+  try {
+    if (value) localStorage.setItem(FILTER_CATEGORY_KEY, value)
+    else localStorage.removeItem(FILTER_CATEGORY_KEY)
+  } catch { /* ignore */ }
+}
 
 // Determine payment method label + color from transaction metadata
 function getPaymentMethod(txn) {
@@ -24,7 +41,11 @@ export default function TransactionTable({
 }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
-  const [filterCategory, setFilterCategory] = useState('')
+  const [filterCategory, setFilterCategoryRaw] = useState(loadFilterCategory)
+  const setFilterCategory = useCallback((val) => {
+    saveFilterCategory(val)
+    setFilterCategoryRaw(val)
+  }, [])
   const [filterAccount, setFilterAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [minAmount, setMinAmount] = useState('')
