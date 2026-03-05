@@ -160,7 +160,7 @@ export default function TimePeriodSelector({ value, onChange, customStart, custo
         </div>
       )}
 
-      <p className="text-[11px] ml-5 tabular-nums" style={{ color: 'var(--text-faint, var(--text-muted))' }}>
+      <p className="text-[11px] ml-5 tabular-nums font-medium" style={{ color: 'var(--text-secondary, var(--text-primary))' }}>
         {formatRangeLabel(value, customStart, customEnd)}
       </p>
     </div>
