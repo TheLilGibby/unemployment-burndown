@@ -704,6 +704,40 @@ app.post('/api/admin/reset-plaid-budget', superAdminMiddleware, (req, res) => {
   })
 })
 
+// GET /api/admin/connection-status — aggregated Plaid connection status across all orgs
+app.get('/api/admin/connection-status', superAdminMiddleware, (req, res) => {
+  const institutions = []
+  let totalAccounts = 0
+  let hasError = false
+  let latestSync = null
+
+  for (const [orgId, orgItems] of plaidItems) {
+    for (const [itemId, itemData] of orgItems) {
+      const itemLastSync = lastSyncTimes.get(itemId) || null
+      if (itemLastSync && (!latestSync || new Date(itemLastSync) > new Date(latestSync))) {
+        latestSync = itemLastSync
+      }
+      institutions.push({
+        id: itemId,
+        orgId,
+        name: itemData.institutionName || 'Unknown',
+        institutionId: itemData.institutionId || null,
+        lastSync: itemLastSync,
+        accountCount: 0, // We don't store account counts in-memory; clients can enrich
+        error: false,
+      })
+    }
+  }
+
+  res.json({
+    institutions,
+    totalAccounts,
+    totalStatements: 0,
+    hasError,
+    lastSync: latestSync,
+  })
+})
+
 // GET /api/admin/plaid-limits — get current Plaid API limit configuration
 app.get('/api/admin/plaid-limits', superAdminMiddleware, (req, res) => {
   res.json({
