@@ -1,10 +1,27 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
+
+const FILTER_CATEGORY_KEY = 'burndown_txn_filter_category'
+
+function loadFilterCategory() {
+  try {
+    return localStorage.getItem(FILTER_CATEGORY_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function saveFilterCategory(value) {
+  try {
+    if (value) localStorage.setItem(FILTER_CATEGORY_KEY, value)
+    else localStorage.removeItem(FILTER_CATEGORY_KEY)
+  } catch { /* ignore */ }
+}
 
 // Determine payment method label + color from transaction metadata
 function getPaymentMethod(txn) {
@@ -21,10 +38,15 @@ function getPaymentMethod(txn) {
 export default function TransactionTable({
   transactions = [], txnToOverviewMap, onOpenLinkModal, onOpenCCPicklist,
   jobs = [], transactionOverrides = {}, onTransactionOverride,
+  pairLookup,
 }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
-  const [filterCategory, setFilterCategory] = useState('')
+  const [filterCategory, setFilterCategoryRaw] = useState(loadFilterCategory)
+  const setFilterCategory = useCallback((val) => {
+    saveFilterCategory(val)
+    setFilterCategoryRaw(val)
+  }, [])
   const [filterAccount, setFilterAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [minAmount, setMinAmount] = useState('')
@@ -366,16 +388,28 @@ export default function TransactionTable({
                         </span>
                       )
                     )}
-                    {isInternalTransfer(txn) && !isCCPayment(txn) && (
-                      <span
-                        className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
-                        title="Internal transfer between your own accounts"
-                      >
-                        <ArrowLeftRight size={9} strokeWidth={2} />
-                        Transfer
-                      </span>
-                    )}
+                    {isInternalTransfer(txn) && !isCCPayment(txn) && (() => {
+                      const pairInfo = pairLookup?.get(txn.id)
+                      return pairInfo ? (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa' }}
+                          title={`Paired transfer with ${pairInfo.counterpart.accountName || 'another account'} (${pairInfo.counterpart.date})`}
+                        >
+                          <ArrowLeftRight size={9} strokeWidth={2} />
+                          Paired
+                        </span>
+                      ) : (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}
+                          title="Internal transfer between your own accounts"
+                        >
+                          <ArrowLeftRight size={9} strokeWidth={2} />
+                          Transfer
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td className="px-3 py-2 relative">
                     {onTransactionOverride ? (
