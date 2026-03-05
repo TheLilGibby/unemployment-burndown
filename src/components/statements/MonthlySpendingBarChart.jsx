@@ -13,7 +13,8 @@ const CATEGORY_COLOR = Object.fromEntries(
   STATEMENT_CATEGORIES.map(c => [c.key, c.color])
 )
 
-const RETAINED_CATEGORIES = new Set(['investments', 'transfer', 'ccPayment'])
+const RETAINED_CATEGORIES = new Set(['investments'])
+const EXCLUDED_CATEGORIES = new Set(['ccPayment', 'transfer'])
 
 function CategoryBreakdown({ categories, fallbackColor }) {
   if (!categories?.length) return null
@@ -92,6 +93,7 @@ export default function MonthlySpendingBarChart({ transactions = [], creditCards
       }
 
       const parentKey = getParentCategoryKey(txn.category)
+      if (EXCLUDED_CATEGORIES.has(parentKey)) continue
       if (txn.amount < 0) {
         const abs = Math.abs(txn.amount)
         byMonth[month].inflow += abs
