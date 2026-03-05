@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
 
@@ -113,6 +113,7 @@ export default function AccountsSidebar({
   plaid, onSync, people = [], user,
   onCreditCardsChange, onSavingsChange, onStatementsRefresh,
   loading, error,
+  collapsed = false, onCollapsedChange,
 }) {
   const [managing, setManaging] = useState(false)
 
@@ -174,8 +175,50 @@ export default function AccountsSidebar({
   const stmtCount = statementIndex?.statements?.length || 0
   const allAccountCount = cards.length + bankAccounts.length
 
+  // ---- Desktop collapsed sidebar ----
+  const desktopCollapsed = (
+    <aside
+      className="hidden xl:flex flex-col items-center fixed z-40 rounded-xl"
+      style={{
+        top: '5.5rem',
+        left: '0.75rem',
+        width: '2.75rem',
+        maxHeight: 'calc(100vh - 7rem)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-default)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.08)',
+      }}
+      aria-label="Accounts sidebar (collapsed)"
+    >
+      <button
+        onClick={() => onCollapsedChange?.(false)}
+        className="flex items-center justify-center w-full py-3 transition-colors rounded-t-xl"
+        style={{ color: 'var(--text-muted)' }}
+        title="Expand accounts"
+      >
+        <ChevronRight size={16} />
+      </button>
+      <div
+        className="flex-1 flex items-center justify-center"
+        style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+      >
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wider select-none"
+          style={{ color: 'var(--text-muted)', transform: 'rotate(180deg)' }}
+        >
+          Accounts
+        </span>
+      </div>
+      <div className="py-3 text-center">
+        <span className="text-[10px] font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+          {formatCurrency(totalBalance)}
+        </span>
+      </div>
+    </aside>
+  )
+
   // ---- Desktop sidebar ----
-  const desktopSidebar = (
+  const desktopSidebar = collapsed ? desktopCollapsed : (
     <aside
       className="hidden xl:flex flex-col fixed z-40 rounded-xl"
       style={{
@@ -192,9 +235,19 @@ export default function AccountsSidebar({
       {/* Header */}
       <div className="px-3 pt-3 pb-2 shrink-0">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            Accounts
-          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onCollapsedChange?.(true)}
+              className="p-1 rounded transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Collapse sidebar"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              Accounts
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setManaging(m => !m)}
