@@ -3,7 +3,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Bri
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
-import { isCCPaymentTransaction } from '../../utils/ccPaymentDetector'
+import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
 
 // Determine payment method label + color from transaction metadata
@@ -344,7 +344,7 @@ export default function TransactionTable({
                         pending
                       </span>
                     )}
-                    {isCCPaymentTransaction(txn) && (
+                    {isCCPayment(txn) && (
                       onOpenCCPicklist ? (
                         <button
                           onClick={e => { e.stopPropagation(); onOpenCCPicklist(txn) }}
@@ -366,7 +366,7 @@ export default function TransactionTable({
                         </span>
                       )
                     )}
-                    {isInternalTransfer(txn) && !isCCPaymentTransaction(txn) && (
+                    {isInternalTransfer(txn) && !isCCPayment(txn) && (
                       <span
                         className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
                         style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}

@@ -30,6 +30,7 @@ export const STATEMENT_CATEGORIES = [
   { key: 'payroll',        label: 'Payroll',               color: '#16a34a' },
   { key: 'mortgage',       label: 'Mortgage',              color: '#7c3aed' },
   { key: 'rent',           label: 'Rent',                  color: '#0d9488' },
+  { key: 'ccPayment',      label: 'CC Payment',            color: '#f59e0b' },
   { key: 'transfer',       label: 'Internal Transfers',   color: '#94a3b8' },
   { key: 'other',          label: 'Other',                color: '#6b7280' },
 ]

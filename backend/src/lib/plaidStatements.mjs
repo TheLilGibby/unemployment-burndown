@@ -46,18 +46,48 @@ function isInternalTransferDesc(text) {
   return INTERNAL_TRANSFER_PATTERNS.some(p => p.test(text))
 }
 
+// Generic patterns for credit card payments (bank-side fallback)
+const CC_PAYMENT_PATTERNS = [
+  /credit\s*card\s*(pmt|payment|pay|autopay)/i,
+  /card\s*(payment|pmt)\s*(thank|received|confirmed)?/i,
+  /payment,?\s*thank\s*you/i,
+  /chase\s*(card|payment|credit|autopay)/i,
+  /citi\s*(card|pay|auto|credit)/i,
+  /amex\s*(payment|epay|autopay)/i,
+  /american\s*express\s*(payment|epay)/i,
+  /capital\s*one\s*(payment|auto|credit)/i,
+  /discover\s*(payment|auto|credit)/i,
+  /barclays?\s*(payment|auto|credit)/i,
+  /wells\s*fargo\s*(card|credit|payment)/i,
+  /bank\s*of\s*america\s*(card|credit|payment)/i,
+  /synchrony\s*(payment|auto)/i,
+  /autopay\s*(payment|credit)/i,
+]
+
+function isCCPaymentDesc(text) {
+  return CC_PAYMENT_PATTERNS.some(p => p.test(text))
+}
+
 /**
  * Convert a single Plaid transaction to hub transaction format.
  */
 function transformTransaction(plaidTxn) {
   let category = mapPlaidCategory(plaidTxn.personal_finance_category)
 
+  const desc = `${plaidTxn.name || ''} ${plaidTxn.merchant_name || ''}`
+
   // Upgrade generic venmo/other transfers to 'transfer' when the description
   // matches internal-transfer patterns (e.g. "Withdrawal Home Banking Transfer To Share")
   if (category !== 'transfer') {
-    const desc = `${plaidTxn.name || ''} ${plaidTxn.merchant_name || ''}`
     if (isInternalTransferDesc(desc)) {
       category = 'transfer'
+    }
+  }
+
+  // Tag credit card payments that Plaid didn't classify as LOAN_PAYMENTS_CREDIT_CARD
+  if (category !== 'ccPayment' && category !== 'transfer') {
+    if (isCCPaymentDesc(desc)) {
+      category = 'ccPayment'
     }
   }
 
