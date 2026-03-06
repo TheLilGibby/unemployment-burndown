@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { PieChart, BarChart3, Store } from 'lucide-react'
+import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
+import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
 import { STATEMENT_CATEGORIES } from '../../constants/categories'
 import { formatCurrency } from '../../utils/formatters'
 
