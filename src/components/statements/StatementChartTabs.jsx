@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from 'react'
-import { PieChart, BarChart3, Store, GitMerge, Filter, X } from 'lucide-react'
+import { PieChart, BarChart3, Store, GitMerge, Filter, X, EyeOff } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
 import { CategoryDetailView } from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
 import TimePeriodSelector, { getDateRange } from './TimePeriodSelector'
-import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
 import { formatCurrency } from '../../utils/formatters'
 
 const CHART_DEFS = [
@@ -92,12 +92,12 @@ export default function StatementChartTabs({
     [transactions, range]
   )
 
-  // Filter by hidden categories
+  // Filter by hidden categories (resolve to parent key so sub-categories roll up correctly)
   const filteredTransactions = useMemo(() => {
     if (hiddenCategories.size === 0) return dateFilteredTxns
     return dateFilteredTxns.filter(txn => {
-      const cat = txn.category || 'other'
-      return !hiddenCategories.has(cat)
+      const parentKey = getParentCategoryKey(txn.category || 'other_general')
+      return !hiddenCategories.has(parentKey)
     })
   }, [dateFilteredTxns, hiddenCategories])
 
@@ -114,13 +114,13 @@ export default function StatementChartTabs({
     setHiddenCategories(new Set())
   }
 
-  // Available categories for filter pills
+  // Available categories for filter pills (group by parent key so sub-categories roll up)
   const availableCategories = useMemo(() => {
     const byCategory = {}
     for (const txn of dateFilteredTxns) {
       if (txn.amount <= 0) continue
-      const cat = txn.category || 'other'
-      byCategory[cat] = (byCategory[cat] || 0) + txn.amount
+      const parentKey = getParentCategoryKey(txn.category || 'other_general')
+      byCategory[parentKey] = (byCategory[parentKey] || 0) + txn.amount
     }
     return STATEMENT_CATEGORIES
       .filter(c => byCategory[c.key])
@@ -218,36 +218,68 @@ export default function StatementChartTabs({
           onCustomChange={handleCustomChange}
         />
 
-        {/* Filters toggle */}
-        <button
-          onClick={() => setShowFilters(v => !v)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150"
-          style={{
-            background: showFilters || hiddenCategories.size > 0
-              ? 'color-mix(in srgb, var(--accent-blue) 15%, transparent)'
-              : 'var(--bg-subtle, rgba(255,255,255,0.06))',
-            color: showFilters || hiddenCategories.size > 0
-              ? 'var(--accent-blue)'
-              : 'var(--text-muted)',
-            border: '1px solid',
-            borderColor: showFilters || hiddenCategories.size > 0
-              ? 'color-mix(in srgb, var(--accent-blue) 30%, transparent)'
-              : 'var(--border-subtle)',
-          }}
-        >
-          <Filter size={12} />
-          Filters
-          {hiddenCategories.size > 0 && (
-            <span
-              className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold"
-              style={{ background: 'var(--accent-blue)', color: '#fff' }}
-            >
-              {hiddenCategories.size}
-            </span>
-          )}
-        </button>
+        {/* Filters row: toggle button + active filter pills inline */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150 flex-shrink-0"
+            style={{
+              background: showFilters || hiddenCategories.size > 0
+                ? 'color-mix(in srgb, var(--accent-blue) 15%, transparent)'
+                : 'var(--bg-subtle, rgba(255,255,255,0.06))',
+              color: showFilters || hiddenCategories.size > 0
+                ? 'var(--accent-blue)'
+                : 'var(--text-muted)',
+              border: '1px solid',
+              borderColor: showFilters || hiddenCategories.size > 0
+                ? 'color-mix(in srgb, var(--accent-blue) 30%, transparent)'
+                : 'var(--border-subtle)',
+            }}
+          >
+            <Filter size={12} />
+            Filters
+            {hiddenCategories.size > 0 && (
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold"
+                style={{ background: 'var(--accent-blue)', color: '#fff' }}
+              >
+                {hiddenCategories.size}
+              </span>
+            )}
+          </button>
 
-        {/* Collapsible category filter pills */}
+          {/* Active filter pills — one per hidden category */}
+          {[...hiddenCategories].map(key => {
+            const cat = STATEMENT_CATEGORIES.find(c => c.key === key)
+            if (!cat) return null
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full"
+                style={{
+                  background: cat.color + '18',
+                  color: cat.color,
+                  border: '1px solid ' + cat.color + '40',
+                }}
+              >
+                <EyeOff size={11} style={{ opacity: 0.8 }} />
+                {cat.label}
+                <button
+                  onClick={() => toggleHideCategory(key)}
+                  className="flex-shrink-0 transition-opacity"
+                  style={{ opacity: 0.65, lineHeight: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={e => e.currentTarget.style.opacity = 0.65}
+                  title={`Remove "${cat.label}" filter`}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            )
+          })}
+        </div>
+
+        {/* Collapsible category picker — click to toggle hide/show */}
         {showFilters && availableCategories.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap pt-1">
             {availableCategories.map(cat => {
@@ -281,7 +313,7 @@ export default function StatementChartTabs({
                 style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
               >
                 <X size={10} />
-                Reset
+                Reset all
               </button>
             )}
           </div>
