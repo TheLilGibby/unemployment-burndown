@@ -254,14 +254,6 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
                         ({group.issuer})
                       </span>
                     )}
-                    {group.isPlaid && (
-                      <span
-                        className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)' }}
-                      >
-                        Bank Sync
-                      </span>
-                    )}
                   </p>
                 </div>
 
