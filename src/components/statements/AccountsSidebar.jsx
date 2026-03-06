@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import usePersistedState from '../../hooks/usePersistedState'
 import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Plus } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
@@ -164,6 +164,30 @@ export default function AccountsSidebar({
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [addAccountOpen, setAddAccountOpen] = useState(false)
 
+  // Ensure Plaid accounts are loaded so linkedItems has live balances
+  useEffect(() => {
+    if (plaid && !plaid.hasFetched && plaid.fetchAccounts) {
+      plaid.fetchAccounts()
+    }
+  }, [plaid])
+
+  // Map plaidAccountId → live balance from Plaid linkedItems
+  const plaidBalanceMap = useMemo(() => {
+    const map = new Map()
+    if (!plaid?.linkedItems) return map
+    for (const item of plaid.linkedItems) {
+      for (const acct of item.accounts || []) {
+        if (!acct.id) continue
+        if (acct.type === 'depository') {
+          map.set(acct.id, acct.availableBalance ?? acct.currentBalance ?? 0)
+        } else {
+          map.set(acct.id, Math.abs(acct.currentBalance ?? 0))
+        }
+      }
+    }
+    return map
+  }, [plaid?.linkedItems])
+
   // Build bank accounts list (same logic as CreditCardHubPage)
   const plaidBankAccountIds = useMemo(() => new Set(
     (statementIndex?.statements || [])
@@ -176,6 +200,7 @@ export default function AccountsSidebar({
       .filter(sa => sa.plaidAccountId && plaidBankAccountIds.has(sa.plaidAccountId))
       .map(sa => {
         const stmts = (statementIndex?.statements || []).filter(s => s.cardId === sa.id)
+        const liveBal = sa.plaidAccountId ? plaidBalanceMap.get(sa.plaidAccountId) : undefined
         let subtype = sa.plaidSubtype || null
         if (!subtype && sa.plaidAccountId) {
           const stmtEntry = (statementIndex?.statements || []).find(s => s.plaidAccountId === sa.plaidAccountId)
@@ -187,7 +212,7 @@ export default function AccountsSidebar({
         }
         return {
           ...sa,
-          balance: sa.amount,
+          balance: liveBal ?? sa.amount,
           isDepository: true,
           statementCount: stmts.length,
           subtype,
@@ -206,7 +231,9 @@ export default function AccountsSidebar({
       stateAccounts.push({
         id: s.cardId,
         name: s.accountName || 'Bank Account',
-        balance: Math.abs(s.statementBalance || 0),
+        balance: (s.plaidAccountId && plaidBalanceMap.has(s.plaidAccountId))
+          ? plaidBalanceMap.get(s.plaidAccountId)
+          : Math.abs(s.statementBalance || 0),
         isDepository: true,
         statementCount: stmts.length,
         subtype: s.accountSubtype || null,
@@ -215,12 +242,18 @@ export default function AccountsSidebar({
       })
     }
     return stateAccounts
-  }, [savingsAccounts, plaidBankAccountIds, statementIndex])
+  }, [savingsAccounts, plaidBankAccountIds, statementIndex, plaidBalanceMap])
 
   const allCards = useMemo(() => {
     const stateCards = creditCards.map(card => {
       const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
-      return { ...card, statementCount: stmts.length, isDepository: false }
+      const liveBal = card.plaidAccountId ? plaidBalanceMap.get(card.plaidAccountId) : undefined
+      return {
+        ...card,
+        balance: liveBal ?? card.balance,
+        statementCount: stmts.length,
+        isDepository: false,
+      }
     })
 
     // Include credit accounts from statementIndex that aren't in creditCards state
@@ -235,7 +268,9 @@ export default function AccountsSidebar({
       stateCards.push({
         id: s.cardId,
         name: s.accountName || s.issuer || 'Credit Card',
-        balance: Math.abs(s.statementBalance || 0),
+        balance: (s.plaidAccountId && plaidBalanceMap.has(s.plaidAccountId))
+          ? plaidBalanceMap.get(s.plaidAccountId)
+          : Math.abs(s.statementBalance || 0),
         creditLimit: 0,
         isDepository: false,
         statementCount: stmts.length,
@@ -244,7 +279,7 @@ export default function AccountsSidebar({
       })
     }
     return stateCards
-  }, [creditCards, statementIndex])
+  }, [creditCards, statementIndex, plaidBalanceMap])
 
   // Filter hidden accounts for display
   const cards = useMemo(() =>
