@@ -1,13 +1,14 @@
 import { useState, useMemo, useCallback } from 'react'
 import { PieChart, BarChart3, Store, GitMerge, Filter, X, EyeOff } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
-import { CategoryDetailView } from './CategoryExplorer'
+import { CategoryDetailView, TransactionDrawer, loadRecentCategoryKeys, saveRecentCategoryKey } from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
 import TimePeriodSelector, { getDateRange } from './TimePeriodSelector'
 import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey } from '../../constants/categories'
 import { formatCurrency } from '../../utils/formatters'
+import TransactionLinkModal from '../linking/TransactionLinkModal'
 
 const CHART_DEFS = [
   {
@@ -64,6 +65,38 @@ export default function StatementChartTabs({
   // Category filters (collapsible)
   const [showFilters, setShowFilters] = useState(false)
   const [hiddenCategories, setHiddenCategories] = useState(new Set())
+
+  // Transaction drawer state
+  const [selectedTxn, setSelectedTxn] = useState(null)
+  const [linkModalTxn, setLinkModalTxn] = useState(null)
+  const [recentCategoryKeys, setRecentCategoryKeys] = useState(loadRecentCategoryKeys)
+
+  const recentCategories = useMemo(() => {
+    return recentCategoryKeys.map(key => findCategory(key)).filter(Boolean)
+  }, [recentCategoryKeys])
+
+  const hasLinking = !!(onLinkTransaction && (oneTimePurchases?.length || oneTimeExpenses?.length || oneTimeIncome?.length))
+
+  const overviewItemsByKey = useMemo(() => {
+    const map = {}
+    for (const p of (oneTimePurchases || [])) map[`otp_${p.id}`] = { ...p, _type: 'otp' }
+    for (const e of (oneTimeExpenses || [])) map[`ote_${e.id}`] = { ...e, _type: 'ote' }
+    for (const i of (oneTimeIncome || [])) map[`oti_${i.id}`] = { ...i, _type: 'oti' }
+    return map
+  }, [oneTimePurchases, oneTimeExpenses, oneTimeIncome])
+
+  const handleTransactionClick = useCallback((txn) => {
+    setSelectedTxn(txn)
+  }, [])
+
+  const handleTransactionUpdate = useCallback((txnId, updates, statementId) => {
+    if (onTransactionUpdate) onTransactionUpdate(txnId, updates, statementId)
+    if (updates.category) {
+      const newKeys = saveRecentCategoryKey(updates.category)
+      setRecentCategoryKeys(newKeys)
+    }
+    setSelectedTxn(prev => prev?.id === txnId ? { ...prev, ...updates } : prev)
+  }, [onTransactionUpdate])
 
   const handleCategoryClick = useCallback((categoryKey) => {
     setDrillCategory(categoryKey)
@@ -320,6 +353,47 @@ export default function StatementChartTabs({
         )}
       </div>
 
+      {/* Transaction detail drawer */}
+      {selectedTxn && (() => {
+        const selLinkedKey = txnToOverviewMap?.[selectedTxn.id] || null
+        const selLinkedItem = selLinkedKey ? overviewItemsByKey[selLinkedKey] : null
+        return (
+          <TransactionDrawer
+            transaction={selectedTxn}
+            onClose={() => setSelectedTxn(null)}
+            onUpdate={handleTransactionUpdate}
+            linkedItem={selLinkedItem}
+            linkedKey={selLinkedKey}
+            onOpenLinkModal={hasLinking ? (txn) => setLinkModalTxn(txn) : undefined}
+            onUnlink={onUnlinkTransaction ? (key, txnId) => onUnlinkTransaction(key, txnId) : undefined}
+            recentCategories={recentCategories}
+            membersByUserId={membersByUserId}
+          />
+        )
+      })()}
+
+      {/* Transaction link modal */}
+      {linkModalTxn && (
+        <TransactionLinkModal
+          open={true}
+          transaction={linkModalTxn}
+          oneTimePurchases={oneTimePurchases}
+          oneTimeExpenses={oneTimeExpenses}
+          oneTimeIncome={oneTimeIncome}
+          transactionLinks={transactionLinks}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={(overviewKey, txn) => {
+            onLinkTransaction(overviewKey, txn)
+            setLinkModalTxn(null)
+          }}
+          onUnlink={(overviewKey, txnId) => {
+            onUnlinkTransaction(overviewKey, txnId)
+            setLinkModalTxn(null)
+          }}
+          onClose={() => setLinkModalTxn(null)}
+        />
+      )}
+
       {/* Chart content */}
       <div className="p-4 sm:p-5">
         {activeId === 'categories' && (
@@ -328,7 +402,9 @@ export default function StatementChartTabs({
               categoryKey={drillCategory}
               transactions={filteredTransactions}
               onBack={handleDrillBack}
+              onTransactionClick={(onTransactionUpdate || hasLinking) ? handleTransactionClick : undefined}
               categoryColor={findCategory(drillCategory)?.color}
+              txnToOverviewMap={hasLinking ? txnToOverviewMap : undefined}
               membersByUserId={membersByUserId}
             />
           ) : (

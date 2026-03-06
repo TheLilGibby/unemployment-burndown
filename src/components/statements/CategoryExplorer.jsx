@@ -47,7 +47,7 @@ const RECENT_CATEGORIES_KEY = 'burndown_recent_categories'
 const HIDDEN_CATEGORIES_KEY = 'burndown_hidden_categories'
 const MAX_RECENT_CATEGORIES = 5
 
-function loadRecentCategoryKeys() {
+export function loadRecentCategoryKeys() {
   try {
     const raw = localStorage.getItem(RECENT_CATEGORIES_KEY)
     return raw ? JSON.parse(raw) : []
@@ -56,7 +56,7 @@ function loadRecentCategoryKeys() {
   }
 }
 
-function saveRecentCategoryKey(categoryKey) {
+export function saveRecentCategoryKey(categoryKey) {
   try {
     const current = loadRecentCategoryKeys()
     const deduped = [categoryKey, ...current.filter(k => k !== categoryKey)]
@@ -106,7 +106,7 @@ function MiniTooltip({ active, payload, label }) {
 
 /* ───────── Transaction Detail Drawer ───────── */
 
-function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [], membersByUserId = {} }) {
+export function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedKey, onOpenLinkModal, onUnlink, recentCategories = [], membersByUserId = {} }) {
   const resolvedOriginal = resolveCategory(transaction.category || 'other_general')
   const [editCategory, setEditCategory] = useState(resolvedOriginal)
   const [excluded, setExcluded] = useState(!!transaction.excluded)
