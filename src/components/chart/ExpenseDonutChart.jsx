@@ -97,6 +97,8 @@ function Toggle({ checked, onChange, size = 'sm' }) {
 export default function ExpenseDonutChart({ expenses, subscriptions, creditCards, investments }) {
   const [active, setActive] = useState(null)
   const [animDone, setAnimDone] = useState(false)
+  const [showLabels, setShowLabels] = useState(false)
+  const [hiddenKeys, setHiddenKeys] = useState(new Set())
 
   const toggleCategory = useCallback((key) => {
     setHiddenKeys(prev => {
@@ -175,24 +177,64 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6" style={{ minHeight: 260 }}>
+    <div className="space-y-4" style={{ minHeight: 260 }}>
 
-      {/* ── Donut ── */}
-      <div style={{ width: 210, height: 210, flexShrink: 0, position: 'relative' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={slices}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={90}
-              dataKey="value"
-              paddingAngle={2}
-              strokeWidth={0}
-              onMouseEnter={(_, idx) => animDone && setActive(idx)}
-              onMouseLeave={() => animDone && setActive(null)}
-              onAnimationEnd={() => setAnimDone(true)}
+      {/* ── Feature toggles toolbar ── */}
+      <div
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle, #1f2937)' }}
+      >
+        {/* Show % on chart toggle */}
+        <div className="flex items-center gap-2">
+          <Toggle checked={showLabels} onChange={() => setShowLabels(v => !v)} />
+          <span className="text-xs" style={{ color: showLabels ? 'var(--text-primary, #f9fafb)' : 'var(--text-muted, #6b7280)' }}>
+            Show %
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-4" style={{ background: 'var(--border-subtle, #374151)' }} />
+
+        {/* Category visibility pills */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider mr-1" style={{ color: 'var(--text-muted, #6b7280)' }}>
+            Categories
+          </span>
+          {allSlices.map(slice => {
+            const cfg = SLICE_CONFIG.find(c => c.key === slice.key)
+            const isHidden = hiddenKeys.has(slice.key)
+            return (
+              <button
+                key={slice.key}
+                onClick={() => toggleCategory(slice.key)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all duration-150"
+                style={{
+                  background: isHidden ? 'transparent' : `${cfg?.color ?? '#6b7280'}18`,
+                  border: `1px solid ${isHidden ? '#374151' : (cfg?.color ?? '#6b7280')}`,
+                  color: isHidden ? '#4b5563' : (cfg?.color ?? '#6b7280'),
+                  opacity: isHidden ? 0.5 : 1,
+                  textDecoration: isHidden ? 'line-through' : 'none',
+                }}
+                title={isHidden ? `Show ${slice.label}` : `Hide ${slice.label}`}
+              >
+                <span
+                  className="inline-block rounded-full shrink-0"
+                  style={{
+                    width: 6, height: 6,
+                    background: isHidden ? '#4b5563' : (cfg?.color ?? '#6b7280'),
+                  }}
+                />
+                {slice.label}
+              </button>
+            )
+          })}
+          {hasHidden && (
+            <button
+              onClick={() => setHiddenKeys(new Set())}
+              className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+              style={{ color: 'var(--accent-blue, #3b82f6)' }}
+              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
             >
               Reset
             </button>
@@ -200,23 +242,107 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
         </div>
       </div>
 
-      {/* ── Legend breakdown ── */}
-      <div className="flex-1 min-w-0 space-y-3 w-full">
-        {slices.map((slice, i) => {
-          const cfg = SLICE_CONFIG.find(c => c.key === slice.key)
-          const isHovered = active === i
-          return (
-            <div
-              key={slice.key}
-              className="cursor-default"
-              onMouseEnter={() => animDone && setActive(i)}
-              onMouseLeave={() => animDone && setActive(null)}
-            >
-              {/* Row: label + pct + amount */}
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block rounded-full flex-shrink-0 transition-transform"
+      {/* ── Donut + Legend row ── */}
+      <div className="flex flex-col sm:flex-row items-start gap-6">
+
+        {/* ── Donut ── */}
+        <div className="sensitive-chart" style={{ width: 210, height: 210, flexShrink: 0, position: 'relative' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={slices}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                dataKey="value"
+                paddingAngle={2}
+                strokeWidth={0}
+                onMouseEnter={(_, idx) => animDone && setActive(idx)}
+                onMouseLeave={() => animDone && setActive(null)}
+                onAnimationEnd={() => setAnimDone(true)}
+                label={showLabels ? renderSliceLabel : false}
+                labelLine={false}
+              >
+                {slices.map((s, i) => {
+                  const cfg = SLICE_CONFIG.find(c => c.key === s.key)
+                  return (
+                    <Cell
+                      key={s.key}
+                      fill={cfg?.color ?? '#6b7280'}
+                      opacity={active === null || active === i ? 1 : 0.45}
+                    />
+                  )
+                })}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* Center label — hidden while a slice tooltip is visible */}
+          <div
+            style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center', pointerEvents: 'none',
+              opacity: active === null ? 1 : 0,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            <p className="text-lg font-bold text-white leading-tight">{formatCurrency(total)}</p>
+            <p className="text-xs" style={{ color: '#6b7280' }}>
+              {hasHidden ? 'visible/mo' : '/month'}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Legend breakdown ── */}
+        <div className="flex-1 min-w-0 space-y-3 w-full">
+          {slices.map((slice, i) => {
+            const cfg = SLICE_CONFIG.find(c => c.key === slice.key)
+            const isHovered = active === i
+            return (
+              <div
+                key={slice.key}
+                className="cursor-default"
+                onMouseEnter={() => animDone && setActive(i)}
+                onMouseLeave={() => animDone && setActive(null)}
+              >
+                {/* Row: label + pct + amount */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block rounded-full flex-shrink-0 transition-transform"
+                      style={{
+                        width: 8, height: 8,
+                        background: cfg?.color ?? '#6b7280',
+                        transform: isHovered ? 'scale(1.3)' : 'scale(1)',
+                      }}
+                    />
+                    <span
+                      className="text-sm font-medium"
+                      style={{ color: isHovered ? '#f9fafb' : '#d1d5db' }}
+                    >
+                      {slice.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs tabular-nums" style={{ color: '#6b7280' }}>
+                      {Math.round(slice.pct)}%
+                    </span>
+                    <span
+                      className="text-sm font-semibold tabular-nums"
+                      style={{ color: isHovered ? (cfg?.color ?? '#fff') : '#e5e7eb' }}
+                    >
+                      {formatCurrency(slice.value)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1f2937' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
                     style={{
                       width: `${slice.pct}%`,
                       background: cfg?.color ?? '#6b7280',
