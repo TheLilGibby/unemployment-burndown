@@ -55,9 +55,9 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
   return (
     <div className="space-y-3">
       {/* SnapTrade — Connected Brokerage Accounts */}
-      {snapTrade.accounts.length > 0 ? (
+      {snapTrade.connections.length > 0 ? (
         <SnapTradeAccountsPanel
-          accounts={snapTrade.accounts}
+          accounts={snapTrade.connections}
           syncing={snapTrade.syncing}
           lastSync={snapTrade.lastSync}
           onSync={() => snapTrade.syncAll()}
@@ -73,7 +73,7 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
               </div>
             </div>
             <SnapTradeConnectButton
-              generateConnectUrl={snapTrade.generateConnectUrl}
+              generateConnectUrl={snapTrade.connect}
               loading={snapTrade.loading}
               onConnect={() => snapTrade.fetchAccounts()}
             />
