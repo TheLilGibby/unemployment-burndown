@@ -96,6 +96,7 @@ function Toggle({ checked, onChange, size = 'sm' }) {
 
 export default function ExpenseDonutChart({ expenses, subscriptions, creditCards, investments }) {
   const [active, setActive] = useState(null)
+  const [animDone, setAnimDone] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
   const [hiddenKeys, setHiddenKeys] = useState(new Set())
 
@@ -257,8 +258,9 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
                 dataKey="value"
                 paddingAngle={2}
                 strokeWidth={0}
-                onMouseEnter={(_, idx) => setActive(idx)}
-                onMouseLeave={() => setActive(null)}
+                onMouseEnter={(_, idx) => animDone && setActive(idx)}
+                onMouseLeave={() => animDone && setActive(null)}
+                onAnimationEnd={() => setAnimDone(true)}
                 label={showLabels ? renderSliceLabel : false}
                 labelLine={false}
               >
@@ -303,8 +305,8 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
               <div
                 key={slice.key}
                 className="cursor-default"
-                onMouseEnter={() => setActive(i)}
-                onMouseLeave={() => setActive(null)}
+                onMouseEnter={() => animDone && setActive(i)}
+                onMouseLeave={() => animDone && setActive(null)}
               >
                 {/* Row: label + pct + amount */}
                 <div className="flex items-center justify-between mb-1">

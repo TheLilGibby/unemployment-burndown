@@ -40,6 +40,7 @@ function CustomTooltip({ active, payload }) {
 
 export default function CategoryDonutChart({ transactions = [], onCategoryClick, hiddenCategories = new Set() }) {
   const [active, setActive] = useState(null)
+  const [animDone, setAnimDone] = useState(false)
 
   const slices = useMemo(() => {
     // Group by parent category so sub-categories roll up into their parent slice
@@ -99,10 +100,9 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick,
               dataKey="value"
               paddingAngle={2}
               strokeWidth={0}
-              onMouseEnter={(_, idx) => setActive(idx)}
-              onMouseLeave={() => setActive(null)}
-              onClick={(_, idx) => handleSliceClick(slices[idx]?.key)}
-              style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
+              onMouseEnter={(_, idx) => animDone && setActive(idx)}
+              onMouseLeave={() => animDone && setActive(null)}
+              onAnimationEnd={() => setAnimDone(true)}
             >
               {slices.map((s, i) => (
                 <Cell
@@ -139,10 +139,9 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick,
           return (
             <div
               key={slice.key}
-              className={onCategoryClick ? 'cursor-pointer group' : 'cursor-default'}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
-              onClick={() => handleSliceClick(slice.key)}
+              className="cursor-default"
+              onMouseEnter={() => animDone && setActive(i)}
+              onMouseLeave={() => animDone && setActive(null)}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
