@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import usePersistedState from '../hooks/usePersistedState'
 import { useSearchParams } from 'react-router-dom'
 import { useStatementStorage } from '../hooks/useStatementStorage'
 import SectionCard from '../components/layout/SectionCard'
 import StatementList from '../components/statements/StatementList'
 import StatementChartTabs from '../components/statements/StatementChartTabs'
 import TransactionTable from '../components/statements/TransactionTable'
-import AccountsSidebar from '../components/statements/AccountsSidebar'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
 import TransactionLinkModal from '../components/linking/TransactionLinkModal'
 import CCPaymentPicklistModal from '../components/linking/CCPaymentPicklistModal'
@@ -23,17 +23,23 @@ export default function CreditCardHubPage({
   jobs = [],
   accountCustomizations = {}, onAccountCustomizationsChange,
   membersByUserId = {},
+  selectedCardId = null, onSelectCard,
+  statementIndex: externalIndex, onStatementsRefresh,
 }) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
-  const [selectedCardId, setSelectedCardId] = useState(
-    initialCardId ? Number(initialCardId) : null
-  )
   const [linkModalTxn, setLinkModalTxn] = useState(null)
   const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  const { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
+  const { index: localIndex, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
+  const index = externalIndex || localIndex
+
+  // Sync selectedCardId from URL param on mount
+  useEffect(() => {
+    if (initialCardId && onSelectCard) {
+      onSelectCard(Number(initialCardId))
+    }
+  }, []) // eslint-disable-line
 
   // Wrap override to also persist user modifications to the statement file
   const handleTransactionOverride = useCallback((txnId, updates, statementId) => {
@@ -44,10 +50,13 @@ export default function CreditCardHubPage({
   }, [onTransactionOverride, patchTransaction])
 
   // Wrap syncAll to also refresh the statement index after sync
+  const setSelectedCardId = onSelectCard || (() => {})
+
   const handleSync = useCallback(async (itemId) => {
     if (!plaid) return
     await plaid.syncAll(itemId)
     refreshIndex()
+    onStatementsRefresh?.()
   }, [plaid, refreshIndex])
 
   // Load all statement details for the selected card(s)
@@ -174,29 +183,7 @@ export default function CreditCardHubPage({
 
   return (
     <>
-      {/* Left sidebar — desktop fixed, mobile inline pills */}
-      <AccountsSidebar
-        creditCards={creditCards}
-        savingsAccounts={savingsAccounts}
-        statementIndex={index}
-        selectedCardId={selectedCardId}
-        onSelectCard={setSelectedCardId}
-        plaid={plaid}
-        onSync={handleSync}
-        people={people}
-        user={user}
-        onCreditCardsChange={onCreditCardsChange}
-        onSavingsChange={onSavingsChange}
-        onStatementsRefresh={refreshIndex}
-        loading={loading}
-        error={error}
-        accountCustomizations={accountCustomizations}
-        onAccountCustomizationsChange={onAccountCustomizationsChange}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-      />
-
-      <main className={`${sidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5 transition-[margin] duration-200`}>
+      <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
       {/* Spending charts */}
       <StatementChartTabs
