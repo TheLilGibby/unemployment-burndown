@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
-import CategoryExplorer from './CategoryExplorer'
+import CategoryDonutChart from './CategoryDonutChart'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
+import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { formatCurrency } from '../../utils/formatters'
 
 const CHART_DEFS = [
   {
@@ -41,8 +43,58 @@ export default function StatementChartTabs({
 }) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
+  const [selectedCategories, setSelectedCategories] = useState(new Set())
 
   const activeChart = CHART_DEFS.find(c => c.id === activeId)
+
+  // Compute which categories exist in the data with their totals
+  const availableCategories = useMemo(() => {
+    const byCategory = {}
+    for (const txn of transactions) {
+      if (txn.amount <= 0) continue
+      const cat = txn.category || 'other'
+      byCategory[cat] = (byCategory[cat] || 0) + txn.amount
+    }
+    return STATEMENT_CATEGORIES
+      .filter(c => byCategory[c.key])
+      .map(c => ({ ...c, total: byCategory[c.key] }))
+      .sort((a, b) => b.total - a.total)
+  }, [transactions])
+
+  // Filter transactions by selected categories
+  const filteredTransactions = useMemo(() => {
+    if (selectedCategories.size === 0) return transactions
+    return transactions.filter(txn => {
+      const cat = txn.category || 'other'
+      return selectedCategories.has(cat)
+    })
+  }, [transactions, selectedCategories])
+
+  function toggleCategory(key) {
+    setSelectedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setSelectedCategories(new Set())
+  }
+
+  // Summary stats for the filter bar
+  const filterSummary = useMemo(() => {
+    if (selectedCategories.size === 0) return null
+    const total = filteredTransactions
+      .filter(t => t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0)
+    const count = filteredTransactions.filter(t => t.amount > 0).length
+    return { total, count }
+  }, [filteredTransactions, selectedCategories])
 
   return (
     <div
@@ -105,9 +157,9 @@ export default function StatementChartTabs({
         })}
       </div>
 
-      {/* Description strip */}
+      {/* Description strip + filter summary */}
       <div
-        className="px-4 py-1.5"
+        className="px-4 py-1.5 flex items-center justify-between"
         style={{
           borderBottom: '1px solid var(--border-subtle)',
           background: 'var(--bg-subtle, var(--bg-card))',
@@ -116,29 +168,79 @@ export default function StatementChartTabs({
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {activeChart?.desc}
         </p>
+        {filterSummary && (
+          <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+            {formatCurrency(filterSummary.total)} across {filterSummary.count} txn{filterSummary.count !== 1 ? 's' : ''}
+          </p>
+        )}
       </div>
+
+      {/* Category pill filters */}
+      {availableCategories.length > 0 && (
+        <div
+          className="px-4 py-2.5"
+          style={{
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-subtle, var(--bg-card))',
+          }}
+        >
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* All pill */}
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150"
+              style={{
+                background: selectedCategories.size === 0
+                  ? 'var(--accent-blue)'
+                  : 'var(--bg-input)',
+                color: selectedCategories.size === 0
+                  ? '#fff'
+                  : 'var(--text-muted)',
+                border: `1px solid ${selectedCategories.size === 0 ? 'var(--accent-blue)' : 'var(--border-input)'}`,
+              }}
+            >
+              All
+            </button>
+
+            {availableCategories.map(cat => {
+              const isSelected = selectedCategories.has(cat.key)
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => toggleCategory(cat.key)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150"
+                  style={{
+                    background: isSelected
+                      ? `${cat.color}20`
+                      : 'var(--bg-input)',
+                    color: isSelected
+                      ? cat.color
+                      : 'var(--text-muted)',
+                    border: `1px solid ${isSelected ? cat.color : 'var(--border-input)'}`,
+                  }}
+                >
+                  <span
+                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: cat.color }}
+                  />
+                  {cat.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Chart content */}
       <div className="p-4 sm:p-5">
         {activeId === 'categories' && (
-          <CategoryExplorer
-            transactions={transactions}
-            onTransactionUpdate={onTransactionUpdate}
-            oneTimePurchases={oneTimePurchases}
-            oneTimeExpenses={oneTimeExpenses}
-            oneTimeIncome={oneTimeIncome}
-            transactionLinks={transactionLinks}
-            txnToOverviewMap={txnToOverviewMap}
-            onLinkTransaction={onLinkTransaction}
-            onUnlinkTransaction={onUnlinkTransaction}
-            membersByUserId={membersByUserId}
-          />
+          <CategoryDonutChart transactions={filteredTransactions} />
         )}
         {activeId === 'monthly' && (
-          <MonthlySpendingBarChart transactions={transactions} creditCards={creditCards} />
+          <MonthlySpendingBarChart transactions={filteredTransactions} creditCards={creditCards} />
         )}
         {activeId === 'merchants' && (
-          <TopMerchantsChart transactions={transactions} />
+          <TopMerchantsChart transactions={filteredTransactions} />
         )}
         {activeId === 'paymentflow' && (
           <CashFlowWaterfallChart
