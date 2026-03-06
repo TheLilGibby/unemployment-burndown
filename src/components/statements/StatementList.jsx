@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Landmark, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
+import { Landmark, CreditCard, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { PROFILE_COLORS } from '../profile/ProfileBubble'
 
@@ -235,12 +235,10 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
                   }}
                 />
 
-                {group.person ? (
-                  <PersonAvatar person={group.person} />
-                ) : group.isDepository ? (
+                {group.isDepository ? (
                   <Landmark size={18} strokeWidth={1.75} className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
                 ) : (
-                  <UserBadge user={user} />
+                  <CreditCard size={18} strokeWidth={1.75} className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
                 )}
 
                 <div className="text-left min-w-0 flex-1">
@@ -318,6 +316,13 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
                   >
                     {group.statementCount} stmt{group.statementCount !== 1 ? 's' : ''}
                   </span>
+
+                  {/* Household member / user icon */}
+                  {group.person ? (
+                    <PersonAvatar person={group.person} />
+                  ) : (
+                    <UserBadge user={user} />
+                  )}
                 </div>
               </button>
 
