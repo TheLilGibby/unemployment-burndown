@@ -90,6 +90,10 @@ Parameters:
     Type: String
     Description: Minimum seconds between SnapTrade syncs
     Default: '300'
+  SmsEnabled:
+    Type: String
+    Description: Enable SMS OTP via AWS SNS (set to 'true' in production)
+    Default: 'false'
 
 Globals:
   Function:
@@ -124,6 +128,8 @@ Globals:
         SNAPTRADE_MONTHLY_BUDGET: !Ref SnapTradeMonthlyBudget
         SNAPTRADE_EST_COST_PER_CALL: !Ref SnapTradeEstCostPerCall
         SNAPTRADE_SYNC_COOLDOWN_SECONDS: !Ref SnapTradeSyncCooldownSeconds
+        INVITES_TABLE: !Ref HouseholdInvitesTable
+        SMS_ENABLED: !Ref SmsEnabled
 
   Api:
     Cors:
@@ -201,6 +207,43 @@ Resources:
         - IndexName: userId-index
           KeySchema:
             - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  HouseholdInvitesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: HouseholdInvites
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: inviteId
+          AttributeType: S
+        - AttributeName: inviteToken
+          AttributeType: S
+        - AttributeName: orgId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: inviteId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: inviteToken-index
+          KeySchema:
+            - AttributeName: inviteToken
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: orgId-index
+          KeySchema:
+            - AttributeName: orgId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
               KeyType: HASH
           Projection:
             ProjectionType: ALL
@@ -298,6 +341,118 @@ Resources:
             Path: /api/org/regenerate-code
             Method: post
 
+  # ---------- Invite Lambda Functions ----------
+  InviteCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/inviteCreate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/invites
+            Method: post
+
+  InviteListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/inviteList.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/invites
+            Method: get
+
+  InviteDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/inviteDelete.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/invites/{inviteId}
+            Method: delete
+
+  InviteValidateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/inviteAccept.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/org/invites/validate
+            Method: get
+
+  # ---------- Phone OTP Lambda Functions ----------
+  SendPhoneOtpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/sendPhoneOtp.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/send-phone-otp
+            Method: post
+
+  VerifyPhoneOtpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/verifyPhoneOtp.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/verify-phone-otp
+            Method: post
+
   # ---------- Jobs Lambda Functions ----------
   JobsListFunction:
     Type: AWS::Serverless::Function
@@ -368,6 +523,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HouseholdInvitesTable
       Events:
         Api:
           Type: Api

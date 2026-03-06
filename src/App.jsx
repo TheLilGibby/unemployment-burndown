@@ -39,6 +39,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import OrgSetup from './components/auth/OrgSetup'
+import AcceptInvite from './components/auth/AcceptInvite'
 import SuperAdminPage from './pages/SuperAdminPage'
 import ImpersonationBanner from './components/admin/ImpersonationBanner'
 import OrgSettings from './components/org/OrgSettings'
@@ -321,6 +322,7 @@ export default function App() {
   // Public pages accessible without authentication
   if (location.pathname === '/privacy') return <PrivacyPolicyPage />
   if (location.pathname === '/reset-password') return <ResetPasswordPage />
+  if (location.pathname === '/accept-invite') return <AcceptInvite />
 
   // Show loading skeleton while checking token
   if (loading) return <AppLoadingSkeleton />
