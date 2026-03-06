@@ -171,32 +171,80 @@ export default function AccountsSidebar({
       .map(s => s.plaidAccountId)
   ), [statementIndex])
 
-  const bankAccounts = useMemo(() => savingsAccounts
-    .filter(sa => sa.plaidAccountId && plaidBankAccountIds.has(sa.plaidAccountId))
-    .map(sa => {
-      const stmts = (statementIndex?.statements || []).filter(s => s.cardId === sa.id)
-      let subtype = sa.plaidSubtype || null
-      if (!subtype && sa.plaidAccountId) {
-        const stmtEntry = (statementIndex?.statements || []).find(s => s.plaidAccountId === sa.plaidAccountId)
-        if (stmtEntry?.accountSubtype) subtype = stmtEntry.accountSubtype
-      }
-      if (!subtype) {
-        const m = sa.name?.match(/\((checking|savings|cd|money market)\)/i)
-        if (m) subtype = m[1].toLowerCase()
-      }
-      return {
-        ...sa,
-        balance: sa.amount,
+  const bankAccounts = useMemo(() => {
+    const stateAccounts = savingsAccounts
+      .filter(sa => sa.plaidAccountId && plaidBankAccountIds.has(sa.plaidAccountId))
+      .map(sa => {
+        const stmts = (statementIndex?.statements || []).filter(s => s.cardId === sa.id)
+        let subtype = sa.plaidSubtype || null
+        if (!subtype && sa.plaidAccountId) {
+          const stmtEntry = (statementIndex?.statements || []).find(s => s.plaidAccountId === sa.plaidAccountId)
+          if (stmtEntry?.accountSubtype) subtype = stmtEntry.accountSubtype
+        }
+        if (!subtype) {
+          const m = sa.name?.match(/\((checking|savings|cd|money market)\)/i)
+          if (m) subtype = m[1].toLowerCase()
+        }
+        return {
+          ...sa,
+          balance: sa.amount,
+          isDepository: true,
+          statementCount: stmts.length,
+          subtype,
+        }
+      })
+
+    // Include depository accounts from statementIndex that aren't in savingsAccounts state
+    const stateCardIds = new Set(stateAccounts.map(a => a.id))
+    const indexDepositoryAccounts = (statementIndex?.statements || [])
+      .filter(s => s.source === 'plaid' && s.accountType === 'depository')
+    const seenCardIds = new Set()
+    for (const s of indexDepositoryAccounts) {
+      if (stateCardIds.has(s.cardId) || seenCardIds.has(s.cardId)) continue
+      seenCardIds.add(s.cardId)
+      const stmts = (statementIndex?.statements || []).filter(st => st.cardId === s.cardId)
+      stateAccounts.push({
+        id: s.cardId,
+        name: s.accountName || 'Bank Account',
+        balance: Math.abs(s.statementBalance || 0),
         isDepository: true,
         statementCount: stmts.length,
-        subtype,
-      }
-    }), [savingsAccounts, plaidBankAccountIds, statementIndex])
+        subtype: s.accountSubtype || null,
+        last4: s.cardLastFour || null,
+        plaidAccountId: s.plaidAccountId,
+      })
+    }
+    return stateAccounts
+  }, [savingsAccounts, plaidBankAccountIds, statementIndex])
 
-  const allCards = useMemo(() => creditCards.map(card => {
-    const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
-    return { ...card, statementCount: stmts.length, isDepository: false }
-  }), [creditCards, statementIndex])
+  const allCards = useMemo(() => {
+    const stateCards = creditCards.map(card => {
+      const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
+      return { ...card, statementCount: stmts.length, isDepository: false }
+    })
+
+    // Include credit accounts from statementIndex that aren't in creditCards state
+    const stateCardIds = new Set(stateCards.map(c => c.id))
+    const indexCreditAccounts = (statementIndex?.statements || [])
+      .filter(s => s.source === 'plaid' && s.accountType === 'credit')
+    const seenCardIds = new Set()
+    for (const s of indexCreditAccounts) {
+      if (stateCardIds.has(s.cardId) || seenCardIds.has(s.cardId)) continue
+      seenCardIds.add(s.cardId)
+      const stmts = (statementIndex?.statements || []).filter(st => st.cardId === s.cardId)
+      stateCards.push({
+        id: s.cardId,
+        name: s.accountName || s.issuer || 'Credit Card',
+        balance: Math.abs(s.statementBalance || 0),
+        creditLimit: 0,
+        isDepository: false,
+        statementCount: stmts.length,
+        last4: s.cardLastFour || null,
+        plaidAccountId: s.plaidAccountId,
+      })
+    }
+    return stateCards
+  }, [creditCards, statementIndex])
 
   // Filter hidden accounts for display
   const cards = useMemo(() =>
