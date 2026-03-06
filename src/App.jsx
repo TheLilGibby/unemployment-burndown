@@ -23,6 +23,8 @@ import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
+import AccountsSidebar from './components/statements/AccountsSidebar'
+import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
@@ -392,6 +394,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [transactionOverrides, setTransactionOverrides] = useState(DEFAULTS.transactionOverrides)
   const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
   const [allTransactionsCache, setAllTransactionsCache] = useState([])
+  const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
+  const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
 
   const {
     templates,
@@ -425,6 +429,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
   const { membersByUserId } = useOrgMembers(user)
+  const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
   function buildSnapshot() {
     return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations }
@@ -679,6 +684,12 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       [txnId]: { ...(prev[txnId] || {}), ...updates },
     }))
     dirtySections.current.add('Transaction overrides')
+  }
+
+  async function handleGlobalSync(itemId) {
+    if (!plaid) return
+    await plaid.syncAll(itemId)
+    refreshStatementIndex()
   }
 
   // Derived: total cash from all active accounts
@@ -969,10 +980,33 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         }
       />
 
+      {/* Global accounts sidebar — visible on all pages */}
+      <AccountsSidebar
+        creditCards={creditCards}
+        savingsAccounts={savingsAccounts}
+        statementIndex={statementIndex}
+        selectedCardId={globalSelectedCardId}
+        onSelectCard={setGlobalSelectedCardId}
+        plaid={plaid}
+        onSync={handleGlobalSync}
+        people={people}
+        user={user}
+        onCreditCardsChange={onCreditCardsChange}
+        onSavingsChange={onSavingsChange}
+        onStatementsRefresh={refreshStatementIndex}
+        loading={statementsLoading}
+        error={statementsError}
+        accountCustomizations={accountCustomizations}
+        onAccountCustomizationsChange={setAccountCustomizations}
+        collapsed={globalSidebarCollapsed}
+        onCollapsedChange={setGlobalSidebarCollapsed}
+      />
+
       {!dataReady ? <BurndownPageSkeleton /> :
+      <div className={`${globalSidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} transition-[margin] duration-200`}>
       <Routes>
         <Route path="/" element={
-          <>
+          <div className="xl:mr-[10rem]">
             <TableOfContents visibleSections={viewSettings.sections} />
             <div className="max-w-5xl mx-auto px-4 pt-4 flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -982,91 +1016,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               </div>
               <ViewMenu value={viewSettings} onChange={setViewSettings} />
             </div>
-            <FinancialSidebar
-              totalSavings={totalSavings}
-              assetProceeds={assetProceeds}
-              effectiveExpenses={current.effectiveExpenses}
-              monthlyBenefits={current.monthlyBenefits}
-              monthlyInvestments={current.monthlyInvestments}
-              currentNetBurn={current.currentNetBurn}
-              totalRunwayMonths={current.totalRunwayMonths}
-              benefitEnd={current.benefitEnd}
-              savingsAccounts={savingsAccounts}
-              expenses={expenses}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              investments={allInvestments}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimePurchases={oneTimePurchases}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              unemployment={unemployment}
-              jobs={jobs}
-              people={people}
-              filterPersonId={filterPersonId}
-              advertisingRevenue={advertisingRevenue}
-            />
-            <BurndownPage
-              current={current}
-              base={base}
-              hasWhatIf={hasWhatIf}
-              totalSavings={totalSavings}
-              viewSettings={viewSettings}
-              people={people}
-              savingsAccounts={savingsAccounts}
-              unemployment={unemployment}
-              expenses={expenses}
-              whatIf={whatIf}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimePurchases={oneTimePurchases}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              assets={assets}
-              investments={investments}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              jobs={jobs}
-              jobScenarios={jobScenarios}
-              onJobsChange={onJobsChange}
-              onSavingsChange={onSavingsChange}
-              onUnemploymentChange={onUnemploymentChange}
-              onFurloughChange={onFurloughChange}
-              onExpensesChange={onExpensesChange}
-              onWhatIfChange={onWhatIfChange}
-              onOneTimeExpChange={onOneTimeExpChange}
-              onOneTimePurchChange={onOneTimePurchChange}
-              onOneTimeIncChange={onOneTimeIncChange}
-              onMonthlyIncChange={onMonthlyIncChange}
-              onAssetsChange={onAssetsChange}
-              onInvestmentsChange={onInvestmentsChange}
-              onSubsChange={onSubsChange}
-              onCreditCardsChange={onCreditCardsChange}
-              onJobScenariosChange={onJobScenariosChange}
-              furloughDate={furloughDate}
-              derivedStartDate={derivedStartDate}
-              assetProceeds={assetProceeds}
-              onWhatIfReset={() => {
-                const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
-                setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
-              }}
-              templates={templates}
-              templateResults={templateResults}
-              jobScenarioResults={jobScenarioResults}
-              plaid={plaid}
-              filterPersonId={filterPersonId}
-              onFilterPersonChange={setFilterPersonId}
-              allTransactions={allTransactionsCache}
-              transactionLinks={transactionLinks}
-              txnToOverviewMap={txnToOverviewMap}
-              onLinkTransaction={handleLinkTransaction}
-              onUnlinkTransaction={handleUnlinkTransaction}
-              properties={properties}
-              homeImprovements={homeImprovements}
-              onPropertiesChange={onPropertiesChange}
-              onHomeImprovementsChange={onHomeImprovementsChange}
-              advertisingRevenue={advertisingRevenue}
-              onAdvertisingRevenueChange={onAdvertisingRevenueChange}
-            />
             <ErrorBoundary level="component">
               <FinancialSidebar
                 totalSavings={totalSavings}
@@ -1162,7 +1111,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onHistoricalDateSelect={handleHistoricalDateSelect}
               />
             </ErrorBoundary>
-          </>
+          </div>
         } />
 
         <Route path="/credit-cards" element={
@@ -1191,6 +1140,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             accountCustomizations={accountCustomizations}
             onAccountCustomizationsChange={setAccountCustomizations}
             membersByUserId={membersByUserId}
+            selectedCardId={globalSelectedCardId}
+            onSelectCard={setGlobalSelectedCardId}
+            statementIndex={statementIndex}
+            onStatementsRefresh={refreshStatementIndex}
           />
         } />
 
@@ -1236,7 +1189,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         )}
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>}
+      </Routes>
+      </div>}
     </div>
     </CommentsProvider>
     </NotificationsProvider>
