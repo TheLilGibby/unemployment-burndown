@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import CategoryDonutChart from './CategoryDonutChart'
 import TimePeriodSelector, { getDateRange, getPreviousPeriodRange } from './TimePeriodSelector'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES, findCategory, getParentCategoryKey, resolveCategory } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, findParentCategory, getParentCategoryKey, resolveCategory, isGeneralCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import TransactionLinkModal from '../linking/TransactionLinkModal'
 import { PROFILE_COLORS } from '../profile/ProfileBubble'
@@ -294,7 +294,14 @@ function TransactionDrawer({ transaction, onClose, onUpdate, linkedItem, linkedK
                 style={{ background: cat.color + '12', border: '1px solid ' + cat.color + '30' }}
               >
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cat.color }} />
-                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{cat.label}</span>
+                {isGeneralCategory(editCategory) ? (
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{cat.label}</span>
+                ) : (
+                  <span className="flex flex-col leading-tight">
+                    <span className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>{findParentCategory(editCategory)?.label || ''}</span>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{cat.label}</span>
+                  </span>
+                )}
                 {editCategory !== (transaction.category || 'other') && (
                   <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-blue)', color: '#fff' }}>
                     changed
@@ -607,7 +614,15 @@ function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions,
         <ChevronRight size={12} style={{ color: 'var(--text-faint)' }} />
         <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color }}>
           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-          {cfg.label}
+          {isGeneralCategory(categoryKey) ? cfg.label : (() => {
+            const parent = findParentCategory(categoryKey)
+            return parent ? (
+              <span className="flex flex-col leading-tight">
+                <span className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>{parent.label}</span>
+                <span>{cfg.label}</span>
+              </span>
+            ) : cfg.label
+          })()}
         </span>
       </div>
 
