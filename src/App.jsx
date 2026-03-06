@@ -28,6 +28,7 @@ import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
+import { useSnapTrade } from './hooks/useSnapTrade'
 import { useOrgMembers } from './hooks/useOrgMembers'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { getEffectivePayment } from './utils/ccPayment'
@@ -428,6 +429,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
+  const snapTrade = useSnapTrade()
   const { membersByUserId } = useOrgMembers(user)
   const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
@@ -1000,6 +1002,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         onAccountCustomizationsChange={setAccountCustomizations}
         collapsed={globalSidebarCollapsed}
         onCollapsedChange={setGlobalSidebarCollapsed}
+        snapTrade={snapTrade}
       />
 
       {!dataReady ? <BurndownPageSkeleton /> :

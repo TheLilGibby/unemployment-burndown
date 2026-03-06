@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import usePersistedState from '../../hooks/usePersistedState'
-import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
+import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Plus } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import PlaidLinkButton from '../plaid/PlaidLinkButton'
+import AddAccountTypeModal from './AddAccountTypeModal'
 import AccountCustomizeModal from './AccountCustomizeModal'
 
 const COLOR_CLASSES = {
@@ -159,8 +159,10 @@ export default function AccountsSidebar({
   loading, error,
   accountCustomizations = {}, onAccountCustomizationsChange,
   collapsed = false, onCollapsedChange,
+  snapTrade,
 }) {
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [addAccountOpen, setAddAccountOpen] = useState(false)
 
   // Build bank accounts list (same logic as CreditCardHubPage)
   const plaidBankAccountIds = useMemo(() => new Set(
@@ -393,17 +395,33 @@ export default function AccountsSidebar({
         </div>
       )}
 
-      {/* Add Bank row */}
+      {/* Add Account row */}
       {plaid && (
         <div className="shrink-0" style={{ borderTop: '1px solid var(--border-default)' }}>
-          <PlaidLinkButton
-            createLinkToken={plaid.createLinkToken}
-            exchangeToken={plaid.exchangeToken}
-            syncAll={onSync}
-            linkedCount={plaid.linkedItems.length}
-            syncing={plaid.syncing}
-            variant="row"
-          />
+          <button
+            onClick={() => setAddAccountOpen(true)}
+            disabled={plaid.syncing}
+            className="w-full flex items-center gap-2 px-3 py-2 text-left transition-all rounded-lg"
+            style={{
+              background: 'transparent',
+              borderLeft: '2px solid transparent',
+              opacity: plaid.syncing ? 0.6 : 1,
+              cursor: plaid.syncing ? 'wait' : 'pointer',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--accent-blue) 6%, var(--bg-card))' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            title="Add a bank, credit card, or investment account"
+          >
+            <span
+              className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)' }}
+            >
+              <Plus size={10} style={{ color: 'var(--accent-blue)' }} />
+            </span>
+            <span className="text-xs" style={{ color: 'var(--accent-blue)' }}>
+              {plaid.syncing ? 'Syncing...' : 'Add Account'}
+            </span>
+          </button>
         </div>
       )}
     </aside>
@@ -494,15 +512,24 @@ export default function AccountsSidebar({
           )
         })}
 
-        {/* Add Bank pill */}
+        {/* Add Account pill */}
         {plaid && (
-          <PlaidLinkButton
-            createLinkToken={plaid.createLinkToken}
-            exchangeToken={plaid.exchangeToken}
-            syncAll={onSync}
-            linkedCount={plaid.linkedItems.length}
-            syncing={plaid.syncing}
-          />
+          <button
+            onClick={() => setAddAccountOpen(true)}
+            disabled={plaid.syncing}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
+            style={{
+              borderColor: 'var(--accent-blue)',
+              background: 'rgba(59, 130, 246, 0.1)',
+              color: 'var(--accent-blue)',
+              opacity: plaid.syncing ? 0.6 : 1,
+              cursor: plaid.syncing ? 'wait' : 'pointer',
+            }}
+            title="Add a bank, credit card, or investment account"
+          >
+            <Plus size={12} />
+            <span>{plaid.syncing ? 'Syncing...' : 'Add Account'}</span>
+          </button>
         )}
       </div>
     </div>
@@ -512,6 +539,15 @@ export default function AccountsSidebar({
     <>
       {desktopSidebar}
       {mobileBanner}
+
+      {/* Add account type selection modal */}
+      <AddAccountTypeModal
+        open={addAccountOpen}
+        onClose={() => setAddAccountOpen(false)}
+        plaid={plaid}
+        onSync={onSync}
+        snapTrade={snapTrade}
+      />
 
       {/* Customize modal */}
       <AccountCustomizeModal
