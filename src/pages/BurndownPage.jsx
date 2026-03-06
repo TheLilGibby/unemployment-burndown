@@ -73,6 +73,17 @@ export default function BurndownPage({
   jobScenarioResults,
   plaid,
   snapTrade,
+  // Snapshots / historical
+  snapshots,
+  historicalDate,
+  historicalBurndown,
+  onHistoricalDateSelect,
+  // Transactions
+  allTransactions,
+  transactionLinks,
+  txnToOverviewMap,
+  onLinkTransaction,
+  onUnlinkTransaction,
 }) {
   const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
 
