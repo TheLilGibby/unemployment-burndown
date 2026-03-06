@@ -38,7 +38,8 @@
     "react-plaid-link": "^4.1.1",
     "react-router-dom": "^7.13.1",
     "recharts": "^3.7.0",
-    "selfsigned": "^5.5.0"
+    "selfsigned": "^5.5.0",
+    "snaptrade-typescript-sdk": "^9.0.170"
   },
   "devDependencies": {
     "@aws-sdk/client-amplify": "^3.1000.0",

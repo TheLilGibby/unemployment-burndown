@@ -34,6 +34,8 @@ import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { getEffectivePayment } from './utils/ccPayment'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
+import PlaidLinkButton from './components/plaid/PlaidLinkButton'
+import SnapTradeConnectButton from './components/snaptrade/SnapTradeConnectButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
@@ -428,7 +430,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
-  const snapTrade = useSnapTrade()
+
+  // SnapTrade integration — auto-updates investment holdings from brokerage data
+  const handleSnapTradeSync = (updatedFullState) => {
+    if (updatedFullState) {
+      applyFullState(updatedFullState)
+      addEntry('sync', 'SnapTrade sync: investment balances updated from brokerage')
+    }
+  }
+  const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
   const { membersByUserId } = useOrgMembers(user)
   const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
@@ -946,7 +956,23 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
           <div className="flex items-center gap-0.5">
-            <span className="hidden sm:flex"><CloudSaveStatus storage={s3Storage} /></span>
+            <CloudSaveStatus storage={s3Storage} />
+            {import.meta.env.VITE_PLAID_API_URL && (
+              <PlaidLinkButton
+                createLinkToken={plaid.createLinkToken}
+                exchangeToken={plaid.exchangeToken}
+                syncAll={plaid.syncAll}
+                linkedCount={plaid.linkedItems.length}
+                syncing={plaid.syncing}
+              />
+            )}
+            {import.meta.env.VITE_PLAID_API_URL && (
+              <SnapTradeConnectButton
+                connect={snapTrade.connect}
+                connectionCount={snapTrade.connections.length}
+                syncing={snapTrade.syncing}
+              />
+            )}
             <NotificationBell />
             <TemplateManager
               templates={templates}
@@ -1018,6 +1044,82 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               </div>
               <ViewMenu value={viewSettings} onChange={setViewSettings} />
             </div>
+            <FinancialSidebar
+              totalSavings={totalSavings}
+              assetProceeds={assetProceeds}
+              effectiveExpenses={current.effectiveExpenses}
+              monthlyBenefits={current.monthlyBenefits}
+              monthlyInvestments={current.monthlyInvestments}
+              currentNetBurn={current.currentNetBurn}
+              totalRunwayMonths={current.totalRunwayMonths}
+              benefitEnd={current.benefitEnd}
+              savingsAccounts={savingsAccounts}
+              expenses={expenses}
+              subscriptions={subscriptions}
+              creditCards={creditCards}
+              investments={investments}
+              oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
+              oneTimeIncome={oneTimeIncome}
+              monthlyIncome={monthlyIncome}
+              unemployment={unemployment}
+              jobs={jobs}
+              people={people}
+              filterPersonId={filterPersonId}
+            />
+            <BurndownPage
+              current={current}
+              base={base}
+              hasWhatIf={hasWhatIf}
+              totalSavings={totalSavings}
+              viewSettings={viewSettings}
+              people={people}
+              savingsAccounts={savingsAccounts}
+              unemployment={unemployment}
+              expenses={expenses}
+              whatIf={whatIf}
+              oneTimeExpenses={oneTimeExpenses}
+              oneTimePurchases={oneTimePurchases}
+              oneTimeIncome={oneTimeIncome}
+              monthlyIncome={monthlyIncome}
+              assets={assets}
+              investments={investments}
+              subscriptions={subscriptions}
+              creditCards={creditCards}
+              jobs={jobs}
+              jobScenarios={jobScenarios}
+              onJobsChange={onJobsChange}
+              onSavingsChange={onSavingsChange}
+              onUnemploymentChange={onUnemploymentChange}
+              onFurloughChange={onFurloughChange}
+              onExpensesChange={onExpensesChange}
+              onWhatIfChange={onWhatIfChange}
+              onOneTimeExpChange={onOneTimeExpChange}
+              onOneTimePurchChange={onOneTimePurchChange}
+              onOneTimeIncChange={onOneTimeIncChange}
+              onMonthlyIncChange={onMonthlyIncChange}
+              onAssetsChange={onAssetsChange}
+              onInvestmentsChange={onInvestmentsChange}
+              onSubsChange={onSubsChange}
+              onCreditCardsChange={onCreditCardsChange}
+              onJobScenariosChange={onJobScenariosChange}
+              furloughDate={furloughDate}
+              derivedStartDate={derivedStartDate}
+              assetProceeds={assetProceeds}
+              onWhatIfReset={() => {
+                const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
+                setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
+              }}
+              templates={templates}
+              templateResults={templateResults}
+              jobScenarioResults={jobScenarioResults}
+              plaid={plaid}
+              snapTrade={snapTrade}
+              filterPersonId={filterPersonId}
+              onFilterPersonChange={setFilterPersonId}
+              retirement={retirement}
+              onRetirementChange={onRetirementChange}
+            />
             <ErrorBoundary level="component">
               <FinancialSidebar
                 totalSavings={totalSavings}
@@ -1089,6 +1191,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 templateResults={templateResults}
                 jobScenarioResults={jobScenarioResults}
                 plaid={plaid}
+              snapTrade={snapTrade}
                 filterPersonId={filterPersonId}
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}

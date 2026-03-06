@@ -17,9 +17,7 @@ import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
-import PropertyPanel from '../components/finances/PropertyPanel'
-import HomeImprovementPanel from '../components/finances/HomeImprovementPanel'
-import TransactionLookupModal from '../components/linking/TransactionLookupModal'
+import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
 
 export default function BurndownPage({
   current,
@@ -74,18 +72,18 @@ export default function BurndownPage({
   templateResults,
   jobScenarioResults,
   plaid,
-  // Transaction linking
-  allTransactions = [],
-  transactionLinks = {},
-  txnToOverviewMap = {},
-  onLinkTransaction,
-  onUnlinkTransaction,
-  transactionOverrides = {},
-  // Historical snapshot comparison
+  snapTrade,
+  // Snapshots / historical
   snapshots,
   historicalDate,
   historicalBurndown,
   onHistoricalDateSelect,
+  // Transactions
+  allTransactions,
+  transactionLinks,
+  txnToOverviewMap,
+  onLinkTransaction,
+  onUnlinkTransaction,
 }) {
   const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
 
@@ -236,6 +234,23 @@ export default function BurndownPage({
             syncAll={plaid.syncAll}
             disconnect={plaid.disconnect}
             hasFetched={plaid.hasFetched}
+          />
+        </SectionCard>
+      )}
+
+      {/* Connected brokerage accounts via SnapTrade — full width */}
+      {import.meta.env.VITE_PLAID_API_URL && snapTrade && (
+        <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
+          <ConnectedBrokeragesPanel
+            connections={snapTrade.connections}
+            syncing={snapTrade.syncing}
+            lastSync={snapTrade.lastSync}
+            error={snapTrade.error}
+            loading={snapTrade.loading}
+            fetchAccounts={snapTrade.fetchAccounts}
+            syncAll={snapTrade.syncAll}
+            disconnect={snapTrade.disconnect}
+            hasFetched={snapTrade.hasFetched}
           />
         </SectionCard>
       )}

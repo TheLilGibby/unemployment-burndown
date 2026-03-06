@@ -1,77 +1,62 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 /**
- * Button that initiates a SnapTrade brokerage connection.
- * Opens the SnapTrade redirect URL in a new window/tab.
- * After the user completes the flow, they return to the app
- * and the callback is processed.
+ * "Connect Brokerage" button that opens the SnapTrade Connection Portal.
+ *
+ * Props:
+ *   connect         – async fn that registers user + opens portal popup
+ *   connectionCount – number of connected brokerages
+ *   syncing         – boolean, true while a sync is in progress
  */
-export default function SnapTradeConnectButton({ onConnect, generateConnectUrl, loading: externalLoading }) {
+export default function SnapTradeConnectButton({ connect, connectionCount = 0, syncing = false }) {
   const [connecting, setConnecting] = useState(false)
-  const [error, setError] = useState(null)
 
-  const handleConnect = async () => {
+  const handleClick = useCallback(async () => {
     setConnecting(true)
-    setError(null)
     try {
-      const redirectUrl = await generateConnectUrl('FIDELITY')
-      // Open in new window for the redirect-based auth flow
-      const popup = window.open(redirectUrl, '_blank', 'width=800,height=700,scrollbars=yes')
-
-      // Poll for the window to close (user completed or cancelled)
-      if (popup) {
-        const pollTimer = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(pollTimer)
-            setConnecting(false)
-            // Trigger callback — the parent should refresh accounts
-            if (onConnect) onConnect()
-          }
-        }, 1000)
-      } else {
-        // Popup blocked — provide direct link
-        setConnecting(false)
-        if (onConnect) onConnect()
-      }
-    } catch (e) {
-      setError(e.message)
-      setConnecting(false)
+      await connect()
+    } catch {
+      // Error surfaced via useSnapTrade's error state
     }
-  }
-
-  const isLoading = connecting || externalLoading
+    setConnecting(false)
+  }, [connect])
 
   return (
-    <div>
-      <button
-        onClick={handleConnect}
-        disabled={isLoading}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-        style={{
-          background: isLoading ? 'var(--bg-input)' : 'rgba(16, 185, 129, 0.15)',
-          color: isLoading ? 'var(--text-muted)' : '#10b981',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-        }}
-        onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)' }}
-        onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)' }}
-      >
-        {isLoading ? (
-          <>
-            <div className="animate-spin rounded-full h-4 w-4" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: '#10b981' }} />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 12h5l3-9 4 18 3-9h5" />
-            </svg>
-            Connect Brokerage (Fidelity)
-          </>
-        )}
-      </button>
-      {error && (
-        <p className="mt-2 text-xs" style={{ color: '#ef4444' }}>{error}</p>
+    <button
+      onClick={handleClick}
+      disabled={connecting || syncing}
+      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
+      style={{
+        borderColor: connectionCount > 0 ? 'var(--accent-teal, #14b8a6)' : 'var(--accent-blue)',
+        background: connectionCount > 0 ? 'rgba(20, 184, 166, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+        color: connectionCount > 0 ? 'var(--accent-teal, #14b8a6)' : 'var(--accent-blue)',
+        opacity: (connecting || syncing) ? 0.6 : 1,
+        cursor: (connecting || syncing) ? 'wait' : 'pointer',
+      }}
+      title={connectionCount > 0 ? 'Connect another brokerage' : 'Connect your brokerage via SnapTrade'}
+    >
+      {/* Investment chart icon */}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      <span className="hidden sm:inline">
+        {connecting ? 'Connecting...' : syncing ? 'Syncing...' : connectionCount > 0 ? `${connectionCount} Brokerage${connectionCount > 1 ? 's' : ''}` : 'Connect Brokerage'}
+      </span>
+      {connectionCount > 0 && !connecting && !syncing && (
+        <span
+          className="text-xs font-semibold px-1 rounded-full tabular-nums"
+          style={{
+            background: 'var(--accent-teal, #14b8a6)',
+            color: '#fff',
+            fontSize: '10px',
+            lineHeight: '16px',
+            minWidth: 16,
+            textAlign: 'center',
+          }}
+        >
+          {connectionCount}
+        </span>
       )}
-    </div>
+    </button>
   )
 }

@@ -9,23 +9,20 @@ function authHeaders() {
 }
 
 /**
- * Hook that manages the SnapTrade integration lifecycle:
- *   - Generating brokerage connection URLs (redirect-based flow)
- *   - Handling connection callbacks
- *   - Fetching connected investment accounts with holdings
- *   - Syncing holdings and balances
+ * Hook that manages the SnapTrade brokerage integration lifecycle:
+ *   - Connecting brokerages (register + portal popup)
+ *   - Fetching connected brokerage accounts
+ *   - Syncing holdings + balances
  *   - Disconnecting brokerages
  *
- * All server calls go through the backend API.
- * SnapTrade handles investment/brokerage accounts (Fidelity, etc.)
- * while Plaid handles credit cards and bank accounts.
+ * Mirrors the usePlaid hook pattern exactly.
  */
 export function useSnapTrade({ onSyncComplete } = {}) {
-  const [accounts, setAccounts]   = useState([])
-  const [syncing, setSyncing]     = useState(false)
-  const [lastSync, setLastSync]   = useState(null)
-  const [error, setError]         = useState(null)
-  const [loading, setLoading]     = useState(false)
+  const [connections, setConnections] = useState([])
+  const [syncing, setSyncing]         = useState(false)
+  const [lastSync, setLastSync]       = useState(null)
+  const [error, setError]             = useState(null)
+  const [loading, setLoading]         = useState(false)
   const fetchedRef = useRef(false)
 
   async function apiCall(path, options = {}) {
@@ -48,55 +45,82 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     return data
   }
 
-  // ── Generate brokerage connect URL ──
+  // ── Connect brokerage (register + open portal popup) ──
 
-  const generateConnectUrl = useCallback(async (broker = 'FIDELITY') => {
-    setError(null)
-    try {
-      const data = await apiCall('/api/snaptrade/connect', {
-        method: 'POST',
-        body: JSON.stringify({ broker }),
-      })
-      return data.redirectUrl
-    } catch (e) {
-      setError(e.message)
-      throw e
-    }
-  }, [])
-
-  // ── Handle callback after brokerage connection ──
-
-  const handleCallback = useCallback(async (authorizationId) => {
+  const connect = useCallback(async () => {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/api/snaptrade/callback', {
+      const data = await apiCall('/snaptrade/connect', {
         method: 'POST',
-        body: JSON.stringify({ authorizationId }),
+        body: JSON.stringify({}),
       })
-      if (data.accounts) {
-        setAccounts(data.accounts)
-      }
-      setLoading(false)
-      return data
+
+      const portalUrl = data.portalUrl
+      if (!portalUrl) throw new Error('No portal URL returned')
+
+      // Open SnapTrade portal in a popup
+      const popup = window.open(portalUrl, 'snaptrade-connect', 'width=500,height=700')
+
+      return new Promise((resolve, reject) => {
+        let resolved = false
+
+        const handleMessage = (event) => {
+          // SnapTrade portal sends postMessage on success
+          if (event.data?.status === 'SUCCESS' && event.data?.authorizationId) {
+            resolved = true
+            window.removeEventListener('message', handleMessage)
+            clearInterval(pollInterval)
+
+            apiCall('/snaptrade/callback', {
+              method: 'POST',
+              body: JSON.stringify({ authorizationId: event.data.authorizationId }),
+            }).then((result) => {
+              fetchAccounts()
+              setLoading(false)
+              resolve(result)
+            }).catch((err) => {
+              setError(err.message)
+              setLoading(false)
+              reject(err)
+            })
+          }
+        }
+
+        window.addEventListener('message', handleMessage)
+
+        // Poll for popup close (fallback if postMessage not received)
+        const pollInterval = setInterval(() => {
+          if (popup && popup.closed) {
+            clearInterval(pollInterval)
+            if (!resolved) {
+              window.removeEventListener('message', handleMessage)
+              setLoading(false)
+              // Refresh accounts in case connection was made before close
+              fetchAccounts()
+              resolve(null)
+            }
+          }
+        }, 500)
+      })
     } catch (e) {
       setError(e.message)
       setLoading(false)
       throw e
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch connected accounts ──
+  // ── Fetch connected brokerage accounts ──
 
   const fetchAccounts = useCallback(async () => {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/api/snaptrade/accounts')
-      setAccounts(data.accounts || [])
+      const data = await apiCall('/snaptrade/accounts')
+      setConnections(data.connections || [])
       setLoading(false)
       fetchedRef.current = true
-      return data.accounts
+      return data.connections
     } catch (e) {
       setError(e.message)
       setLoading(false)
@@ -104,7 +128,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     }
   }, [])
 
-  // ── Sync holdings and balances ──
+  // ── Sync holdings + balances ──
 
   const syncAll = useCallback(async (connectionId = null) => {
     setError(null)
@@ -113,19 +137,19 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       const body = {}
       if (connectionId) body.connectionId = connectionId
 
-      const data = await apiCall('/api/snaptrade/sync', {
+      const data = await apiCall('/snaptrade/sync', {
         method: 'POST',
         body: JSON.stringify(body),
       })
 
-      if (data.updated && data.accounts) {
-        setAccounts(data.accounts)
-        setLastSync(data.syncedAt || new Date().toISOString())
-
+      if (data.updated && data.data) {
+        setLastSync(new Date().toISOString())
         if (onSyncComplete) {
-          onSyncComplete(data.accounts)
+          onSyncComplete(data.data)
         }
       }
+
+      await fetchAccounts()
 
       setSyncing(false)
       return data
@@ -134,19 +158,18 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       setSyncing(false)
       throw e
     }
-  }, [onSyncComplete])
+  }, [onSyncComplete, fetchAccounts])
 
   // ── Disconnect a brokerage ──
 
   const disconnect = useCallback(async (connectionId) => {
     setError(null)
     try {
-      await apiCall(`/api/snaptrade/connections/${connectionId}`, {
-        method: 'DELETE',
+      await apiCall('/snaptrade/disconnect', {
+        method: 'POST',
+        body: JSON.stringify({ connectionId }),
       })
-      setAccounts(prev => prev.filter(a =>
-        a.id !== connectionId && a.connectionId !== connectionId
-      ))
+      setConnections(prev => prev.filter(c => c.connectionId !== connectionId))
     } catch (e) {
       setError(e.message)
       throw e
@@ -154,15 +177,14 @@ export function useSnapTrade({ onSyncComplete } = {}) {
   }, [])
 
   return {
-    accounts,
+    connections,
     syncing,
     lastSync,
     error,
     loading,
     hasFetched: fetchedRef.current,
 
-    generateConnectUrl,
-    handleCallback,
+    connect,
     fetchAccounts,
     syncAll,
     disconnect,
