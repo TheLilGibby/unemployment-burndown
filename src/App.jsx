@@ -429,9 +429,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
-  const snapTrade = useSnapTrade()
-  const { membersByUserId } = useOrgMembers(user)
-  const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
   // SnapTrade integration — auto-updates investment holdings from brokerage data
   const handleSnapTradeSync = (updatedFullState) => {
@@ -441,6 +438,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
+  const { membersByUserId } = useOrgMembers(user)
+  const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
   function buildSnapshot() {
     return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations }
