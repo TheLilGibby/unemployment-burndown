@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import usePersistedState from '../../hooks/usePersistedState'
 import dayjs from 'dayjs'
 import { formatCurrency } from '../../utils/formatters'
 import { useDragReorder } from '../../hooks/useDragReorder'
@@ -32,7 +32,7 @@ const STATUS_STYLES = {
 
 export default function JobsPanel({ jobs, onChange, people = [], allTransactions = [], transactionOverrides = {} }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(jobs, onChange)
-  const [expandedJobId, setExpandedJobId] = useState(null)
+  const [expandedJobId, setExpandedJobId] = usePersistedState('burndown_expanded_job', null)
 
   function updateItem(id, field, val) {
     onChange(jobs.map(job => {
