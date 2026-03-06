@@ -276,7 +276,7 @@ export default function TransactionTable({
   }
 
   const inputStyle = {
-    background: 'var(--bg-page)',
+    background: 'var(--bg-input)',
     border: '1px solid var(--border-input)',
     color: 'var(--text-primary)',
   }
@@ -292,7 +292,7 @@ export default function TransactionTable({
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search merchants..."
-            className="text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60"
+            className="text-sm px-3 py-1.5 rounded-lg outline-none theme-focus"
             style={{ ...inputStyle, minWidth: 160 }}
           />
           {/* Category filter pill */}
@@ -432,7 +432,7 @@ export default function TransactionTable({
             <select
               value={filterAccount}
               onChange={e => setFilterAccount(e.target.value)}
-              className="text-sm px-3 py-1.5 rounded-lg outline-none"
+              className="text-sm px-3 py-1.5 pr-7 rounded-lg outline-none themed-select theme-focus"
               style={inputStyle}
             >
               <option value="">All Accounts</option>
@@ -514,7 +514,7 @@ export default function TransactionTable({
               onChange={e => setMinAmount(e.target.value)}
               placeholder="Min"
               min="0"
-              className="text-sm px-2 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60 w-20"
+              className="text-sm px-2 py-1.5 rounded-lg outline-none theme-focus w-20"
               style={inputStyle}
             />
           </div>
@@ -527,7 +527,7 @@ export default function TransactionTable({
               onChange={e => setMaxAmount(e.target.value)}
               placeholder="Max"
               min="0"
-              className="text-sm px-2 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-blue-500/60 w-20"
+              className="text-sm px-2 py-1.5 rounded-lg outline-none theme-focus w-20"
               style={inputStyle}
             />
           </div>
