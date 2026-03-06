@@ -298,7 +298,6 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
 const DEFAULT_VIEW = {
   chartLines: { allExpenses: true, essentialsOnly: true, baseline: true },
   sections: {
-    jobs:          true,
     whatif:        true,
     subscriptions: true,
     creditCards:   true,
@@ -1064,9 +1063,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 investments={investments}
                 subscriptions={subscriptions}
                 creditCards={creditCards}
-                jobs={jobs}
                 jobScenarios={jobScenarios}
-                onJobsChange={onJobsChange}
                 onSavingsChange={onSavingsChange}
                 onUnemploymentChange={onUnemploymentChange}
                 onFurloughChange={onFurloughChange}
@@ -1184,7 +1181,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           />
         } />
 
-        <Route path="/settings" element={<UserProfilePage />} />
+        <Route path="/settings" element={
+          <UserProfilePage
+            jobs={jobs}
+            onJobsChange={onJobsChange}
+            people={people}
+            allTransactions={allTransactionsCache}
+            transactionOverrides={transactionOverrides}
+          />
+        } />
         <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
 
         {user?.isSuperAdmin && (
