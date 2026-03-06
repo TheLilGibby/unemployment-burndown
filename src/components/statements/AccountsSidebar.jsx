@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import usePersistedState from '../../hooks/usePersistedState'
-import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Plus } from 'lucide-react'
+import { CreditCard, Landmark, TrendingUp, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Plus } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import AddAccountTypeModal from './AddAccountTypeModal'
 import AccountCustomizeModal from './AccountCustomizeModal'
@@ -160,6 +160,7 @@ export default function AccountsSidebar({
   accountCustomizations = {}, onAccountCustomizationsChange,
   collapsed = false, onCollapsedChange,
   snapTrade,
+  investments = [],
 }) {
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [addAccountOpen, setAddAccountOpen] = useState(false)
@@ -246,6 +247,17 @@ export default function AccountsSidebar({
     return stateCards
   }, [creditCards, statementIndex])
 
+  // Build investment accounts list
+  const investmentAccounts = useMemo(() =>
+    investments.filter(inv => inv.active !== false).map(inv => ({
+      ...inv,
+      balance: Number(inv.balance) || 0,
+      isInvestment: true,
+      statementCount: inv.holdings?.length || 0,
+    })),
+    [investments]
+  )
+
   // Filter hidden accounts for display
   const cards = useMemo(() =>
     allCards.filter(c => !accountCustomizations[c.id]?.hidden),
@@ -255,15 +267,21 @@ export default function AccountsSidebar({
     bankAccounts.filter(a => !accountCustomizations[a.id]?.hidden),
     [bankAccounts, accountCustomizations]
   )
+  const visibleInvestments = useMemo(() =>
+    investmentAccounts.filter(a => !accountCustomizations[a.id]?.hidden),
+    [investmentAccounts, accountCustomizations]
+  )
 
   const totalBalance = useMemo(() => {
     const bankTotal = visibleBankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
     const creditTotal = cards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
-    return bankTotal + creditTotal
-  }, [visibleBankAccounts, cards])
+    const investTotal = visibleInvestments.reduce((s, a) => s + (Number(a.balance) || 0), 0)
+    return bankTotal + creditTotal + investTotal
+  }, [visibleBankAccounts, cards, visibleInvestments])
 
   const creditSubtotal = cards.reduce((s, c) => s + (Number(c.balance) || 0), 0)
   const bankSubtotal = visibleBankAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0)
+  const investSubtotal = visibleInvestments.reduce((s, a) => s + (Number(a.balance) || 0), 0)
 
   const lastSync = plaid?.lastSync
     ? new Date(plaid.lastSync).toLocaleDateString('en-US', {
@@ -432,6 +450,25 @@ export default function AccountsSidebar({
           people={people}
           persistKey="burndown_collapse_banking"
         />
+
+        {visibleInvestments.length > 0 && (visibleBankAccounts.length > 0 || cards.length > 0) && (
+          <div className="my-1 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+        )}
+
+        <AccountGroup
+          label="Investments"
+          icon={TrendingUp}
+          iconColor="#34d399"
+          items={visibleInvestments}
+          subtotal={investSubtotal}
+          subtotalColor="#34d399"
+          selectedCardId={selectedCardId}
+          onSelectCard={onSelectCard}
+          isDepository={false}
+          customizations={accountCustomizations}
+          people={people}
+          persistKey="burndown_collapse_investments"
+        />
       </div>
 
       {/* Hidden accounts indicator */}
@@ -560,6 +597,30 @@ export default function AccountsSidebar({
           )
         })}
 
+        {visibleInvestments.map(item => {
+          const isSelected = selectedCardId === item.id
+          const cust = accountCustomizations[item.id]
+          const person = cust?.assignedTo ? people.find(p => p.id === cust.assignedTo) : null
+          const displayName = cust?.nickname || item.name
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelectCard(item.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all"
+              style={{
+                borderColor: isSelected ? 'var(--accent-blue)' : 'var(--border-input)',
+                background: isSelected ? 'color-mix(in srgb, var(--accent-blue) 12%, var(--bg-card))' : 'var(--bg-input)',
+                color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
+              }}
+            >
+              {person && <PersonBadge person={person} />}
+              <TrendingUp size={12} style={{ color: '#34d399' }} />
+              <span className="truncate max-w-[120px]">{displayName}</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{formatCurrency(item.balance || 0)}</span>
+            </button>
+          )
+        })}
+
         {/* Add Account pill */}
         {plaid && (
           <button
@@ -603,6 +664,7 @@ export default function AccountsSidebar({
         onClose={() => setCustomizeOpen(false)}
         creditCards={allCards}
         bankAccounts={bankAccounts}
+        investmentAccounts={investmentAccounts}
         customizations={accountCustomizations}
         onCustomizationsChange={onAccountCustomizationsChange}
         people={people}

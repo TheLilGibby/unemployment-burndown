@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Eye, EyeOff, CreditCard, Landmark, Pencil, Check } from 'lucide-react'
+import { X, Eye, EyeOff, CreditCard, Landmark, TrendingUp, Pencil, Check } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 
 const COLOR_CLASSES = {
@@ -20,7 +20,7 @@ function getInitials(name) {
     .slice(0, 2) || '?'
 }
 
-function AccountCustomizeRow({ account, customization, onChange, people, isDepository }) {
+function AccountCustomizeRow({ account, customization, onChange, people, isDepository, isInvestment }) {
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(customization?.nickname || '')
   const hidden = customization?.hidden || false
@@ -70,9 +70,11 @@ function AccountCustomizeRow({ account, customization, onChange, people, isDepos
       }}
     >
       {/* Account type icon */}
-      {isDepository
-        ? <Landmark size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
-        : <CreditCard size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+      {isInvestment
+        ? <TrendingUp size={14} style={{ color: '#34d399' }} className="shrink-0" />
+        : isDepository
+          ? <Landmark size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+          : <CreditCard size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
       }
 
       {/* Name / Nickname section */}
@@ -157,6 +159,7 @@ export default function AccountCustomizeModal({
   onClose,
   creditCards = [],
   bankAccounts = [],
+  investmentAccounts = [],
   customizations = {},
   onCustomizationsChange,
   people = [],
@@ -268,9 +271,34 @@ export default function AccountCustomizeModal({
                 </div>
               )}
 
-              {creditCards.length === 0 && bankAccounts.length === 0 && (
+              {/* Investment Accounts group */}
+              {investmentAccounts.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <TrendingUp size={12} style={{ color: '#34d399' }} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      Investments
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {investmentAccounts.map(acct => (
+                      <AccountCustomizeRow
+                        key={acct.id}
+                        account={acct}
+                        customization={customizations[acct.id] || {}}
+                        onChange={patch => handleChange(acct.id, patch)}
+                        people={people}
+                        isDepository={false}
+                        isInvestment={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {creditCards.length === 0 && bankAccounts.length === 0 && investmentAccounts.length === 0 && (
                 <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-                  No accounts to customize. Connect a bank or add credit cards first.
+                  No accounts to customize. Connect a bank, credit card, or investment account first.
                 </p>
               )}
             </div>

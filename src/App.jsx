@@ -1000,6 +1000,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         collapsed={globalSidebarCollapsed}
         onCollapsedChange={setGlobalSidebarCollapsed}
         snapTrade={snapTrade}
+        investments={investments}
       />
 
       {!dataReady ? <BurndownPageSkeleton /> :
