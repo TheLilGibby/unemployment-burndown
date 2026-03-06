@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import goragLogo from '../../assets/gorag-logo.svg'
 
 export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, onDevLogin, onForgotPassword, mfaPending, error }) {
   const [email, setEmail] = useState('')
@@ -239,15 +240,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
       >
         <div className="mb-8 text-center">
-          <img
-            src="/gorag-logo-1024.png"
-            alt="GoRAG Logo"
-            className="inline-block w-16 h-16 rounded-xl mb-4"
-            style={{ objectFit: 'contain' }}
-          />
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Financial Burndown
-          </h1>
+          <img src={goragLogo} alt="GoRAG" className="mx-auto mb-4" style={{ height: 48 }} />
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {isRegister ? 'Create your account' : 'Sign in to access your data'}
           </p>
