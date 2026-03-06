@@ -412,6 +412,7 @@ export default function StatementChartTabs({
               transactions={filteredTransactions}
               onBack={handleDrillBack}
               onTransactionClick={(onTransactionUpdate || hasLinking) ? handleTransactionClick : undefined}
+              onTransactionUpdate={onTransactionUpdate ? handleTransactionUpdate : undefined}
               categoryColor={findCategory(drillCategory)?.color}
               txnToOverviewMap={hasLinking ? txnToOverviewMap : undefined}
               membersByUserId={membersByUserId}
