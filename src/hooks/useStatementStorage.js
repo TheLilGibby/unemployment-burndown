@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 const TOKEN_KEY = 'burndown_token'
@@ -29,6 +29,7 @@ export function useStatementStorage() {
   const [statements, setStatements] = useState({})
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
+  const inflightRef = useRef(new Set())
 
   // Load index on mount
   useEffect(() => {
@@ -50,9 +51,10 @@ export function useStatementStorage() {
     loadIndex()
   }, [])
 
-  // Lazy-load a full statement by ID
+  // Lazy-load a full statement by ID (guards against duplicate in-flight requests)
   const loadStatement = useCallback(async (statementId) => {
-    if (statements[statementId]) return statements[statementId]
+    if (inflightRef.current.has(statementId)) return null
+    inflightRef.current.add(statementId)
     try {
       const res = await fetch(`${API_BASE}/api/statements/${statementId}`, {
         headers: { ...authHeaders() },
@@ -64,8 +66,10 @@ export function useStatementStorage() {
     } catch (e) {
       setError(e.message)
       return null
+    } finally {
+      inflightRef.current.delete(statementId)
     }
-  }, [statements])
+  }, [])
 
   // Re-fetch the index (after a new statement is parsed)
   const refreshIndex = useCallback(async () => {
@@ -80,5 +84,35 @@ export function useStatementStorage() {
     } catch { /* silent */ }
   }, [])
 
-  return { index, statements, loading, error, loadStatement, refreshIndex }
+  // Patch a single transaction in a statement (marks it as user-modified on the backend)
+  const patchTransaction = useCallback(async (statementId, transactionId, updates) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/statements/${statementId}/transactions/${transactionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) return null
+      const data = await safeJson(res)
+      // Update local cache with the patched transaction
+      if (data.transaction) {
+        setStatements(prev => {
+          const stmt = prev[statementId]
+          if (!stmt) return prev
+          return {
+            ...prev,
+            [statementId]: {
+              ...stmt,
+              transactions: stmt.transactions.map(t =>
+                t.id === transactionId ? { ...t, ...data.transaction } : t
+              ),
+            },
+          }
+        })
+      }
+      return data
+    } catch { return null }
+  }, [])
+
+  return { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction }
 }

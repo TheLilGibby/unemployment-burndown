@@ -1,10 +1,14 @@
+import { useState, useEffect } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
 import { useDragReorder } from '../../hooks/useDragReorder'
+import { useSnapTrade } from '../../hooks/useSnapTrade'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
+import SnapTradeConnectButton from '../snaptrade/SnapTradeConnectButton'
+import SnapTradeAccountsPanel from '../snaptrade/SnapTradeAccountsPanel'
 
 function TrashIcon() {
   return (
@@ -16,6 +20,14 @@ function TrashIcon() {
 
 export default function InvestmentsPanel({ investments, onChange, people = [], filterPersonId = null }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(investments, onChange)
+  const snapTrade = useSnapTrade()
+  const [snapTradeLoaded, setSnapTradeLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!snapTradeLoaded) {
+      snapTrade.fetchAccounts().then(() => setSnapTradeLoaded(true))
+    }
+  }, [snapTradeLoaded])
 
   function update(id, field, val) {
     onChange(investments.map(inv => inv.id === id ? { ...inv, [field]: val } : inv))
@@ -42,6 +54,37 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
 
   return (
     <div className="space-y-3">
+      {/* SnapTrade — Connected Brokerage Accounts */}
+      {snapTrade.accounts.length > 0 ? (
+        <SnapTradeAccountsPanel
+          accounts={snapTrade.accounts}
+          syncing={snapTrade.syncing}
+          lastSync={snapTrade.lastSync}
+          onSync={() => snapTrade.syncAll()}
+          onDisconnect={(id) => snapTrade.disconnect(id)}
+        />
+      ) : (
+        <div className="rounded-lg border border-dashed px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connect Brokerage</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Link Fidelity or other investment accounts via SnapTrade
+              </div>
+            </div>
+            <SnapTradeConnectButton
+              generateConnectUrl={snapTrade.generateConnectUrl}
+              loading={snapTrade.loading}
+              onConnect={() => snapTrade.fetchAccounts()}
+            />
+          </div>
+          {snapTrade.error && (
+            <p className="mt-2 text-xs" style={{ color: '#ef4444' }}>{snapTrade.error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Manual Investments */}
       {investments.length === 0 ? (
         <p className="text-sm text-gray-600 text-center py-4">
           No investments yet. Add things like 401k contributions, brokerage deposits, crypto DCA, or Roth IRA.
@@ -108,14 +151,16 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                 </div>
                 <button
                   onClick={() => update(inv.id, 'active', !inv.active)}
-                  className={`flex-shrink-0 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    inv.active
-                      ? 'bg-teal-600/40 text-teal-300 border border-teal-500/60'
-                      : 'bg-gray-700 text-gray-500 border border-gray-600 hover:border-gray-400'
-                  }`}
                   title={inv.active ? 'Pause this investment' : 'Resume this investment'}
+                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative overflow-hidden ${
+                    inv.active ? 'bg-teal-500' : 'bg-gray-600'
+                  }`}
                 >
-                  {inv.active ? '● On' : '○ Off'}
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      inv.active ? 'translate-x-3.5' : 'translate-x-0.5'
+                    }`}
+                  />
                 </button>
                 <AssigneeSelect
                   people={people}
@@ -130,6 +175,16 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                 >
                   <TrashIcon />
                 </button>
+              </div>
+              {/* Subrow 3: description / notes */}
+              <div className="sm:col-span-7">
+                <input
+                  type="text"
+                  value={inv.description || ''}
+                  onChange={e => update(inv.id, 'description', e.target.value)}
+                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-teal-500 placeholder-gray-600"
+                  placeholder="Add a note..."
+                />
               </div>
             </div>
           )})}
@@ -149,12 +204,12 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Active monthly: </span>
-            <span className="text-teal-300 font-semibold">{formatCurrency(activeTotal)}/mo</span>
+            <span className="text-teal-300 font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
           </div>
           {pausedTotal > 0 && (
             <div>
               <span className="text-gray-500">Paused: </span>
-              <span className="text-gray-400 font-semibold">{formatCurrency(pausedTotal)}/mo</span>
+              <span className="text-gray-400 font-semibold sensitive">{formatCurrency(pausedTotal)}/mo</span>
             </div>
           )}
         </div>

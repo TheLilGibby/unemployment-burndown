@@ -4,6 +4,7 @@ import { useDragReorder } from '../../hooks/useDragReorder'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
+import TransactionLinkButton from '../linking/TransactionLinkButton'
 import CurrencyInput from './CurrencyInput'
 
 const MEDIUM_OPTIONS = [
@@ -26,7 +27,7 @@ function TrashIcon() {
   )
 }
 
-export default function OneTimePurchasePanel({ purchases, onChange, people = [], filterPersonId = null }) {
+export default function OneTimePurchasePanel({ purchases, onChange, people = [], filterPersonId = null, allTransactions = [], transactionLinks = {}, onOpenTransactionLookup }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(purchases, onChange)
 
   function updatePurchase(id, field, val) {
@@ -45,6 +46,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
   }
 
   const total = purchases.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  const showLinkCol = allTransactions.length > 0 || Object.keys(transactionLinks).some(k => k.startsWith('otp_'))
 
   return (
     <div className="space-y-3">
@@ -57,7 +59,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
           {/* Column headers — desktop only */}
           <div
             className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 110px 120px 110px 32px 32px 32px' }}
+            style={{ gridTemplateColumns: showLinkCol ? '20px 1fr 110px 120px 110px 32px 32px 32px 32px' : '20px 1fr 110px 120px 110px 32px 32px 32px' }}
           >
             <span></span>
             <span>Description</span>
@@ -66,6 +68,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
             <span>Amount</span>
             <span></span>
             <span></span>
+            {showLinkCol && <span></span>}
             <span></span>
           </div>
 
@@ -73,6 +76,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
           <div className="space-y-2">
             {purchases.map(purchase => {
               const dimmed = filterPersonId && !matchesPersonFilter(purchase.assignedTo, filterPersonId)
+              const overviewKey = `otp_${purchase.id}`
               return (
               <div
                 key={purchase.id}
@@ -101,7 +105,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
                     placeholder="Description"
                   />
                 </div>
-                {/* Subrow 2: date + medium + amount + assignee + comment + trash */}
+                {/* Subrow 2: date + medium + amount + assignee + comment + link + trash */}
                 <div className="flex items-center gap-2 sm:contents">
                   <input
                     type="date"
@@ -132,7 +136,16 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
                     value={purchase.assignedTo ?? null}
                     onChange={val => updatePurchase(purchase.id, 'assignedTo', val)}
                   />
-                  <CommentButton itemId={`otp_${purchase.id}`} label={purchase.description || 'One-Time Purchase'} />
+                  <CommentButton itemId={overviewKey} label={purchase.description || 'One-Time Purchase'} />
+                  {showLinkCol && (
+                    <TransactionLinkButton
+                      overviewKey={overviewKey}
+                      overviewItem={purchase}
+                      linkedTransactions={transactionLinks[overviewKey] || []}
+                      allTransactions={allTransactions}
+                      onOpenLookup={onOpenTransactionLookup}
+                    />
+                  )}
                   <button
                     onClick={() => deletePurchase(purchase.id)}
                     className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
@@ -157,7 +170,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
         <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total purchases: </span>
-            <span className="text-red-300 font-semibold">{formatCurrency(total)}</span>
+            <span className="text-red-300 font-semibold sensitive">{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>
@@ -175,7 +188,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
             return entries.map(([medium, amt]) => (
               <div key={medium}>
                 <span className="text-gray-500">{medium}: </span>
-                <span className="text-red-300/80 font-medium">{formatCurrency(amt)}</span>
+                <span className="text-red-300/80 font-medium sensitive">{formatCurrency(amt)}</span>
               </div>
             ))
           })()}

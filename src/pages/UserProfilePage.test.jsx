@@ -14,6 +14,12 @@ vi.mock('../context/ThemeContext', () => ({
   ThemeProvider: ({ children }) => children,
 }))
 
+// Mock the HiddenModeContext
+vi.mock('../context/HiddenModeContext', () => ({
+  useHiddenMode: () => ({ hidden: false, setHidden: vi.fn(), toggleHidden: vi.fn() }),
+  HiddenModeProvider: ({ children }) => children,
+}))
+
 // Mock the NotificationsContext
 vi.mock('../context/NotificationsContext', () => ({
   useNotificationsContext: () => ({
@@ -27,6 +33,12 @@ vi.mock('../context/NotificationsContext', () => ({
     snooze: vi.fn(),
     unsnooze: vi.fn(),
   }),
+}))
+
+// Mock the HiddenModeContext
+vi.mock('../context/HiddenModeContext', () => ({
+  useHiddenMode: () => ({ hidden: false, setHidden: vi.fn() }),
+  HiddenModeProvider: ({ children }) => children,
 }))
 
 describe('UserProfilePage', () => {
@@ -58,7 +70,7 @@ describe('UserProfilePage', () => {
     render(<UserProfilePage />)
     
     expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('test@example.com')).toBeInTheDocument()
+    expect(screen.getAllByText('test@example.com').length).toBeGreaterThan(0)
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByText('Test Org')).toBeInTheDocument()
     expect(screen.getByText('MFA Enabled')).toBeInTheDocument()

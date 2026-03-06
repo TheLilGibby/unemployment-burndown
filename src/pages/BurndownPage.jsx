@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SectionCard from '../components/layout/SectionCard'
 import RunwayBanner from '../components/dashboard/RunwayBanner'
 import ChartTabsSection from '../components/chart/ChartTabsSection'
@@ -8,12 +9,12 @@ import OneTimeExpensePanel from '../components/finances/OneTimeExpensePanel'
 import OneTimePurchasePanel from '../components/finances/OneTimePurchasePanel'
 import OneTimeIncomePanel from '../components/finances/OneTimeIncomePanel'
 import MonthlyIncomePanel from '../components/finances/MonthlyIncomePanel'
-import JobsPanel from '../components/finances/JobsPanel'
+import AdvertisingRevenuePanel from '../components/finances/AdvertisingRevenuePanel'
+
 import AssetsPanel from '../components/finances/AssetsPanel'
 import InvestmentsPanel from '../components/finances/InvestmentsPanel'
 import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
-import RetirementPanel from '../components/finances/RetirementPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
@@ -38,11 +39,8 @@ export default function BurndownPage({
   investments,
   subscriptions,
   creditCards,
-  jobs,
   jobScenarios,
-  retirement,
   // Change handlers
-  onJobsChange,
   onSavingsChange,
   onUnemploymentChange,
   onFurloughChange,
@@ -57,7 +55,14 @@ export default function BurndownPage({
   onSubsChange,
   onCreditCardsChange,
   onJobScenariosChange,
-  onRetirementChange,
+  // Properties & Home Improvements
+  properties,
+  homeImprovements,
+  onPropertiesChange,
+  onHomeImprovementsChange,
+  // Advertising
+  advertisingRevenue,
+  onAdvertisingRevenueChange,
   // What-if extras
   furloughDate,
   derivedStartDate,
@@ -69,6 +74,12 @@ export default function BurndownPage({
   plaid,
   snapTrade,
 }) {
+  const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
+
+  function handleOpenLookup(overviewKey, overviewItem) {
+    setLookupState({ overviewKey, overviewItem })
+  }
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
@@ -97,15 +108,12 @@ export default function BurndownPage({
         creditCards={creditCards}
         investments={investments}
         monthlyBenefits={current.monthlyBenefits}
+        availableDates={snapshots?.availableDates || []}
+        selectedHistoricalDate={historicalDate}
+        historicalBurndown={historicalBurndown}
+        snapshotLoading={snapshots?.snapshotLoading || false}
+        onHistoricalDateSelect={onHistoricalDateSelect}
       />
-
-      {/* Jobs / Employment */}
-      {viewSettings.sections.jobs && (
-        <SectionCard id="sec-jobs" title="Jobs / Employment" className="scroll-mt-20">
-          <JobsPanel jobs={jobs} onChange={onJobsChange} people={people} />
-        </SectionCard>
-      )}
-
 
       {/* Two-column inputs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -248,24 +256,46 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
+
       {/* One-time expenses — full width */}
       {viewSettings.sections.onetimes && (
         <SectionCard id="sec-onetimes" title="One-Time Expenses" className="scroll-mt-20">
-          <OneTimeExpensePanel expenses={oneTimeExpenses} onChange={onOneTimeExpChange} people={people} />
+          <OneTimeExpensePanel
+            expenses={oneTimeExpenses}
+            onChange={onOneTimeExpChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
       {/* One-time purchases (losses) — full width */}
       {viewSettings.sections.onetimePurchases && (
         <SectionCard id="sec-onetimepurchases" title="One-Time Purchases" className="scroll-mt-20">
-          <OneTimePurchasePanel purchases={oneTimePurchases} onChange={onOneTimePurchChange} people={people} />
+          <OneTimePurchasePanel
+            purchases={oneTimePurchases}
+            onChange={onOneTimePurchChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
       {/* One-time income injections — full width */}
       {viewSettings.sections.onetimeIncome && (
         <SectionCard id="sec-onetimeincome" title="One-Time Income Injections" className="scroll-mt-20">
-          <OneTimeIncomePanel items={oneTimeIncome} onChange={onOneTimeIncChange} people={people} />
+          <OneTimeIncomePanel
+            items={oneTimeIncome}
+            onChange={onOneTimeIncChange}
+            people={people}
+            allTransactions={allTransactions}
+            transactionLinks={transactionLinks}
+            onOpenTransactionLookup={handleOpenLookup}
+          />
         </SectionCard>
       )}
 
@@ -276,6 +306,13 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
+      {/* Advertising vs Ad Revenue — full width */}
+      {viewSettings.sections.advertisingRevenue && (
+        <SectionCard id="sec-advertisingrevenue" title="Advertising vs Ad Revenue" className="scroll-mt-20">
+          <AdvertisingRevenuePanel value={advertisingRevenue} onChange={onAdvertisingRevenueChange} people={people} />
+        </SectionCard>
+      )}
+
       {/* Sellable assets — full width */}
       {viewSettings.sections.assets && (
         <SectionCard id="sec-assets" title="Sellable Assets" className="scroll-mt-20">
@@ -283,11 +320,38 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Retirement planning — full width */}
-      {viewSettings.sections.retirement && (
-        <SectionCard id="sec-retirement" title="Retirement Planning" className="scroll-mt-20">
-          <RetirementPanel data={retirement} onChange={onRetirementChange} people={people} />
+      {/* Properties — full width */}
+      {viewSettings.sections.properties && (
+        <SectionCard id="sec-properties" title="Properties" className="scroll-mt-20">
+          <PropertyPanel properties={properties} onChange={onPropertiesChange} />
         </SectionCard>
+      )}
+
+      {/* Home Improvements — full width */}
+      {viewSettings.sections.homeImprovements && (
+        <SectionCard id="sec-homeimprovements" title="Home Improvements" className="scroll-mt-20">
+          <HomeImprovementPanel
+            improvements={homeImprovements}
+            onChange={onHomeImprovementsChange}
+            properties={properties}
+            people={people}
+          />
+        </SectionCard>
+      )}
+
+      {/* Transaction lookup modal */}
+      {lookupState && (
+        <TransactionLookupModal
+          open={true}
+          overviewKey={lookupState.overviewKey}
+          overviewItem={lookupState.overviewItem}
+          allTransactions={allTransactions}
+          linkedTransactions={transactionLinks[lookupState.overviewKey] || []}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={onLinkTransaction}
+          onUnlink={onUnlinkTransaction}
+          onClose={() => setLookupState(null)}
+        />
       )}
 
       <p className="text-center text-xs text-faint pb-4">

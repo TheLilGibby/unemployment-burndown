@@ -84,6 +84,7 @@ export function usePlaid({ onSyncComplete } = {}) {
           itemId:          data.itemId,
           institutionName: data.institutionName,
           institutionId:   data.institutionId,
+          connectedBy:     data.connectedBy || null,
           accounts:        data.accounts,
           lastSync:        new Date().toISOString(),
         },

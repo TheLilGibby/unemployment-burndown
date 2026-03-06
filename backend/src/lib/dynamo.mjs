@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { encrypt, decrypt, isEncryptionConfigured } from './encryption.mjs'
 
 const TABLE = process.env.TOKENS_TABLE || 'PlaidTokens'
@@ -18,12 +18,18 @@ function encryptToken(token) {
   return encrypt(token)
 }
 
+const ACCESS_TOKEN_RE = /^access-(sandbox|development|production)-[a-f0-9-]+$/
+
 function decryptToken(token) {
   if (!token || !isEncryptionConfigured()) return token
+  // Already a valid plaintext token (pre-encryption migration)
+  if (ACCESS_TOKEN_RE.test(token)) return token
   try {
     return decrypt(token)
   } catch {
-    // Token may not yet be encrypted (pre-migration); return as-is
+    // Decryption failed — token may be double-encrypted or the key changed.
+    // Return as-is so the caller can surface a clear error rather than crash.
+    console.warn('[plaid-tokens] decryptToken failed — token may be corrupted or the PLAID_ENCRYPTION_KEY may have changed')
     return token
   }
 }
@@ -36,7 +42,7 @@ function decryptItem(item) {
 /**
  * Store a Plaid item (access_token encrypted at-rest + metadata).
  */
-export async function putPlaidItem({ userId, itemId, accessToken, institutionId, institutionName, cursor }) {
+export async function putPlaidItem({ userId, itemId, accessToken, institutionId, institutionName, cursor, connectedBy }) {
   await getDocClient().send(new PutCommand({
     TableName: TABLE,
     Item: {
@@ -46,6 +52,7 @@ export async function putPlaidItem({ userId, itemId, accessToken, institutionId,
       institutionId:   institutionId || null,
       institutionName: institutionName || null,
       cursor:          cursor || null,
+      connectedBy:     connectedBy || null,
       createdAt:       new Date().toISOString(),
       updatedAt:       new Date().toISOString(),
     },
@@ -78,18 +85,29 @@ export async function getPlaidItemsByUser(userId) {
 
 /**
  * Update the sync cursor for an item.
+ *
+ * Uses UpdateCommand to modify only the cursor field, avoiding a
+ * read-modify-write cycle that would needlessly decrypt and re-encrypt
+ * the access token (risking double-encryption if the key ever changes).
  */
 export async function updateCursor(userId, itemId, cursor) {
-  const existing = await getPlaidItem(userId, itemId)
-  await getDocClient().send(new PutCommand({
+  await getDocClient().send(new UpdateCommand({
     TableName: TABLE,
-    Item: {
-      ...existing,
-      accessToken: encryptToken(existing.accessToken),
-      cursor,
-      updatedAt: new Date().toISOString(),
+    Key: { userId, itemId },
+    UpdateExpression: 'SET #cursor = :cursor, updatedAt = :now',
+    ExpressionAttributeNames: { '#cursor': 'cursor' },
+    ExpressionAttributeValues: {
+      ':cursor': cursor,
+      ':now': new Date().toISOString(),
     },
   }))
+}
+
+/**
+ * Returns true if the token looks like a valid Plaid access token.
+ */
+export function isValidAccessToken(token) {
+  return typeof token === 'string' && ACCESS_TOKEN_RE.test(token)
 }
 
 /**

@@ -21,7 +21,7 @@ export async function handler(event) {
 
     const members = await getMembersByOrg(tokenUser.orgId)
 
-    // Enrich members with email (without exposing sensitive data)
+    // Enrich members with email and profile info (without exposing sensitive data)
     const memberList = await Promise.all(members.map(async (m) => {
       const u = await getUser(m.userId)
       return {
@@ -29,6 +29,8 @@ export async function handler(event) {
         email: u?.email || m.userId,
         role: m.role,
         joinedAt: m.joinedAt,
+        profileColor: u?.profileColor || 'blue',
+        avatarDataUrl: u?.avatarDataUrl || null,
       }
     }))
 

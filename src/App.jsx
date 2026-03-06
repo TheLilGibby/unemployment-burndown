@@ -22,10 +22,15 @@ import CreditCardHubPage from './pages/CreditCardHubPage'
 import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
+import GoalsPage from './pages/GoalsPage'
+import AccountsSidebar from './components/statements/AccountsSidebar'
+import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
+import { useSnapshots } from './hooks/useSnapshots'
 import { usePlaid } from './hooks/usePlaid'
 import { useSnapTrade } from './hooks/useSnapTrade'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
+import { getEffectivePayment } from './utils/ccPayment'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
@@ -41,6 +46,7 @@ import OrgSettings from './components/org/OrgSettings'
 import ProfileMenu from './components/profile/ProfileMenu'
 import ProfileSettings from './components/profile/ProfileSettings'
 import { NotificationsProvider } from './context/NotificationsContext'
+import { ToastProvider } from './context/ToastContext'
 import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
@@ -81,7 +87,7 @@ function migrateJobScenario(s) {
 // Pure burndown computation (mirrors useBurndown logic without React hooks).
 // Used inside useMemo to compute template results for the Compare tab.
 // ---------------------------------------------------------------------------
-function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = []) {
+function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpenses, extraCash, investments, oneTimeIncome = [], monthlyIncome = [], startDate = null, jobs = [], oneTimePurchases = [], creditCards = []) {
   const today = dayjs(startDate || new Date())
 
   const rawBenefitStart = dayjs(unemployment.startDate)
@@ -159,12 +165,22 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     oneTimeIncomeByMonth[slot] = (oneTimeIncomeByMonth[slot] || 0) + (Number(oti.amount) || 0)
   }
 
+  let ccBals = creditCards.map(c => ({
+    id: c.id, balance: Number(c.balance) || 0,
+    apr: Number(c.apr) || 0,
+    payment: getEffectivePayment(c),
+    strategy: c.paymentStrategy || 'minimum',
+  }))
+  const initDebt = ccBals.reduce((s, cc) => s + cc.balance, 0)
+
   const MAX_MONTHS = 120
   let balance = (Number(savings) || 0) + (Number(extraCash) || 0)
   const dataPoints = [{
     date: today.toDate(), dateLabel: today.format('MMM YYYY'),
     balance: Math.round(Math.max(0, balance - emergencyFloor)),
     rawBalance: Math.round(balance), month: 0,
+    totalDebt: Math.round(initDebt),
+    netPosition: Math.round(Math.max(0, balance - emergencyFloor) - initDebt),
   }]
 
   let runoutDate = null, runoutMonth = null
@@ -227,11 +243,23 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
       runoutDate = crossoverDate.toDate()
       runoutMonth = i - 1 + fraction
     }
+    // Update CC balances
+    for (const cc of ccBals) {
+      if (cc.balance <= 0) continue
+      if (cc.strategy === 'full') { cc.balance = 0 }
+      else {
+        const interest = cc.balance * (cc.apr / 100 / 12)
+        cc.balance = Math.max(0, cc.balance + interest - cc.payment)
+      }
+    }
+    const totalDebt = ccBals.reduce((s, cc) => s + cc.balance, 0)
     dataPoints.push({
       date: currentDate.toDate(), dateLabel: currentDate.format('MMM YYYY'),
       balance: Math.max(0, Math.round(effectiveBalance)),
       rawBalance: Math.round(balance), month: i,
       oneTimeCost: oneTimeCost > 0 ? Math.round(oneTimeCost) : undefined,
+      totalDebt: Math.round(totalDebt),
+      netPosition: Math.round(Math.max(0, effectiveBalance) - totalDebt),
     })
     if (effectiveBalance <= 0 && i >= (runoutMonth || 0) + 3) break
   }
@@ -271,7 +299,6 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
 const DEFAULT_VIEW = {
   chartLines: { allExpenses: true, essentialsOnly: true, baseline: true },
   sections: {
-    jobs:          true,
     whatif:        true,
     subscriptions: true,
     creditCards:   true,
@@ -280,10 +307,10 @@ const DEFAULT_VIEW = {
     onetimePurchases: true,
     onetimeIncome:   true,
     monthlyIncome:   true,
+    advertisingRevenue: true,
     assets:          true,
     plaidAccounts:   true,
     transactions:    true,
-    retirement:      true,
   },
 }
 
@@ -348,6 +375,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [oneTimePurchases, setOneTimePurchases] = useState(DEFAULTS.oneTimePurchases)
   const [assets, setAssets] = useState(DEFAULTS.assets)
   const [investments, setInvestments] = useState(DEFAULTS.investments)
+  const [child1Investments, setChild1Investments] = useState(DEFAULTS.child1Investments)
+  const [child2Investments, setChild2Investments] = useState(DEFAULTS.child2Investments)
   const [subscriptions, setSubscriptions] = useState(DEFAULTS.subscriptions)
   const [creditCards, setCreditCards] = useState(DEFAULTS.creditCards)
   const [oneTimeIncome, setOneTimeIncome] = useState(DEFAULTS.oneTimeIncome)
@@ -355,9 +384,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [jobs, setJobs] = useState(DEFAULTS.jobs)
   const [jobScenarios, setJobScenarios] = useState(DEFAULTS.jobScenarios)
   const [retirement, setRetirement] = useState(DEFAULTS.retirement)
+  const [properties, setProperties] = useState(DEFAULTS.properties)
+  const [homeImprovements, setHomeImprovements] = useState(DEFAULTS.homeImprovements)
+  const [goals, setGoals] = useState(DEFAULTS.goals)
+  const [advertisingRevenue, setAdvertisingRevenue] = useState(DEFAULTS.advertisingRevenue)
   const [comments, setComments] = useState({})
   const [filterPersonId, setFilterPersonId] = useState(null)
   const [notificationPreferences, setNotificationPreferences] = useState(DEFAULTS.notificationPreferences)
+  const [transactionLinks, setTransactionLinks] = useState(DEFAULTS.transactionLinks)
+  const [transactionOverrides, setTransactionOverrides] = useState(DEFAULTS.transactionOverrides)
+  const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
+  const [allTransactionsCache, setAllTransactionsCache] = useState([])
+  const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
+  const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
 
   const {
     templates,
@@ -373,11 +412,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     updateSnapshot,
   } = useTemplates()
 
-  const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog()
+  const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
 
   const s3Storage = useS3Storage()
+  const snapshots = useSnapshots()
   const [dataReady, setDataReady] = useState(false)
+  const [historicalDate, setHistoricalDate] = useState(null)
+  const [historicalSnapshot, setHistoricalSnapshot] = useState(null)
 
   // Plaid integration — auto-updates savings & credit card balances from bank data
   const handlePlaidSync = (updatedFullState) => {
@@ -387,6 +429,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
+  const snapTrade = useSnapTrade()
+  const { membersByUserId } = useOrgMembers(user)
+  const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
   // SnapTrade integration — auto-updates investment holdings from brokerage data
   const handleSnapTradeSync = (updatedFullState) => {
@@ -398,7 +443,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations }
   }
 
   function applySnapshot(snapshot) {
@@ -417,10 +462,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.jobs) setJobs(snapshot.jobs)
     if (snapshot.assets) setAssets(snapshot.assets)
     if (snapshot.investments) setInvestments(snapshot.investments)
+    if (snapshot.child1Investments) setChild1Investments(snapshot.child1Investments)
+    if (snapshot.child2Investments) setChild2Investments(snapshot.child2Investments)
     if (snapshot.subscriptions) setSubscriptions(snapshot.subscriptions)
     if (snapshot.creditCards) setCreditCards(snapshot.creditCards)
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
     if (snapshot.retirement) setRetirement({ ...DEFAULTS.retirement, ...snapshot.retirement })
+    if (snapshot.properties) setProperties(snapshot.properties)
+    if (snapshot.homeImprovements) setHomeImprovements(snapshot.homeImprovements)
+    if (snapshot.goals) setGoals(snapshot.goals)
+    if (snapshot.advertisingRevenue) setAdvertisingRevenue(snapshot.advertisingRevenue)
+    if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
+    if (snapshot.transactionOverrides) setTransactionOverrides(snapshot.transactionOverrides)
+    if (snapshot.accountCustomizations) setAccountCustomizations(snapshot.accountCustomizations)
   }
 
   // Full state = live snapshot + saved templates (written to / read from file)
@@ -444,7 +498,16 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (data.activeTemplateId != null) setActiveTemplateId(data.activeTemplateId)
     if (data.comments && typeof data.comments === 'object') setComments(data.comments)
     if (Array.isArray(data.activityLog)) loadEntries(data.activityLog)
-    if (data.notificationPreferences) setNotificationPreferences({ ...DEFAULTS.notificationPreferences, ...data.notificationPreferences })
+    if (data.notificationPreferences) {
+      const np = data.notificationPreferences
+      setNotificationPreferences({
+        ...DEFAULTS.notificationPreferences,
+        ...np,
+        thresholds: { ...DEFAULTS.notificationPreferences.thresholds, ...np.thresholds },
+        push: { ...DEFAULTS.notificationPreferences.push, ...np.push },
+        categoryAlerts: np.categoryAlerts || DEFAULTS.notificationPreferences.categoryAlerts,
+      })
+    }
   }
 
   // When S3 storage loads data on mount, apply it.
@@ -468,13 +531,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       s3Storage.save(buildFullState())
+      snapshots.saveSnapshot(buildSnapshot()) // idempotent — server only writes once per day
       if (dirtySections.current.size > 0) {
         addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
         dirtySections.current.clear()
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, templates, comments]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -524,8 +588,18 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
   const summarizeInvestments  = (v) => _activeSum(v, 'monthlyAmount') + '/mo'
   const summarizeSubs         = (v) => _activeSum(v, 'monthlyAmount') + '/mo'
-  const summarizeCCs          = (v) => _allSum(v, 'minimumPayment') + ' min/mo'
+  const summarizeCCs          = (v) => {
+    const total = v.reduce((s, c) => s + getEffectivePayment(c), 0)
+    return _fmtM(total) + '/mo'
+  }
+  const summarizeAdvertisingRevenue = (v) => {
+    const costTotal = (v?.costs || []).reduce((s, c) => s + (Number(c.monthlyAmount) || 0), 0)
+    const revTotal  = (v?.revenue || []).reduce((s, r) => s + (Number(r.monthlyAmount) || 0), 0)
+    return `spend ${_fmtM(costTotal)}/mo · revenue ${_fmtM(revTotal)}/mo`
+  }
   const summarizeJobScenarios = (v) => `${v.length} scenario${v.length !== 1 ? 's' : ''}`
+  const summarizeProperties      = (v) => `${v.length} propert${v.length !== 1 ? 'ies' : 'y'}`
+  const summarizeHomeImprovements = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
   const summarizeRetirement = (v) => {
     const target = v.targetMode === 'income'
       ? Math.round((Number(v.desiredAnnualIncome) || 0) / ((Number(v.withdrawalRatePct) || 4) / 100))
@@ -562,10 +636,72 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const onJobsChange         = track(() => jobs,            setJobs,            'Jobs',               summarizeJobs,         diffArray)
   const onAssetsChange       = track(() => assets,          setAssets,          'Assets',             summarizeAssets,       diffArray)
   const onInvestmentsChange  = track(() => investments,     setInvestments,     'Investments',        summarizeInvestments,  diffArray)
+  const onChild1InvestmentsChange = track(() => child1Investments, setChild1Investments, 'Child [1] Investments', summarizeInvestments, diffArray)
+  const onChild2InvestmentsChange = track(() => child2Investments, setChild2Investments, 'Child [2] Investments', summarizeInvestments, diffArray)
   const onSubsChange         = track(() => subscriptions,   setSubscriptions,   'Subscriptions',      summarizeSubs,         diffArray)
   const onCreditCardsChange  = track(() => creditCards,     setCreditCards,     'Credit cards',       summarizeCCs,          diffArray)
   const onJobScenariosChange = track(() => jobScenarios,    setJobScenarios,    'Job scenarios',      summarizeJobScenarios, diffArray)
   const onRetirementChange   = track(() => retirement,      setRetirement,      'Retirement plan',    summarizeRetirement,   diffObject)
+  const onPropertiesChange        = track(() => properties,       setProperties,        'Properties',          summarizeProperties,        diffArray)
+  const onHomeImprovementsChange  = track(() => homeImprovements, setHomeImprovements,  'Home improvements',   summarizeHomeImprovements,  diffArray)
+  const summarizeGoals       = (v) => `${v.length} goal${v.length !== 1 ? 's' : ''}`
+  const onGoalsChange        = track(() => goals,           setGoals,           'Goals',              summarizeGoals,        diffArray)
+  const onAdvertisingRevenueChange = track(() => advertisingRevenue, setAdvertisingRevenue, 'Advertising revenue', summarizeAdvertisingRevenue, diffObject)
+
+  // Transaction linking handlers
+  const txnToOverviewMap = useMemo(() => {
+    const map = {}
+    for (const [overviewKey, links] of Object.entries(transactionLinks)) {
+      for (const link of links) {
+        map[link.transactionId] = overviewKey
+      }
+    }
+    return map
+  }, [transactionLinks])
+
+  function handleLinkTransaction(overviewKey, txnSnapshot) {
+    // Enforce: each transaction links to at most one overview item
+    if (txnToOverviewMap[txnSnapshot.id || txnSnapshot.transactionId]) return
+    setTransactionLinks(prev => ({
+      ...prev,
+      [overviewKey]: [
+        ...(prev[overviewKey] || []),
+        {
+          transactionId: txnSnapshot.id || txnSnapshot.transactionId,
+          linkedAt: new Date().toISOString(),
+          amount: txnSnapshot.amount,
+          date: txnSnapshot.date,
+          merchantName: txnSnapshot.merchantName,
+          description: txnSnapshot.description,
+        }
+      ]
+    }))
+    dirtySections.current.add('Transaction links')
+  }
+
+  function handleUnlinkTransaction(overviewKey, transactionId) {
+    setTransactionLinks(prev => {
+      const updated = { ...prev }
+      updated[overviewKey] = (updated[overviewKey] || []).filter(l => l.transactionId !== transactionId)
+      if (updated[overviewKey].length === 0) delete updated[overviewKey]
+      return updated
+    })
+    dirtySections.current.add('Transaction links')
+  }
+
+  function handleTransactionOverride(txnId, updates) {
+    setTransactionOverrides(prev => ({
+      ...prev,
+      [txnId]: { ...(prev[txnId] || {}), ...updates },
+    }))
+    dirtySections.current.add('Transaction overrides')
+  }
+
+  async function handleGlobalSync(itemId) {
+    if (!plaid) return
+    await plaid.syncAll(itemId)
+    refreshStatementIndex()
+  }
 
   // Derived: total cash from all active accounts
   const totalSavings = savingsAccounts
@@ -588,23 +724,37 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const effectiveStartDate = furloughDate || derivedStartDate || dayjs().format('YYYY-MM-DD')
 
-  // Merge active subscriptions + credit card minimum payments into expenses
+  // Merge active subscriptions + credit card payments into expenses
   const expensesWithSubs = [
     ...expenses,
     ...subscriptions
       .filter(s => s.active !== false)
       .map(s => ({ id: `sub_${s.id}`, category: s.name, monthlyAmount: s.monthlyAmount, essential: false })),
     ...creditCards
-      .filter(c => (Number(c.minimumPayment) || 0) > 0)
-      .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+      .filter(c => getEffectivePayment(c) > 0)
+      .map(c => {
+        const pmt = getEffectivePayment(c)
+        const label = c.paymentStrategy === 'full' ? 'full bal.' : c.paymentStrategy === 'fixed' ? 'fixed pmt' : 'min. payment'
+        return { id: `cc_${c.id}`, category: `${c.name} (${label})`, monthlyAmount: pmt, essential: true }
+      }),
   ]
+
+  // Combine all investment arrays (parent + child) for burndown calculation
+  const allInvestments = [...investments, ...child1Investments, ...child2Investments]
+
+  // Merge advertising costs into expenses and ad revenue into monthly income for burndown
+  const adCostsAsExpenses = (advertisingRevenue?.costs ?? [])
+    .filter(c => c.monthlyAmount)
+    .map(c => ({ id: `adcost_${c.id}`, category: c.description || 'Ad Cost', monthlyAmount: c.monthlyAmount, essential: false, assignedTo: c.assignedTo }))
+  const expensesForBurndown = [...expensesWithSubs, ...adCostsAsExpenses]
+  const monthlyIncomeForBurndown = [...monthlyIncome, ...(advertisingRevenue?.revenue ?? [])]
 
   // Base calculation (no what-if, no asset sales) — used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesWithSubs, baseWhatIf, oneTimeExpenses, 0, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
+  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // With all what-if scenarios applied
-  const current = useBurndown(totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, assetProceeds, investments, oneTimeIncome, monthlyIncome, effectiveStartDate, jobs, oneTimePurchases)
+  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
   // Pre-compute burndown results for every saved template (for Compare tab)
   const templateResults = useMemo(() => {
@@ -624,19 +774,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           .filter(sub => sub.active !== false)
           .map(sub => ({ id: `sub_${sub.id}`, category: sub.name, monthlyAmount: sub.monthlyAmount, essential: false })),
         ...(s.creditCards || [])
-          .filter(c => (Number(c.minimumPayment) || 0) > 0)
-          .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (min. payment)`, monthlyAmount: c.minimumPayment, essential: true })),
+          .filter(c => getEffectivePayment(c) > 0)
+          .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (payment)`, monthlyAmount: getEffectivePayment(c), essential: true })),
       ]
       const tWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
       const tUnemployment = s.unemployment || DEFAULTS.unemployment
-      const tInvestments  = s.investments  || []
+      const tInvestments  = [...(s.investments || []), ...(s.child1Investments || []), ...(s.child2Investments || [])]
       const tOneTime      = s.oneTimeExpenses || []
       const tOneTimeIncome = s.oneTimeIncome || []
       const tMonthlyIncome = s.monthlyIncome || []
       const tFurloughDate = s.furloughDate || DEFAULTS.furloughDate
       const tJobs = s.jobs || []
       const tOneTimePurchases = s.oneTimePurchases || []
-      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases)
+      results[t.id] = computeBurndown(tSavings, tUnemployment, tExpenses, tWhatIf, tOneTime, tAssetProceeds, tInvestments, tOneTimeIncome, tMonthlyIncome, tFurloughDate, tJobs, tOneTimePurchases, s.creditCards || [])
     }
     return results
   }, [templates])
@@ -666,17 +816,65 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       results[scenario.id] = computeBurndown(
         totalSavings, unemployment, expensesWithSubs, scenarioWhatIf,
         oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-        monthlyIncome, furloughDate, [], oneTimePurchases
+        monthlyIncome, furloughDate, [], oneTimePurchases, creditCards
       )
     }
     // Baseline (no job) result
     results['__baseline__'] = computeBurndown(
       totalSavings, unemployment, expensesWithSubs, baseWhatIfForScenarios,
       oneTimeExpenses, assetProceeds, investments, oneTimeIncome,
-      monthlyIncome, furloughDate, [], oneTimePurchases
+      monthlyIncome, furloughDate, [], oneTimePurchases, creditCards
     )
     return results
   }, [jobScenarios, totalSavings, unemployment, expensesWithSubs, whatIf, oneTimeExpenses, oneTimePurchases, assetProceeds, investments, oneTimeIncome, monthlyIncome, furloughDate])
+
+  // Compute burndown for a historical snapshot so users can compare past projections
+  const historicalBurndown = useMemo(() => {
+    if (!historicalSnapshot || !historicalDate) return null
+    const s = historicalSnapshot
+    const hSavings = (s.savingsAccounts || [])
+      .filter(a => a.active !== false)
+      .reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
+    const hAssetProceeds = (s.assets || [])
+      .filter(a => a.includedInWhatIf)
+      .reduce((sum, a) => sum + (Number(a.estimatedValue) || 0), 0)
+    const hExpenses = [
+      ...(s.expenses || []),
+      ...(s.subscriptions || [])
+        .filter(sub => sub.active !== false)
+        .map(sub => ({ id: `sub_${sub.id}`, category: sub.name, monthlyAmount: sub.monthlyAmount, essential: false })),
+      ...(s.creditCards || [])
+        .filter(c => getEffectivePayment(c) > 0)
+        .map(c => ({ id: `cc_${c.id}`, category: `${c.name} (payment)`, monthlyAmount: getEffectivePayment(c), essential: true })),
+    ]
+    const hWhatIf      = { ...DEFAULTS.whatIf, ...(s.whatIf || {}) }
+    const hUnemployment = s.unemployment || DEFAULTS.unemployment
+    const hInvestments  = s.investments  || []
+    const hOneTime      = s.oneTimeExpenses || []
+    const hOneTimeIncome = s.oneTimeIncome || []
+    const hMonthlyIncome = s.monthlyIncome || []
+    const hJobs = s.jobs || []
+    const hOneTimePurchases = s.oneTimePurchases || []
+    return computeBurndown(
+      hSavings, hUnemployment, hExpenses, hWhatIf,
+      hOneTime, hAssetProceeds, hInvestments,
+      hOneTimeIncome, hMonthlyIncome, historicalDate,
+      hJobs, hOneTimePurchases, s.creditCards || []
+    )
+  }, [historicalSnapshot, historicalDate])
+
+  const handleHistoricalDateSelect = async (date) => {
+    if (!date) {
+      setHistoricalDate(null)
+      setHistoricalSnapshot(null)
+      return
+    }
+    const data = await snapshots.loadSnapshot(date)
+    if (data?.state) {
+      setHistoricalDate(date)
+      setHistoricalSnapshot(data.state)
+    }
+  }
 
   const hasWhatIf =
     whatIf.expenseReductionPct > 0 ||
@@ -693,6 +891,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   return (
     <>
     {impersonating && <ImpersonationBanner user={user} onStop={stopImpersonating} />}
+    <ToastProvider>
     <NotificationsProvider
       burndown={current}
       preferences={notificationPreferences}
@@ -720,7 +919,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           hasWhatIf={hasWhatIf}
           expenses={expenses}
           subscriptions={subscriptions}
-          investments={investments}
+          investments={allInvestments}
           oneTimeExpenses={oneTimeExpenses}
           assets={assets}
           unemployment={unemployment}
@@ -808,10 +1007,34 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         }
       />
 
+      {/* Global accounts sidebar — visible on all pages */}
+      <AccountsSidebar
+        creditCards={creditCards}
+        savingsAccounts={savingsAccounts}
+        statementIndex={statementIndex}
+        selectedCardId={globalSelectedCardId}
+        onSelectCard={setGlobalSelectedCardId}
+        plaid={plaid}
+        onSync={handleGlobalSync}
+        people={people}
+        user={user}
+        onCreditCardsChange={onCreditCardsChange}
+        onSavingsChange={onSavingsChange}
+        onStatementsRefresh={refreshStatementIndex}
+        loading={statementsLoading}
+        error={statementsError}
+        accountCustomizations={accountCustomizations}
+        onAccountCustomizationsChange={setAccountCustomizations}
+        collapsed={globalSidebarCollapsed}
+        onCollapsedChange={setGlobalSidebarCollapsed}
+        snapTrade={snapTrade}
+      />
+
       {!dataReady ? <BurndownPageSkeleton /> :
+      <div className={`${globalSidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} transition-[margin] duration-200`}>
       <Routes>
         <Route path="/" element={
-          <>
+          <div className="xl:mr-[10rem]">
             <TableOfContents visibleSections={viewSettings.sections} />
             <div className="max-w-5xl mx-auto px-4 pt-4 flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -911,7 +1134,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 expenses={expenses}
                 subscriptions={subscriptions}
                 creditCards={creditCards}
-                investments={investments}
+                investments={allInvestments}
                 oneTimeExpenses={oneTimeExpenses}
                 oneTimeIncome={oneTimeIncome}
                 monthlyIncome={monthlyIncome}
@@ -919,6 +1142,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 jobs={jobs}
                 people={people}
                 filterPersonId={filterPersonId}
+                advertisingRevenue={advertisingRevenue}
               />
             </ErrorBoundary>
             <ErrorBoundary level="section">
@@ -941,9 +1165,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 investments={investments}
                 subscriptions={subscriptions}
                 creditCards={creditCards}
-                jobs={jobs}
                 jobScenarios={jobScenarios}
-                onJobsChange={onJobsChange}
                 onSavingsChange={onSavingsChange}
                 onUnemploymentChange={onUnemploymentChange}
                 onFurloughChange={onFurloughChange}
@@ -974,13 +1196,58 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}
                 onRetirementChange={onRetirementChange}
+                allTransactions={allTransactionsCache}
+                transactionLinks={transactionLinks}
+                txnToOverviewMap={txnToOverviewMap}
+                onLinkTransaction={handleLinkTransaction}
+                onUnlinkTransaction={handleUnlinkTransaction}
+                transactionOverrides={transactionOverrides}
+                properties={properties}
+                homeImprovements={homeImprovements}
+                onPropertiesChange={onPropertiesChange}
+                onHomeImprovementsChange={onHomeImprovementsChange}
+                advertisingRevenue={advertisingRevenue}
+                onAdvertisingRevenueChange={onAdvertisingRevenueChange}
+                snapshots={snapshots}
+                historicalDate={historicalDate}
+                historicalBurndown={historicalBurndown}
+                onHistoricalDateSelect={handleHistoricalDateSelect}
               />
             </ErrorBoundary>
-          </>
+          </div>
         } />
 
         <Route path="/credit-cards" element={
-          <CreditCardHubPage creditCards={creditCards} people={people} plaid={plaid} savingsAccounts={savingsAccounts} />
+          <CreditCardHubPage
+            creditCards={creditCards}
+            people={people}
+            plaid={plaid}
+            savingsAccounts={savingsAccounts}
+            onCreditCardsChange={onCreditCardsChange}
+            onSavingsChange={onSavingsChange}
+            user={user}
+            oneTimePurchases={oneTimePurchases}
+            oneTimeExpenses={oneTimeExpenses}
+            oneTimeIncome={oneTimeIncome}
+            transactionLinks={transactionLinks}
+            onLinkTransaction={handleLinkTransaction}
+            onUnlinkTransaction={handleUnlinkTransaction}
+            onAllTransactionsChange={setAllTransactionsCache}
+            expenses={expenses}
+            subscriptions={subscriptions}
+            monthlyBenefits={current.monthlyBenefits}
+            totalMonthlyIncome={current.totalMonthlyIncome}
+            transactionOverrides={transactionOverrides}
+            onTransactionOverride={handleTransactionOverride}
+            jobs={jobs}
+            accountCustomizations={accountCustomizations}
+            onAccountCustomizationsChange={setAccountCustomizations}
+            membersByUserId={membersByUserId}
+            selectedCardId={globalSelectedCardId}
+            onSelectCard={setGlobalSelectedCardId}
+            statementIndex={statementIndex}
+            onStatementsRefresh={refreshStatementIndex}
+          />
         } />
 
         <Route path="/job-scenarios" element={
@@ -1006,7 +1273,26 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           />
         } />
 
-        <Route path="/settings" element={<UserProfilePage />} />
+        <Route path="/goals" element={
+          <GoalsPage
+            goals={goals}
+            onGoalsChange={onGoalsChange}
+            savingsAccounts={savingsAccounts}
+            investments={investments}
+            creditCards={creditCards}
+            people={people}
+          />
+        } />
+
+        <Route path="/settings" element={
+          <UserProfilePage
+            jobs={jobs}
+            onJobsChange={onJobsChange}
+            people={people}
+            allTransactions={allTransactionsCache}
+            transactionOverrides={transactionOverrides}
+          />
+        } />
         <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
 
         {user?.isSuperAdmin && (
@@ -1014,10 +1300,12 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         )}
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>}
+      </Routes>
+      </div>}
     </div>
     </CommentsProvider>
     </NotificationsProvider>
+    </ToastProvider>
     </>
   )
 }

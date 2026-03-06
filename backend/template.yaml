@@ -127,7 +127,7 @@ Globals:
 
   Api:
     Cors:
-      AllowMethods: "'GET,POST,PUT,OPTIONS'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization'"
       AllowOrigin: "'*'"
 
@@ -205,6 +205,22 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Jobs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orgId
+          AttributeType: S
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orgId
+          KeyType: HASH
+        - AttributeName: jobId
+          KeyType: RANGE
+
   # ---------- Org Lambda Functions ----------
   OrgCreateFunction:
     Type: AWS::Serverless::Function
@@ -281,6 +297,67 @@ Resources:
           Properties:
             Path: /api/org/regenerate-code
             Method: post
+
+  # ---------- Jobs Lambda Functions ----------
+  JobsListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsList.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs
+            Method: get
+
+  JobsCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsCreate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs
+            Method: post
+
+  JobsUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsUpdate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs/{jobId}
+            Method: put
+
+  JobsDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsDelete.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs/{jobId}
+            Method: delete
 
   # ---------- Auth Lambda Functions ----------
   RegisterFunction:
@@ -477,6 +554,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -510,6 +589,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${S3Bucket}
       Events:
         Api:
           Type: Api
@@ -525,6 +610,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -686,6 +773,36 @@ Resources:
           Properties:
             Path: /api/statements/{statementId}
             Method: get
+
+  PatchTransactionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/patchTransaction.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/{statementId}/transactions/{transactionId}
+            Method: patch
+
+  DeleteStatementsByAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteStatementsByAccount.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/by-account/{cardId}
+            Method: delete
 
 Outputs:
   ApiUrl:

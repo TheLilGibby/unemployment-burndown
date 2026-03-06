@@ -75,6 +75,7 @@ export function exportExpensesCSV(expenses, filename = null) {
     Amount: expense.monthlyAmount?.toFixed(2) || expense.amount?.toFixed(2) || '0.00',
     Essential: expense.essential ? 'Yes' : 'No',
     Category: expense.category || '',
+    Description: expense.description || '',
     Notes: expense.notes || '',
   }))
   
@@ -96,6 +97,7 @@ export function exportSavingsCSV(savingsAccounts, filename = null) {
     Balance: account.amount?.toFixed(2) || '0.00',
     Type: account.type || '',
     Institution: account.institution || '',
+    Description: account.description || '',
     Notes: account.notes || '',
   }))
   
@@ -130,6 +132,28 @@ export function exportScenariosCSV(scenarios, results, filename = null) {
   
   const csv = arrayToCSV(csvData)
   const fname = filename || `scenarios-${dayjs().format('YYYY-MM-DD')}.csv`
+  downloadFile(csv, fname)
+}
+
+/**
+ * Export transactions data as CSV
+ */
+export function exportTransactionsCSV(transactions, filename = null) {
+  if (!transactions || transactions.length === 0) {
+    throw new Error('No transactions to export')
+  }
+
+  const csvData = transactions.map(txn => ({
+    Date: txn.date || '',
+    Merchant: txn.merchantName || txn.description || '',
+    Category: txn.category || '',
+    Amount: txn.amount != null ? txn.amount.toFixed(2) : '0.00',
+    Account: txn.accountName || '',
+    Status: txn.pending ? 'Pending' : 'Cleared',
+  }))
+
+  const csv = arrayToCSV(csvData)
+  const fname = filename || `transactions-${dayjs().format('YYYY-MM-DD')}.csv`
   downloadFile(csv, fname)
 }
 

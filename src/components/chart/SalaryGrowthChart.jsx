@@ -128,7 +128,7 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 320 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />

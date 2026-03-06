@@ -1,29 +1,62 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import usePersistedState from '../hooks/usePersistedState'
 import { useSearchParams } from 'react-router-dom'
 import { useStatementStorage } from '../hooks/useStatementStorage'
 import SectionCard from '../components/layout/SectionCard'
-import CardOverviewBanner from '../components/statements/CardOverviewBanner'
 import StatementList from '../components/statements/StatementList'
 import StatementChartTabs from '../components/statements/StatementChartTabs'
 import TransactionTable from '../components/statements/TransactionTable'
-import StatementImportStatus from '../components/statements/StatementImportStatus'
-import PlaidLinkButton from '../components/plaid/PlaidLinkButton'
 import CreditCardHubSkeleton from '../components/common/CreditCardHubSkeleton'
+import TransactionLinkModal from '../components/linking/TransactionLinkModal'
+import CCPaymentPicklistModal from '../components/linking/CCPaymentPicklistModal'
+import { detectCCPayments, isCCPayment } from '../utils/ccPaymentDetector'
+import { picklistForCCPayment } from '../utils/ccStatementPicklist'
 
-export default function CreditCardHubPage({ creditCards, people = [], plaid, savingsAccounts = [] }) {
+export default function CreditCardHubPage({
+  creditCards, people = [], plaid, savingsAccounts = [],
+  onCreditCardsChange, onSavingsChange, user,
+  oneTimePurchases = [], oneTimeExpenses = [], oneTimeIncome = [],
+  transactionLinks = {}, onLinkTransaction, onUnlinkTransaction,
+  onAllTransactionsChange,
+  expenses = [], subscriptions = [], monthlyBenefits = 0, totalMonthlyIncome = 0,
+  transactionOverrides = {}, onTransactionOverride,
+  jobs = [],
+  accountCustomizations = {}, onAccountCustomizationsChange,
+  membersByUserId = {},
+  selectedCardId = null, onSelectCard,
+  statementIndex: externalIndex, onStatementsRefresh,
+}) {
   const [searchParams] = useSearchParams()
   const initialCardId = searchParams.get('card')
-  const [selectedCardId, setSelectedCardId] = useState(
-    initialCardId ? Number(initialCardId) : null
-  )
+  const [linkModalTxn, setLinkModalTxn] = useState(null)
+  const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
 
-  const { index, statements, loading, error, loadStatement, refreshIndex } = useStatementStorage()
+  const { index: localIndex, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
+  const index = externalIndex || localIndex
+
+  // Sync selectedCardId from URL param on mount
+  useEffect(() => {
+    if (initialCardId && onSelectCard) {
+      onSelectCard(Number(initialCardId))
+    }
+  }, []) // eslint-disable-line
+
+  // Wrap override to also persist user modifications to the statement file
+  const handleTransactionOverride = useCallback((txnId, updates, statementId) => {
+    onTransactionOverride(txnId, updates)
+    if (statementId) {
+      patchTransaction(statementId, txnId, updates)
+    }
+  }, [onTransactionOverride, patchTransaction])
 
   // Wrap syncAll to also refresh the statement index after sync
+  const setSelectedCardId = onSelectCard || (() => {})
+
   const handleSync = useCallback(async (itemId) => {
     if (!plaid) return
     await plaid.syncAll(itemId)
     refreshIndex()
+    onStatementsRefresh?.()
   }, [plaid, refreshIndex])
 
   // Load all statement details for the selected card(s)
@@ -34,9 +67,9 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
     for (const s of toLoad) {
       if (!statements[s.id]) loadStatement(s.id)
     }
-  }, [index, selectedCardId]) // eslint-disable-line
+  }, [index, selectedCardId, statements, loadStatement])
 
-  // Collect all transactions from loaded statements
+  // Collect all transactions from loaded statements, applying any user overrides
   const allTransactions = useMemo(() => {
     const txns = []
     const relevantStmts = (index?.statements || [])
@@ -46,127 +79,129 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
       const full = statements[stmtMeta.id]
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
-        txns.push({ ...txn, cardId: full.cardId })
+        const override = transactionOverrides[txn.id]
+        const merged = {
+          ...txn,
+          statementId: full.id,
+          cardId: full.cardId,
+          cardLastFour: full.cardLastFour || null,
+          accountType: full.accountType || null,
+          accountSubtype: full.accountSubtype || null,
+          accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
+          ...(override || {}),
+        }
+        // Auto-tag CC payment transactions unless user manually set a category
+        if (!override?.category && isCCPayment(merged)) {
+          merged.category = 'ccPayment'
+        }
+        txns.push(merged)
       }
     }
     return txns
-  }, [index, statements, selectedCardId])
+  }, [index, statements, selectedCardId, transactionOverrides, accountCustomizations])
 
-  // Build unified account list: credit cards + Plaid-linked bank accounts with statements
-  const allAccounts = useMemo(() => {
-    const accounts = [...creditCards]
-    const plaidStmtAccountIds = new Set(
-      (index?.statements || [])
-        .filter(s => s.source === 'plaid' && s.accountType === 'depository')
-        .map(s => s.plaidAccountId)
-    )
-    for (const sa of savingsAccounts) {
-      if (sa.plaidAccountId && plaidStmtAccountIds.has(sa.plaidAccountId)) {
-        accounts.push({
-          id: sa.id,
-          name: sa.name,
-          balance: sa.amount,
-          last4: null,
-          creditLimit: 0,
-          isDepository: true,
-          plaidAccountId: sa.plaidAccountId,
-        })
+  // Collect ALL transactions across all accounts (unfiltered, for linking)
+  const allTransactionsUnfiltered = useMemo(() => {
+    const txns = []
+    for (const stmtMeta of (index?.statements || [])) {
+      const full = statements[stmtMeta.id]
+      if (!full?.transactions) continue
+      for (const txn of full.transactions) {
+        const merged = {
+          ...txn,
+          cardId: full.cardId,
+          cardLastFour: full.cardLastFour || null,
+          accountType: full.accountType || null,
+          accountSubtype: full.accountSubtype || null,
+          accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
+        }
+        if (isCCPayment(merged)) {
+          merged.category = 'ccPayment'
+        }
+        txns.push(merged)
       }
     }
-    return accounts
-  }, [creditCards, savingsAccounts, index])
+    return txns
+  }, [index, statements, accountCustomizations])
+
+  // Propagate allTransactions to parent for overview usage
+  useEffect(() => {
+    if (onAllTransactionsChange && allTransactionsUnfiltered.length > 0) {
+      onAllTransactionsChange(allTransactionsUnfiltered)
+    }
+  }, [allTransactionsUnfiltered]) // eslint-disable-line
+
+  // Reverse-lookup map: transactionId → overviewKey
+  const txnToOverviewMap = useMemo(() => {
+    const map = {}
+    for (const [overviewKey, links] of Object.entries(transactionLinks)) {
+      for (const link of links) {
+        map[link.transactionId] = overviewKey
+      }
+    }
+    return map
+  }, [transactionLinks])
+
+  // When a CC payment is clicked, detect which card it matches and load the statement
+  const handleOpenCCPicklist = useCallback(async (bankTxn) => {
+    if (!index?.statements?.length) return
+    const detected = detectCCPayments([bankTxn], creditCards, index.statements)
+    const match = detected[0]
+    if (!match?.matchedCardId) {
+      // Still show the modal even without a match — user sees "no match found"
+      setCCPicklistTxn({ bankTxn, matchedCardId: null, matchedCardName: null })
+      return
+    }
+    // Ensure the matched statement is loaded
+    const picklist = picklistForCCPayment({
+      bankTxn,
+      matchedCardId: match.matchedCardId,
+      statementIndex: index.statements,
+      statements,
+    })
+    if (picklist.statement && !statements[picklist.statement.id]) {
+      await loadStatement(picklist.statement.id)
+    }
+    setCCPicklistTxn({ bankTxn, matchedCardId: match.matchedCardId, matchedCardName: match.matchedCardName })
+  }, [index, creditCards, statements, loadStatement])
+
+  // Compute picklist data reactively (re-runs when statements load)
+  const ccPicklistData = useMemo(() => {
+    if (!ccPicklistTxn?.matchedCardId) return null
+    return picklistForCCPayment({
+      bankTxn: ccPicklistTxn.bankTxn,
+      matchedCardId: ccPicklistTxn.matchedCardId,
+      statementIndex: index?.statements || [],
+      statements,
+    })
+  }, [ccPicklistTxn, index, statements])
 
   // Show skeleton while statement index is loading
   if (loading && !index) return <CreditCardHubSkeleton />
 
+  const hasOneTimeItems = oneTimePurchases.length > 0 || oneTimeExpenses.length > 0 || oneTimeIncome.length > 0
+
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
-
-      {/* Page title */}
-      <div>
-        <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-          Transaction Hub
-        </h2>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          Unified view of spending across all your accounts
-        </p>
-      </div>
-
-      {/* Plaid connection bar */}
-      {plaid && (
-        <div
-          className="rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2"
-          style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-        >
-          <PlaidLinkButton
-            createLinkToken={plaid.createLinkToken}
-            exchangeToken={plaid.exchangeToken}
-            syncAll={handleSync}
-            linkedCount={plaid.linkedItems.length}
-            syncing={plaid.syncing}
-          />
-          {plaid.linkedItems.length > 0 && (
-            <button
-              onClick={() => handleSync()}
-              disabled={plaid.syncing}
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
-              style={{
-                borderColor: plaid.syncing ? 'var(--border-subtle)' : 'var(--accent-blue)',
-                color: plaid.syncing ? 'var(--text-muted)' : 'var(--accent-blue)',
-                background: plaid.syncing ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                cursor: plaid.syncing ? 'wait' : 'pointer',
-              }}
-            >
-              {plaid.syncing ? 'Syncing...' : 'Sync Transactions'}
-            </button>
-          )}
-          {plaid.lastSync && (
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Last synced: {new Date(plaid.lastSync).toLocaleString()}
-            </span>
-          )}
-          {plaid.error && (
-            <span className="text-xs" style={{ color: '#f87171' }}>{plaid.error}</span>
-          )}
-        </div>
-      )}
-
-      {/* Import status */}
-      <StatementImportStatus
-        statementIndex={index}
-        loading={loading}
-        error={error}
-        onRefresh={refreshIndex}
-      />
-
-      {/* Card / account selector */}
-      {allAccounts.length > 0 ? (
-        <SectionCard title="Your Accounts">
-          <CardOverviewBanner
-            creditCards={creditCards}
-            savingsAccounts={savingsAccounts}
-            statementIndex={index}
-            selectedCardId={selectedCardId}
-            onSelectCard={setSelectedCardId}
-            people={people}
-          />
-        </SectionCard>
-      ) : (
-        <SectionCard title="Your Accounts">
-          <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
-            No accounts configured yet. Add cards in the{' '}
-            <a href="/" className="underline" style={{ color: 'var(--accent-blue)' }}>
-              burndown tracker
-            </a>{' '}
-            or connect a bank above to get started.
-          </p>
-        </SectionCard>
-      )}
+    <>
+      <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
       {/* Spending charts */}
       <StatementChartTabs
         transactions={allTransactions}
         creditCards={creditCards}
+        expenses={expenses}
+        subscriptions={subscriptions}
+        monthlyIncome={totalMonthlyIncome}
+        monthlyBenefits={monthlyBenefits}
+        onTransactionUpdate={handleTransactionOverride}
+        oneTimePurchases={oneTimePurchases}
+        oneTimeExpenses={oneTimeExpenses}
+        oneTimeIncome={oneTimeIncome}
+        transactionLinks={transactionLinks}
+        txnToOverviewMap={txnToOverviewMap}
+        onLinkTransaction={onLinkTransaction}
+        onUnlinkTransaction={onUnlinkTransaction}
+        membersByUserId={membersByUserId}
       />
 
       {/* Statement list */}
@@ -178,17 +213,62 @@ export default function CreditCardHubPage({ creditCards, people = [], plaid, sav
           people={people}
           selectedCardId={selectedCardId}
           onLoadStatement={loadStatement}
+          user={user}
+          accountCustomizations={accountCustomizations}
         />
       </SectionCard>
 
       {/* Transaction table */}
       <SectionCard title="Transactions">
-        <TransactionTable transactions={allTransactions} />
+        <TransactionTable
+          transactions={allTransactions}
+          txnToOverviewMap={hasOneTimeItems ? txnToOverviewMap : undefined}
+          onOpenLinkModal={hasOneTimeItems ? setLinkModalTxn : undefined}
+          onOpenCCPicklist={creditCards.length > 0 ? handleOpenCCPicklist : undefined}
+          jobs={jobs}
+          transactionOverrides={transactionOverrides}
+          onTransactionOverride={handleTransactionOverride}
+        />
       </SectionCard>
+
+      {/* Transaction link modal */}
+      {linkModalTxn && (
+        <TransactionLinkModal
+          open={true}
+          transaction={linkModalTxn}
+          oneTimePurchases={oneTimePurchases}
+          oneTimeExpenses={oneTimeExpenses}
+          oneTimeIncome={oneTimeIncome}
+          transactionLinks={transactionLinks}
+          txnToOverviewMap={txnToOverviewMap}
+          onLink={(overviewKey, txn) => {
+            onLinkTransaction(overviewKey, txn)
+            setLinkModalTxn(null)
+          }}
+          onUnlink={(overviewKey, txnId) => {
+            onUnlinkTransaction(overviewKey, txnId)
+            setLinkModalTxn(null)
+          }}
+          onClose={() => setLinkModalTxn(null)}
+        />
+      )}
+
+      {/* CC Payment → Statement breakdown modal */}
+      {ccPicklistTxn && (
+        <CCPaymentPicklistModal
+          open={true}
+          bankTxn={ccPicklistTxn.bankTxn}
+          matchedCardName={ccPicklistTxn.matchedCardName}
+          coverage={ccPicklistData?.coverage || null}
+          transactions={ccPicklistData?.transactions || []}
+          onClose={() => setCCPicklistTxn(null)}
+        />
+      )}
 
       <p className="text-center text-xs text-faint pb-4">
         Statement data is stored separately and loaded on demand from S3.
       </p>
     </main>
+    </>
   )
 }

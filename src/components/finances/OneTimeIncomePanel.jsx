@@ -4,6 +4,7 @@ import { useDragReorder } from '../../hooks/useDragReorder'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
+import TransactionLinkButton from '../linking/TransactionLinkButton'
 import CurrencyInput from './CurrencyInput'
 
 function TrashIcon() {
@@ -14,7 +15,7 @@ function TrashIcon() {
   )
 }
 
-export default function OneTimeIncomePanel({ items, onChange, people = [], filterPersonId = null }) {
+export default function OneTimeIncomePanel({ items, onChange, people = [], filterPersonId = null, allTransactions = [], transactionLinks = {}, onOpenTransactionLookup }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(items, onChange)
 
   function updateItem(id, field, val) {
@@ -33,6 +34,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
   }
 
   const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+  const showLinkCol = allTransactions.length > 0 || Object.keys(transactionLinks).some(k => k.startsWith('oti_'))
 
   return (
     <div className="space-y-3">
@@ -45,7 +47,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
           {/* Column headers — desktop only */}
           <div
             className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 130px 110px 32px 32px 32px' }}
+            style={{ gridTemplateColumns: showLinkCol ? '20px 1fr 130px 110px 32px 32px 32px 32px' : '20px 1fr 130px 110px 32px 32px 32px' }}
           >
             <span></span>
             <span>Description</span>
@@ -53,6 +55,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
             <span>Amount</span>
             <span></span>
             <span></span>
+            {showLinkCol && <span></span>}
             <span></span>
           </div>
 
@@ -60,6 +63,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
           <div className="space-y-2">
             {items.map(item => {
               const dimmed = filterPersonId && !matchesPersonFilter(item.assignedTo, filterPersonId)
+              const overviewKey = `oti_${item.id}`
               return (
               <div
                 key={item.id}
@@ -88,7 +92,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
                     placeholder="Description"
                   />
                 </div>
-                {/* Subrow 2: date · amount · assignee · trash */}
+                {/* Subrow 2: date · amount · assignee · comment · link · trash */}
                 <div className="flex items-center gap-2 sm:contents">
                   <input
                     type="date"
@@ -110,7 +114,16 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
                     value={item.assignedTo ?? null}
                     onChange={val => updateItem(item.id, 'assignedTo', val)}
                   />
-                  <CommentButton itemId={`oti_${item.id}`} label={item.description || 'One-Time Income'} />
+                  <CommentButton itemId={overviewKey} label={item.description || 'One-Time Income'} />
+                  {showLinkCol && (
+                    <TransactionLinkButton
+                      overviewKey={overviewKey}
+                      overviewItem={item}
+                      linkedTransactions={transactionLinks[overviewKey] || []}
+                      allTransactions={allTransactions}
+                      onOpenLookup={onOpenTransactionLookup}
+                    />
+                  )}
                   <button
                     onClick={() => deleteItem(item.id)}
                     className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
@@ -135,7 +148,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
         <div className="bg-emerald-900/20 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total injections: </span>
-            <span className="text-emerald-400 font-semibold">+{formatCurrency(total)}</span>
+            <span className="text-emerald-400 font-semibold sensitive">+{formatCurrency(total)}</span>
           </div>
           <div>
             <span className="text-gray-500">Count: </span>
@@ -145,7 +158,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
       )}
 
       <p className="text-xs text-gray-600">
-        One-time income is added to your balance on the specified date. Drag <span className="text-gray-500">⠿</span> to reorder.
+        One-time income is added to your balance on the specified date. Drag <span className="text-gray-500">&#x2800;&#x283F;</span> to reorder.
       </p>
     </div>
   )

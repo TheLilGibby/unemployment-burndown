@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 const ALL_SECTIONS = [
   { id: 'sec-runway',       label: 'Runway',        sectionKey: null },
   { id: 'sec-chart',        label: 'Chart',         sectionKey: null },
-  { id: 'sec-jobs',         label: 'Jobs',          sectionKey: 'jobs' },
   { id: 'sec-savings',      label: 'Savings',       sectionKey: null },
   { id: 'sec-plaid',        label: 'Linked Accts',  sectionKey: 'plaidAccounts' },
   { id: 'sec-unemployment', label: 'Benefits',      sectionKey: null },
@@ -18,7 +17,8 @@ const ALL_SECTIONS = [
   { id: 'sec-monthlyincome', label: 'Mo. Income',   sectionKey: 'monthlyIncome' },
   { id: 'sec-transactions',  label: 'Transactions',  sectionKey: 'transactions' },
   { id: 'sec-assets',        label: 'Assets',        sectionKey: 'assets' },
-  { id: 'sec-retirement',    label: 'Retirement',    sectionKey: 'retirement' },
+  { id: 'sec-properties',    label: 'Properties',    sectionKey: 'properties' },
+  { id: 'sec-homeimprovements', label: 'Home Improv.', sectionKey: 'homeImprovements' },
 ]
 
 export default function TableOfContents({ visibleSections = {} }) {
@@ -56,7 +56,7 @@ export default function TableOfContents({ visibleSections = {} }) {
 
   return (
     <nav
-      className="hidden xl:flex flex-col gap-0.5 fixed top-24 left-4 z-40 w-36"
+      className="hidden xl:flex flex-col gap-0.5 fixed top-24 right-4 z-40 w-36"
       aria-label="Page sections"
     >
       <p className="text-xs font-semibold uppercase tracking-widest mb-2 px-2" style={{ color: 'var(--text-muted)' }}>

@@ -30,7 +30,7 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
   }
 
   function addSub() {
-    onChange([...subscriptions, { id: Date.now(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null }])
+    onChange([...subscriptions, { id: Date.now(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null, description: '' }])
   }
 
   const activeTotal = subscriptions
@@ -85,13 +85,13 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                 <button
                   onClick={() => toggleSub(sub.id)}
                   title={isActive ? 'Pause subscription' : 'Include subscription'}
-                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative ${
+                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative overflow-hidden ${
                     isActive ? 'bg-blue-500' : 'bg-gray-600'
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      isActive ? 'translate-x-3' : 'translate-x-0.5'
+                      isActive ? 'translate-x-3.5' : 'translate-x-0.5'
                     }`}
                   />
                 </button>
@@ -122,11 +122,21 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                 <CommentButton itemId={`sub_${sub.id}`} label={sub.name || 'Subscription'} />
                 <button
                   onClick={() => deleteSub(sub.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center flex-shrink-0"
                   title="Remove subscription"
                 >
                   <TrashIcon />
                 </button>
+              </div>
+              {/* Subrow 3: description / notes */}
+              <div className="sm:col-span-7">
+                <input
+                  type="text"
+                  value={sub.description || ''}
+                  onChange={e => updateSub(sub.id, 'description', e.target.value)}
+                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  placeholder="Add a note..."
+                />
               </div>
             </div>
           )
@@ -143,18 +153,18 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
         <div>
           <span className="text-gray-500">Active: </span>
-          <span className="text-white font-semibold">{formatCurrency(activeTotal)}/mo</span>
+          <span className="text-white font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
         </div>
         {inactiveTotal > 0 && (
           <div>
             <span className="text-gray-500">Paused: </span>
-            <span className="text-gray-500 font-semibold line-through">{formatCurrency(inactiveTotal)}/mo</span>
+            <span className="text-gray-500 font-semibold line-through sensitive">{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
         {inactiveTotal > 0 && (
           <div>
             <span className="text-gray-500">Savings if cut: </span>
-            <span className="text-emerald-400 font-semibold">+{formatCurrency(inactiveTotal)}/mo</span>
+            <span className="text-emerald-400 font-semibold sensitive">+{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
       </div>

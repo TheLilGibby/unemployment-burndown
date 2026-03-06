@@ -1,6 +1,6 @@
 import { authenticator } from 'otplib'
 import { getUser } from '../lib/users.mjs'
-import { requireAuth, signToken } from '../lib/auth.mjs'
+import { requireAuth, signToken, isEnvSuperAdmin } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
@@ -39,10 +39,12 @@ export async function handler(event) {
     audit.info({ userId: user.userId, result: 'success' }, 'MFA verification successful')
 
     // Issue a full-access token with org info
+    const isSuperAdmin = isEnvSuperAdmin(user.email)
     const token = signToken(user.userId, {
       mfaVerified: true,
       orgId: user.orgId || null,
       orgRole: user.orgRole || null,
+      isSuperAdmin,
     })
     return ok({
       token,
@@ -52,6 +54,7 @@ export async function handler(event) {
         mfaEnabled: user.mfaEnabled,
         orgId: user.orgId || null,
         orgRole: user.orgRole || null,
+        isSuperAdmin,
       },
     })
   } catch (error) {
