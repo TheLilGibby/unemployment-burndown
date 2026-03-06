@@ -10,7 +10,8 @@ import OneTimePurchasePanel from '../components/finances/OneTimePurchasePanel'
 import OneTimeIncomePanel from '../components/finances/OneTimeIncomePanel'
 import MonthlyIncomePanel from '../components/finances/MonthlyIncomePanel'
 import AdvertisingRevenuePanel from '../components/finances/AdvertisingRevenuePanel'
-
+import PropertyPanel from '../components/finances/PropertyPanel'
+import HomeImprovementPanel from '../components/finances/HomeImprovementPanel'
 import AssetsPanel from '../components/finances/AssetsPanel'
 import InvestmentsPanel from '../components/finances/InvestmentsPanel'
 import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
@@ -18,6 +19,7 @@ import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
+import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 
 export default function BurndownPage({
   current,
