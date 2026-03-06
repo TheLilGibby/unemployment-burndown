@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react'
-import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
+import { PieChart, BarChart3, Store, GitMerge, Filter, X } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
 import { CategoryDetailView } from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
+import TimePeriodSelector, { getDateRange } from './TimePeriodSelector'
 import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { formatCurrency } from '../../utils/formatters'
 
@@ -35,6 +36,15 @@ const CHART_DEFS = [
   },
 ]
 
+function filterByRange(transactions, start, end) {
+  return transactions.filter(txn => {
+    if (!txn.date) return false
+    if (start && txn.date < start) return false
+    if (end && txn.date > end) return false
+    return true
+  })
+}
+
 export default function StatementChartTabs({
   transactions = [], creditCards = [], expenses = [], subscriptions = [],
   monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate,
@@ -44,8 +54,16 @@ export default function StatementChartTabs({
 }) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
-  const [selectedCategories, setSelectedCategories] = useState(new Set())
   const [drillCategory, setDrillCategory] = useState(null)
+
+  // Time period
+  const [period, setPeriod] = useState('thisMonth')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  // Category filters (collapsible)
+  const [showFilters, setShowFilters] = useState(false)
+  const [hiddenCategories, setHiddenCategories] = useState(new Set())
 
   const handleCategoryClick = useCallback((categoryKey) => {
     setDrillCategory(categoryKey)
@@ -55,12 +73,51 @@ export default function StatementChartTabs({
     setDrillCategory(null)
   }, [])
 
+  const handleCustomChange = useCallback((start, end) => {
+    setCustomStart(start)
+    setCustomEnd(end)
+  }, [])
+
   const activeChart = CHART_DEFS.find(c => c.id === activeId)
 
-  // Compute which categories exist in the data with their totals
+  // Compute date range
+  const range = useMemo(() => {
+    if (period === 'custom') return { start: customStart || null, end: customEnd || null }
+    return getDateRange(period)
+  }, [period, customStart, customEnd])
+
+  // Filter transactions by date range
+  const dateFilteredTxns = useMemo(
+    () => filterByRange(transactions, range.start, range.end),
+    [transactions, range]
+  )
+
+  // Filter by hidden categories
+  const filteredTransactions = useMemo(() => {
+    if (hiddenCategories.size === 0) return dateFilteredTxns
+    return dateFilteredTxns.filter(txn => {
+      const cat = txn.category || 'other'
+      return !hiddenCategories.has(cat)
+    })
+  }, [dateFilteredTxns, hiddenCategories])
+
+  function toggleHideCategory(key) {
+    setHiddenCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setHiddenCategories(new Set())
+  }
+
+  // Available categories for filter pills
   const availableCategories = useMemo(() => {
     const byCategory = {}
-    for (const txn of transactions) {
+    for (const txn of dateFilteredTxns) {
       if (txn.amount <= 0) continue
       const cat = txn.category || 'other'
       byCategory[cat] = (byCategory[cat] || 0) + txn.amount
@@ -69,42 +126,7 @@ export default function StatementChartTabs({
       .filter(c => byCategory[c.key])
       .map(c => ({ ...c, total: byCategory[c.key] }))
       .sort((a, b) => b.total - a.total)
-  }, [transactions])
-
-  // Filter transactions by selected categories
-  const filteredTransactions = useMemo(() => {
-    if (selectedCategories.size === 0) return transactions
-    return transactions.filter(txn => {
-      const cat = txn.category || 'other'
-      return selectedCategories.has(cat)
-    })
-  }, [transactions, selectedCategories])
-
-  function toggleCategory(key) {
-    setSelectedCategories(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }
-
-  function clearFilters() {
-    setSelectedCategories(new Set())
-  }
-
-  // Summary stats for the filter bar
-  const filterSummary = useMemo(() => {
-    if (selectedCategories.size === 0) return null
-    const total = filteredTransactions
-      .filter(t => t.amount > 0)
-      .reduce((sum, t) => sum + t.amount, 0)
-    const count = filteredTransactions.filter(t => t.amount > 0).length
-    return { total, count }
-  }, [filteredTransactions, selectedCategories])
+  }, [dateFilteredTxns])
 
   return (
     <div
@@ -167,9 +189,9 @@ export default function StatementChartTabs({
         })}
       </div>
 
-      {/* Description strip + filter summary */}
+      {/* Description strip */}
       <div
-        className="px-4 py-1.5 flex items-center justify-between"
+        className="px-4 py-1.5"
         style={{
           borderBottom: '1px solid var(--border-subtle)',
           background: 'var(--bg-subtle, var(--bg-card))',
@@ -178,68 +200,93 @@ export default function StatementChartTabs({
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {activeChart?.desc}
         </p>
-        {filterSummary && (
-          <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-            {formatCurrency(filterSummary.total)} across {filterSummary.count} txn{filterSummary.count !== 1 ? 's' : ''}
-          </p>
-        )}
       </div>
 
-      {/* Category pill filters */}
-      {availableCategories.length > 0 && (
-        <div
-          className="px-4 py-2.5"
+      {/* Time period selector + Filters toggle */}
+      <div
+        className="px-4 py-3 space-y-2"
+        style={{
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-subtle, var(--bg-card))',
+        }}
+      >
+        <TimePeriodSelector
+          value={period}
+          onChange={setPeriod}
+          customStart={customStart}
+          customEnd={customEnd}
+          onCustomChange={handleCustomChange}
+        />
+
+        {/* Filters toggle */}
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150"
           style={{
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-subtle, var(--bg-card))',
+            background: showFilters || hiddenCategories.size > 0
+              ? 'color-mix(in srgb, var(--accent-blue) 15%, transparent)'
+              : 'var(--bg-subtle, rgba(255,255,255,0.06))',
+            color: showFilters || hiddenCategories.size > 0
+              ? 'var(--accent-blue)'
+              : 'var(--text-muted)',
+            border: '1px solid',
+            borderColor: showFilters || hiddenCategories.size > 0
+              ? 'color-mix(in srgb, var(--accent-blue) 30%, transparent)'
+              : 'var(--border-subtle)',
           }}
         >
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* All pill */}
-            <button
-              onClick={clearFilters}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150"
-              style={{
-                background: selectedCategories.size === 0
-                  ? 'var(--accent-blue)'
-                  : 'var(--bg-input)',
-                color: selectedCategories.size === 0
-                  ? '#fff'
-                  : 'var(--text-muted)',
-                border: `1px solid ${selectedCategories.size === 0 ? 'var(--accent-blue)' : 'var(--border-input)'}`,
-              }}
+          <Filter size={12} />
+          Filters
+          {hiddenCategories.size > 0 && (
+            <span
+              className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold"
+              style={{ background: 'var(--accent-blue)', color: '#fff' }}
             >
-              All
-            </button>
+              {hiddenCategories.size}
+            </span>
+          )}
+        </button>
 
+        {/* Collapsible category filter pills */}
+        {showFilters && availableCategories.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
             {availableCategories.map(cat => {
-              const isSelected = selectedCategories.has(cat.key)
+              const isHidden = hiddenCategories.has(cat.key)
               return (
                 <button
                   key={cat.key}
-                  onClick={() => toggleCategory(cat.key)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150"
+                  onClick={() => toggleHideCategory(cat.key)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150"
                   style={{
-                    background: isSelected
-                      ? `${cat.color}20`
-                      : 'var(--bg-input)',
-                    color: isSelected
-                      ? cat.color
-                      : 'var(--text-muted)',
-                    border: `1px solid ${isSelected ? cat.color : 'var(--border-input)'}`,
+                    background: isHidden ? 'var(--bg-subtle, rgba(255,255,255,0.06))' : cat.color + '20',
+                    color: isHidden ? 'var(--text-muted)' : cat.color,
+                    border: '1px solid',
+                    borderColor: isHidden ? 'var(--border-subtle)' : cat.color + '40',
+                    opacity: isHidden ? 0.45 : 1,
+                    textDecoration: isHidden ? 'line-through' : 'none',
                   }}
                 >
                   <span
-                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: cat.color }}
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: cat.color, opacity: isHidden ? 0.3 : 1 }}
                   />
                   {cat.label}
                 </button>
               )
             })}
+            {hiddenCategories.size > 0 && (
+              <button
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full transition-all duration-150"
+                style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
+              >
+                <X size={10} />
+                Reset
+              </button>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Chart content */}
       <div className="p-4 sm:p-5">
@@ -256,6 +303,7 @@ export default function StatementChartTabs({
             <CategoryDonutChart
               transactions={filteredTransactions}
               onCategoryClick={handleCategoryClick}
+              hiddenCategories={hiddenCategories}
             />
           )
         )}
@@ -275,7 +323,7 @@ export default function StatementChartTabs({
             ccTransactionsByCard={(() => {
               // Group transactions by cardId for the waterfall breakdown
               const byCard = {}
-              for (const t of transactions) {
+              for (const t of filteredTransactions) {
                 if (!t.cardId) continue
                 if (!byCard[t.cardId]) byCard[t.cardId] = []
                 byCard[t.cardId].push(t)
