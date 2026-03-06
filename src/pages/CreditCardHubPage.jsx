@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import usePersistedState from '../hooks/usePersistedState'
 import { useSearchParams } from 'react-router-dom'
 import { useStatementStorage } from '../hooks/useStatementStorage'
 import SectionCard from '../components/layout/SectionCard'
@@ -31,7 +32,7 @@ export default function CreditCardHubPage({
   )
   const [linkModalTxn, setLinkModalTxn] = useState(null)
   const [ccPicklistTxn, setCCPicklistTxn] = useState(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState('burndown_collapse_accounts_sidebar', false)
 
   const { index, statements, loading, error, loadStatement, refreshIndex, patchTransaction } = useStatementStorage()
 

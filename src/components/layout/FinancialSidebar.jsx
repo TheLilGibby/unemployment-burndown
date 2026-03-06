@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import usePersistedState from '../../hooks/usePersistedState'
 import dayjs from 'dayjs'
 import { matchesPersonFilter } from '../../utils/personFilter'
 import { getEffectivePayment } from '../../utils/ccPayment'
@@ -37,8 +38,8 @@ function ChevronIcon({ open }) {
   )
 }
 
-function Section({ label, total, sign, color, items = [], defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen)
+function Section({ label, total, sign, color, items = [], defaultOpen = false, persistKey = null }) {
+  const [open, setOpen] = usePersistedState(persistKey, defaultOpen)
   const hasItems = items.length > 0
 
   return (
@@ -196,38 +197,38 @@ function MobileFinancialDrawer({
         {/* Scrollable content — flex-1 + min-h-0 allows proper scroll within flex column */}
         <div className="flex-1 min-h-0 flex flex-col gap-0.5 overflow-y-auto px-3" style={{ scrollbarWidth: 'none', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
           {/* Cash */}
-          <Section label="Cash" total={totalSavings} sign="" color="var(--accent-blue)"
+          <Section label="Cash" total={totalSavings} sign="" color="var(--accent-blue)" persistKey="burndown_collapse_fin_cash"
             items={activeAccounts.map(a => ({ label: a.name || 'Account', amount: Number(a.amount) || 0, personColor: getPersonColor(people, a.assignedTo) }))} />
 
           {assetProceeds > 0 && (
-            <Section label="Assets (if sold)" total={assetProceeds} sign="+" color="var(--accent-teal)" items={[]} />
+            <Section label="Assets (if sold)" total={assetProceeds} sign="+" color="var(--accent-teal)" persistKey="burndown_collapse_fin_assets" items={[]} />
           )}
 
           <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--border-default)' }} />
           <p className="text-xs px-2 mb-0.5" style={{ color: 'var(--text-muted)', opacity: 0.5, fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Income /mo</p>
 
           {monthlyBenefits > 0 && (
-            <Section label="UI Benefits" total={monthlyBenefits} sign="+" color="var(--accent-emerald)"
+            <Section label="UI Benefits" total={monthlyBenefits} sign="+" color="var(--accent-emerald)" persistKey="burndown_collapse_fin_ui_benefits"
               items={[{ label: unemployment.weeklyAmount ? `$${unemployment.weeklyAmount}/wk` : '', amount: monthlyBenefits }].filter(i => i.label)} />
           )}
 
           {totalJobIncome > 0 && (
-            <Section label="Job Income" total={totalJobIncome} sign="+" color="var(--accent-emerald)"
+            <Section label="Job Income" total={totalJobIncome} sign="+" color="var(--accent-emerald)" persistKey="burndown_collapse_fin_job_income"
               items={activeJobs.map(j => ({ label: j.title || j.employer || 'Job', amount: Number(j.monthlySalary) || 0, personColor: getPersonColor(people, j.assignedTo) }))} />
           )}
 
           {totalMonthlyIncome > 0 && (
-            <Section label="Monthly Income" total={totalMonthlyIncome} sign="+" color="var(--accent-emerald)"
+            <Section label="Monthly Income" total={totalMonthlyIncome} sign="+" color="var(--accent-emerald)" persistKey="burndown_collapse_fin_monthly_income"
               items={monthlyIncome.filter(x => x.monthlyAmount).map(x => ({ label: x.name || x.source || 'Income', amount: Number(x.monthlyAmount) || 0, personColor: getPersonColor(people, x.assignedTo) }))} />
           )}
 
           {upcomingOneTimeIncome.length > 0 && (
-            <Section label="One-Time Income" total={upcomingOneTimeIncome.reduce((s, x) => s + (Number(x.amount) || 0), 0)} sign="+" color="var(--accent-teal)"
+            <Section label="One-Time Income" total={upcomingOneTimeIncome.reduce((s, x) => s + (Number(x.amount) || 0), 0)} sign="+" color="var(--accent-teal)" persistKey="burndown_collapse_fin_onetime_income"
               items={upcomingOneTimeIncome.map(x => ({ label: x.note || x.description || x.date || 'Income', amount: Number(x.amount) || 0, personColor: getPersonColor(people, x.assignedTo) }))} />
           )}
 
           {totalAdRevenue > 0 && (
-            <Section label="Ad Revenue" total={totalAdRevenue} sign="+" color="var(--accent-emerald)"
+            <Section label="Ad Revenue" total={totalAdRevenue} sign="+" color="var(--accent-emerald)" persistKey="burndown_collapse_fin_ad_revenue"
               items={adRevenue.filter(r => r.monthlyAmount).map(r => ({ label: r.description || 'Ad Revenue', amount: Number(r.monthlyAmount) || 0, personColor: getPersonColor(people, r.assignedTo) }))} />
           )}
 
@@ -235,37 +236,37 @@ function MobileFinancialDrawer({
           <p className="text-xs px-2 mb-0.5" style={{ color: 'var(--text-muted)', opacity: 0.5, fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Expenses /mo</p>
 
           {totalExpensesOnly > 0 && (
-            <Section label="Expenses" total={totalExpensesOnly} sign="-" color="var(--accent-red)"
+            <Section label="Expenses" total={totalExpensesOnly} sign="-" color="var(--accent-red)" persistKey="burndown_collapse_fin_expenses"
               items={expenses.filter(e => e.monthlyAmount).map(e => ({ label: e.category || 'Expense', amount: Number(e.monthlyAmount) || 0, personColor: getPersonColor(people, e.assignedTo) }))} />
           )}
 
           {totalSubsCost > 0 && (
-            <Section label="Subscriptions" total={totalSubsCost} sign="-" color="var(--accent-red)"
+            <Section label="Subscriptions" total={totalSubsCost} sign="-" color="var(--accent-red)" persistKey="burndown_collapse_fin_subscriptions"
               items={activeSubscriptions.map(s => ({ label: s.name || 'Sub', amount: Number(s.monthlyAmount) || 0, personColor: getPersonColor(people, s.assignedTo) }))} />
           )}
 
           {totalCCPayments > 0 && (
-            <Section label="CC Payments" total={totalCCPayments} sign="-" color="var(--accent-amber)"
+            <Section label="CC Payments" total={totalCCPayments} sign="-" color="var(--accent-amber)" persistKey="burndown_collapse_fin_cc_payments"
               items={activeCCPayments.map(c => ({ label: c.name || 'Card', amount: getEffectivePayment(c), personColor: getPersonColor(people, c.assignedTo) }))} />
           )}
 
           {monthlyInvestments > 0 && (
-            <Section label="Investments" total={monthlyInvestments} sign="-" color="var(--accent-amber)"
+            <Section label="Investments" total={monthlyInvestments} sign="-" color="var(--accent-amber)" persistKey="burndown_collapse_fin_investments"
               items={activeInvestments.map(inv => ({ label: inv.name || inv.type || 'Investment', amount: Number(inv.monthlyAmount) || 0, personColor: getPersonColor(people, inv.assignedTo) }))} />
           )}
 
           {totalAdCosts > 0 && (
-            <Section label="Ad Costs" total={totalAdCosts} sign="-" color="var(--accent-red)"
+            <Section label="Ad Costs" total={totalAdCosts} sign="-" color="var(--accent-red)" persistKey="burndown_collapse_fin_ad_costs"
               items={adCosts.filter(c => c.monthlyAmount).map(c => ({ label: c.description || 'Ad Cost', amount: Number(c.monthlyAmount) || 0, personColor: getPersonColor(people, c.assignedTo) }))} />
           )}
 
           {upcomingOneTimeExpenses.length > 0 && (
-            <Section label="One-Time Expenses" total={upcomingOneTimeExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)} sign="-" color="var(--accent-red)"
+            <Section label="One-Time Expenses" total={upcomingOneTimeExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)} sign="-" color="var(--accent-red)" persistKey="burndown_collapse_fin_onetime_expenses"
               items={upcomingOneTimeExpenses.map(e => ({ label: e.note || e.category || e.date || 'Expense', amount: Number(e.amount) || 0, personColor: getPersonColor(people, e.assignedTo) }))} />
           )}
 
           {upcomingOneTimePurchases.length > 0 && (
-            <Section label="Purchases" total={upcomingOneTimePurchases.reduce((s, p) => s + (Number(p.amount) || 0), 0)} sign="-" color="var(--accent-red)"
+            <Section label="Purchases" total={upcomingOneTimePurchases.reduce((s, p) => s + (Number(p.amount) || 0), 0)} sign="-" color="var(--accent-red)" persistKey="burndown_collapse_fin_purchases"
               items={upcomingOneTimePurchases.map(p => ({ label: `${p.description || 'Purchase'}${p.medium ? ` (${p.medium})` : ''}`, amount: Number(p.amount) || 0, personColor: getPersonColor(people, p.assignedTo) }))} />
           )}
 

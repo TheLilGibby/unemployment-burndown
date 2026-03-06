@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import usePersistedState from '../../hooks/usePersistedState'
 import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
@@ -105,8 +106,8 @@ function AccountRow({ item, isSelected, onSelect, isDepository, customization, p
   )
 }
 
-function AccountGroup({ label, icon: Icon, iconColor, items, subtotal, subtotalColor, selectedCardId, onSelectCard, isDepository, customizations, people }) {
-  const [open, setOpen] = useState(true)
+function AccountGroup({ label, icon: Icon, iconColor, items, subtotal, subtotalColor, selectedCardId, onSelectCard, isDepository, customizations, people, persistKey }) {
+  const [open, setOpen] = usePersistedState(persistKey, true)
 
   if (items.length === 0) return null
 
@@ -351,6 +352,7 @@ export default function AccountsSidebar({
           isDepository={false}
           customizations={accountCustomizations}
           people={people}
+          persistKey="burndown_collapse_credit_cards"
         />
 
         {cards.length > 0 && visibleBankAccounts.length > 0 && (
@@ -369,6 +371,7 @@ export default function AccountsSidebar({
           isDepository={true}
           customizations={accountCustomizations}
           people={people}
+          persistKey="burndown_collapse_banking"
         />
       </div>
 

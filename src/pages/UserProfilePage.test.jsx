@@ -35,6 +35,12 @@ vi.mock('../context/NotificationsContext', () => ({
   }),
 }))
 
+// Mock the HiddenModeContext
+vi.mock('../context/HiddenModeContext', () => ({
+  useHiddenMode: () => ({ hidden: false, setHidden: vi.fn() }),
+  HiddenModeProvider: ({ children }) => children,
+}))
+
 describe('UserProfilePage', () => {
   it('shows loading state when user is null', () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
