@@ -136,6 +136,28 @@ export function exportScenariosCSV(scenarios, results, filename = null) {
 }
 
 /**
+ * Export transactions data as CSV
+ */
+export function exportTransactionsCSV(transactions, filename = null) {
+  if (!transactions || transactions.length === 0) {
+    throw new Error('No transactions to export')
+  }
+
+  const csvData = transactions.map(txn => ({
+    Date: txn.date || '',
+    Merchant: txn.merchantName || txn.description || '',
+    Category: txn.category || '',
+    Amount: txn.amount != null ? txn.amount.toFixed(2) : '0.00',
+    Account: txn.accountName || '',
+    Status: txn.pending ? 'Pending' : 'Cleared',
+  }))
+
+  const csv = arrayToCSV(csvData)
+  const fname = filename || `transactions-${dayjs().format('YYYY-MM-DD')}.csv`
+  downloadFile(csv, fname)
+}
+
+/**
  * Export all financial data as a comprehensive CSV bundle (creates multiple files)
  */
 export function exportAllData(data) {
