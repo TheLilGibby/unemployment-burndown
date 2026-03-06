@@ -10,7 +10,7 @@ import OneTimePurchasePanel from '../components/finances/OneTimePurchasePanel'
 import OneTimeIncomePanel from '../components/finances/OneTimeIncomePanel'
 import MonthlyIncomePanel from '../components/finances/MonthlyIncomePanel'
 import AdvertisingRevenuePanel from '../components/finances/AdvertisingRevenuePanel'
-import JobsPanel from '../components/finances/JobsPanel'
+
 import AssetsPanel from '../components/finances/AssetsPanel'
 import InvestmentsPanel from '../components/finances/InvestmentsPanel'
 import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
@@ -41,10 +41,8 @@ export default function BurndownPage({
   investments,
   subscriptions,
   creditCards,
-  jobs,
   jobScenarios,
   // Change handlers
-  onJobsChange,
   onSavingsChange,
   onUnemploymentChange,
   onFurloughChange,
@@ -129,14 +127,6 @@ export default function BurndownPage({
         snapshotLoading={snapshots?.snapshotLoading || false}
         onHistoricalDateSelect={onHistoricalDateSelect}
       />
-
-      {/* Jobs / Employment */}
-      {viewSettings.sections.jobs && (
-        <SectionCard id="sec-jobs" title="Jobs / Employment" className="scroll-mt-20">
-          <JobsPanel jobs={jobs} onChange={onJobsChange} people={people} allTransactions={allTransactions} transactionOverrides={transactionOverrides} />
-        </SectionCard>
-      )}
-
 
       {/* Two-column inputs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useHiddenMode } from '../context/HiddenModeContext'
 import MfaSetup from '../components/auth/MfaSetup'
 import AlertSettings from '../components/notifications/AlertSettings'
+import JobsPanel from '../components/finances/JobsPanel'
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -14,7 +15,7 @@ const SNOOZE_OPTIONS = [
   { label: '1 week', ms: 7 * 24 * 60 * 60 * 1000 },
 ]
 
-export default function UserProfilePage() {
+export default function UserProfilePage({ jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {} }) {
   const { user, logout, deleteAccount } = useAuth()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
@@ -102,6 +103,23 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Job History */}
+        {onJobsChange && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5" />
+              Job History
+            </h2>
+            <JobsPanel
+              jobs={jobs}
+              onChange={onJobsChange}
+              people={people}
+              allTransactions={allTransactions}
+              transactionOverrides={transactionOverrides}
+            />
+          </div>
+        )}
 
         {/* Security Settings */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
