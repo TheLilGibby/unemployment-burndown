@@ -12,7 +12,6 @@ import {
 
 export default function ProfileMenu({
   user,
-  onProfileOpen,
   onLogOpen,
   logCount,
   onPresent,
@@ -143,23 +142,6 @@ export default function ProfileMenu({
               </div>
             )}
           </div>
-
-          <div className="my-0.5" style={{ borderTop: '1px solid var(--border-subtle)' }} />
-
-          {/* Your profile */}
-          <button
-            onClick={() => { onProfileOpen(); setOpen(false) }}
-            className={menuItemClass}
-            style={menuItemStyle}
-            onMouseEnter={hoverOn}
-            onMouseLeave={hoverOff}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <span className="flex-1 text-left">Your profile</span>
-          </button>
 
           <div className="my-0.5" style={{ borderTop: '1px solid var(--border-subtle)' }} />
 

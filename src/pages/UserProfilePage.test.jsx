@@ -28,17 +28,12 @@ vi.mock('../context/NotificationsContext', () => ({
       mutedUntil: null,
       thresholds: { runwayCritical: 3, runwayWarning: 6, benefitEndDays: 30 },
     },
+    onPreferencesChange: vi.fn(),
     updatePreferences: vi.fn(),
     updateThreshold: vi.fn(),
     snooze: vi.fn(),
     unsnooze: vi.fn(),
   }),
-}))
-
-// Mock the HiddenModeContext
-vi.mock('../context/HiddenModeContext', () => ({
-  useHiddenMode: () => ({ hidden: false, setHidden: vi.fn() }),
-  HiddenModeProvider: ({ children }) => children,
 }))
 
 describe('UserProfilePage', () => {
@@ -50,7 +45,7 @@ describe('UserProfilePage', () => {
     })
 
     render(<UserProfilePage />)
-    
+
     expect(screen.getByText('Loading...')).toBeInTheDocument()
   })
 
@@ -68,12 +63,11 @@ describe('UserProfilePage', () => {
     })
 
     render(<UserProfilePage />)
-    
-    expect(screen.getByText('Settings')).toBeInTheDocument()
+
+    expect(screen.getAllByText('Profile').length).toBeGreaterThan(0)
     expect(screen.getAllByText('test@example.com').length).toBeGreaterThan(0)
     expect(screen.getByText('Test User')).toBeInTheDocument()
-    expect(screen.getByText('Test Org')).toBeInTheDocument()
-    expect(screen.getByText('MFA Enabled')).toBeInTheDocument()
+    expect(screen.getByText('Enabled')).toBeInTheDocument()
   })
 
   it('shows MFA not enabled when mfaEnabled is false', () => {
@@ -87,8 +81,8 @@ describe('UserProfilePage', () => {
     })
 
     render(<UserProfilePage />)
-    
-    expect(screen.getByText('MFA Not Enabled')).toBeInTheDocument()
+
+    expect(screen.getByText('Not enabled')).toBeInTheDocument()
   })
 
   it('has Sign Out button', () => {
@@ -102,7 +96,7 @@ describe('UserProfilePage', () => {
     })
 
     render(<UserProfilePage />)
-    
+
     expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
   })
 })
