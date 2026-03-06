@@ -104,7 +104,7 @@ export default function InvestmentGrowthChart({ scenarios }) {
         <span className="text-xs" style={{ color: 'var(--text-faint)' }}>7% annual return assumed</span>
       </div>
 
-      <div style={{ width: '100%', height: 320 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={thinned} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />

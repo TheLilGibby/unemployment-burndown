@@ -44,7 +44,7 @@ export default function RunwayBanner({ runoutDate, totalRunwayMonths, currentNet
           <p className={`text-3xl sm:text-4xl font-bold ${accentColor} leading-tight`}>
             {formatDate(runoutDate)}
           </p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-1 sensitive" style={{ color: 'var(--text-muted)' }}>
             {formatMonths(months)} of runway remaining
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function RunwayBanner({ runoutDate, totalRunwayMonths, currentNet
           <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
             Balance
           </p>
-          <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-xl font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>
             {formatCurrency(savings)}
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function RunwayBanner({ runoutDate, totalRunwayMonths, currentNet
           <p className="text-xs uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
             Net Burn / Mo
           </p>
-          <p className={`text-xl font-semibold ${currentNetBurn > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+          <p className={`text-xl font-semibold sensitive ${currentNetBurn > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
             {currentNetBurn > 0 ? '-' : '+'}{formatCurrency(Math.abs(currentNetBurn))}
           </p>
         </div>

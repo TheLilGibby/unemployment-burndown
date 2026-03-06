@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '../context/ThemeContext'
+import { ToastProvider } from '../context/ToastContext'
 
 /**
  * Custom render function that wraps components with common providers
@@ -13,9 +14,11 @@ function customRender(ui, options = {}) {
   function Wrapper({ children }) {
     return (
       <ThemeProvider>
-        <BrowserRouter>
-          {children}
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            {children}
+          </BrowserRouter>
+        </ToastProvider>
       </ThemeProvider>
     )
   }

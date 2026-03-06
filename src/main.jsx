@@ -4,17 +4,20 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { HiddenModeProvider } from './context/HiddenModeContext.jsx'
 import ErrorBoundary from './components/common/ErrorBoundary.jsx'
-import BugDropWidget from './components/feedback/BugDropWidget.jsx'
+// import BugDropWidget from './components/feedback/BugDropWidget.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary level="page">
       <ThemeProvider>
-        <BugDropWidget />
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <HiddenModeProvider>
+          {/* <BugDropWidget /> */}
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </HiddenModeProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

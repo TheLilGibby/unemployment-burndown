@@ -1,21 +1,22 @@
 import { useState } from 'react'
-import { PieChart, BarChart3, Store } from 'lucide-react'
-import CategoryDonutChart from './CategoryDonutChart'
+import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
+import CategoryExplorer from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
+import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
 
 const CHART_DEFS = [
   {
     id: 'categories',
     Icon: PieChart,
     label: 'Categories',
-    desc: 'Spending by category across all cards',
+    desc: 'Spending by category — click any category to drill down',
   },
   {
     id: 'monthly',
     Icon: BarChart3,
     label: 'Monthly Trend',
-    desc: 'Total spending per month over time',
+    desc: 'Monthly inflow vs outflow — see where money truly goes',
   },
   {
     id: 'merchants',
@@ -23,9 +24,21 @@ const CHART_DEFS = [
     label: 'Top Merchants',
     desc: 'Where you spend the most',
   },
+  {
+    id: 'paymentflow',
+    Icon: GitMerge,
+    label: 'Payment Flow',
+    desc: 'How income flows through expenses and credit card payments — the full money story',
+  },
 ]
 
-export default function StatementChartTabs({ transactions = [], creditCards = [] }) {
+export default function StatementChartTabs({
+  transactions = [], creditCards = [], expenses = [], subscriptions = [],
+  monthlyIncome = 0, monthlyBenefits = 0, onTransactionUpdate,
+  oneTimePurchases, oneTimeExpenses, oneTimeIncome,
+  transactionLinks, txnToOverviewMap, onLinkTransaction, onUnlinkTransaction,
+  membersByUserId = {},
+}) {
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -108,13 +121,43 @@ export default function StatementChartTabs({ transactions = [], creditCards = []
       {/* Chart content */}
       <div className="p-4 sm:p-5">
         {activeId === 'categories' && (
-          <CategoryDonutChart transactions={transactions} />
+          <CategoryExplorer
+            transactions={transactions}
+            onTransactionUpdate={onTransactionUpdate}
+            oneTimePurchases={oneTimePurchases}
+            oneTimeExpenses={oneTimeExpenses}
+            oneTimeIncome={oneTimeIncome}
+            transactionLinks={transactionLinks}
+            txnToOverviewMap={txnToOverviewMap}
+            onLinkTransaction={onLinkTransaction}
+            onUnlinkTransaction={onUnlinkTransaction}
+            membersByUserId={membersByUserId}
+          />
         )}
         {activeId === 'monthly' && (
           <MonthlySpendingBarChart transactions={transactions} creditCards={creditCards} />
         )}
         {activeId === 'merchants' && (
           <TopMerchantsChart transactions={transactions} />
+        )}
+        {activeId === 'paymentflow' && (
+          <CashFlowWaterfallChart
+            expenses={expenses}
+            subscriptions={subscriptions}
+            creditCards={creditCards}
+            monthlyIncome={monthlyIncome}
+            monthlyBenefits={monthlyBenefits}
+            ccTransactionsByCard={(() => {
+              // Group transactions by cardId for the waterfall breakdown
+              const byCard = {}
+              for (const t of transactions) {
+                if (!t.cardId) continue
+                if (!byCard[t.cardId]) byCard[t.cardId] = []
+                byCard[t.cardId].push(t)
+              }
+              return byCard
+            })()}
+          />
         )}
       </div>
     </div>

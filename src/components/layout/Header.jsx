@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const BASE_TABS = [
-  { path: '/',              label: 'Overview',      shortLabel: 'Overview' },
+  { path: '/',              label: 'Overview',      shortLabel: 'Home' },
   { path: '/job-scenarios', label: 'Job Scenarios', shortLabel: 'Jobs' },
   { path: '/credit-cards',  label: 'Statements',    shortLabel: 'Cards' },
   { path: '/retirement',    label: 'Retirement',    shortLabel: 'Retire' },
+  { path: '/goals',         label: 'Goals',         shortLabel: 'Goals' },
 ]
 
 const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin' }
@@ -13,7 +14,7 @@ const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin' }
 export default function Header({ rightSlot, isSuperAdmin }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const activePath = location.pathname
+  const activePath = location.pathname.replace(/\/+$/, '') || '/'
 
   const tabs = useMemo(() =>
     isSuperAdmin ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS,
@@ -56,20 +57,26 @@ export default function Header({ rightSlot, isSuperAdmin }) {
       }}
     >
       <nav className="flex items-center">
+        <img
+          src="/gorag-logo-1024.png"
+          alt="GoRAG Logo"
+          className="h-7 w-7 mr-1 sm:mr-2 rounded"
+          style={{ objectFit: 'contain' }}
+        />
         {tabs.map(tab => {
           const isActive = activePath === tab.path
           return (
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="relative h-[44px] px-3 text-[13px] font-medium transition-colors whitespace-nowrap"
+              className="relative h-[44px] px-1.5 sm:px-3 text-[13px] font-medium transition-colors whitespace-nowrap"
               style={{ color: isActive ? 'var(--accent-blue, #3b82f6)' : 'var(--text-muted)' }}
             >
               <span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.shortLabel}</span>
               {isActive && (
                 <span
-                  className="absolute bottom-0 inset-x-3 h-0.5 rounded-full"
+                  className="absolute bottom-0 inset-x-1.5 sm:inset-x-3 h-0.5 rounded-full"
                   style={{ background: 'var(--accent-blue, #3b82f6)' }}
                 />
               )}

@@ -4,6 +4,7 @@ import { ChevronRight, ChevronDown } from 'lucide-react'
 import { formatCurrency, formatMonths } from '../../utils/formatters'
 import { US_STATES, getStateTaxRate, computeMonthlyTakeHome, computeAllocationAmount, computeMinimumGrossSalary } from '../../utils/stateTaxRates'
 import CurrencyInput from '../finances/CurrencyInput'
+import AddScenarioModal from './AddScenarioModal'
 
 const SCENARIO_COLORS = [
   '#3b82f6', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4',
@@ -13,24 +14,7 @@ const today = dayjs('2026-02-21')
 const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
 export default function EnhancedJobScenariosForm({ scenarios, onChange, scenarioResults, effectiveExpenses = 0 }) {
-  const [newName, setNewName] = useState('')
-  const [newGross, setNewGross] = useState(0)
-  const [newState, setNewState] = useState('')
-  const [newTaxRate, setNewTaxRate] = useState(0)
-  const [newStartDate, setNewStartDate] = useState('')
-  const [newSavings, setNewSavings] = useState(0)
-  const [newSavingsType, setNewSavingsType] = useState('dollar')
-  const [newInvestment, setNewInvestment] = useState(0)
-  const [newInvestmentType, setNewInvestmentType] = useState('dollar')
-  const [newAnnualRaise, setNewAnnualRaise] = useState(3)
-  // Compensation package state for new scenario form
-  const [newSigningBonus, setNewSigningBonus] = useState(0)
-  const [newAnnualBonusPct, setNewAnnualBonusPct] = useState(0)
-  const [newBenefitsMonthly, setNewBenefitsMonthly] = useState(0)
-  const [newEmployerMatch, setNewEmployerMatch] = useState(0)
-  const [newEquityAnnual, setNewEquityAnnual] = useState(0)
-  const [newCommuteMonthly, setNewCommuteMonthly] = useState(0)
-  const [showNewCompPkg, setShowNewCompPkg] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   // Track which existing scenario cards have compensation package expanded
   const [showCompPkg, setShowCompPkg] = useState({})
   // Track which scenario cards are expanded (default: all collapsed)
@@ -56,49 +40,15 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
     updateScenario(id, { usState: stateCode, taxRatePct: suggestedRate, monthlyTakeHome: takeHome })
   }
 
-  function addScenario() {
-    if (!newName.trim() || newGross <= 0 || !newStartDate) return
-    const takeHome = computeMonthlyTakeHome(newGross, newTaxRate)
+  function addScenario(data) {
     const colorIndex = scenarios.length % SCENARIO_COLORS.length
     const newScenario = {
       id: Date.now(),
-      name: newName.trim(),
-      grossAnnualSalary: newGross,
-      usState: newState,
-      taxRatePct: newTaxRate,
-      monthlyTakeHome: takeHome,
-      startDate: newStartDate,
+      ...data,
       color: SCENARIO_COLORS[colorIndex],
-      savingsAllocation: newSavings,
-      savingsAllocationType: newSavingsType,
-      investmentAllocation: newInvestment,
-      investmentAllocationType: newInvestmentType,
-      annualRaisePct: newAnnualRaise,
-      signingBonus: newSigningBonus,
-      annualBonusPct: newAnnualBonusPct,
-      employerBenefitsMonthly: newBenefitsMonthly,
-      employer401kMatchPct: newEmployerMatch,
-      equityAnnual: newEquityAnnual,
-      commuteMonthly: newCommuteMonthly,
     }
     onChange([...scenarios, newScenario])
-    setNewName('')
-    setNewGross(0)
-    setNewState('')
-    setNewTaxRate(0)
-    setNewStartDate('')
-    setNewSavings(0)
-    setNewSavingsType('dollar')
-    setNewInvestment(0)
-    setNewInvestmentType('dollar')
-    setNewAnnualRaise(3)
-    setNewSigningBonus(0)
-    setNewAnnualBonusPct(0)
-    setNewBenefitsMonthly(0)
-    setNewEmployerMatch(0)
-    setNewEquityAnnual(0)
-    setNewCommuteMonthly(0)
-    setShowNewCompPkg(false)
+    setShowAddModal(false)
   }
 
   function removeScenario(id) {
@@ -531,206 +481,19 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
         )
       })}
 
-      {/* Add new scenario form */}
+      {/* Add scenario button */}
       {scenarios.length < MAX_SCENARIOS ? (
-        <div className="rounded-xl border p-5 space-y-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-input)' }}>
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Add a Scenario</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Name</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Company A - Sr Dev"
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Gross Annual Salary ($)</label>
-              <CurrencyInput
-                value={newGross}
-                onChange={setNewGross}
-                placeholder="e.g. 120,000"
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-              {newGross > 0 && (
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                  Take-home: {formatCurrency(computeMonthlyTakeHome(newGross, newTaxRate))}/mo
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Start Date</label>
-              <input
-                type="date"
-                min={minDate}
-                value={newStartDate}
-                onChange={e => setNewStartDate(e.target.value)}
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>US State</label>
-              <select
-                value={newState}
-                onChange={e => {
-                  setNewState(e.target.value)
-                  setNewTaxRate(getStateTaxRate(e.target.value))
-                }}
-                className="w-full text-sm rounded px-2 py-1.5 pr-7 focus:outline-none themed-select"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                <option value="">Select state...</option>
-                {US_STATES.map(st => (
-                  <option key={st.code} value={st.code}>{st.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Tax Rate %</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                step="0.5"
-                value={newTaxRate}
-                onChange={e => setNewTaxRate(Number(e.target.value))}
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Annual Raise %</label>
-              <input
-                type="number"
-                min="0"
-                max="25"
-                step="0.5"
-                value={newAnnualRaise}
-                onChange={e => setNewAnnualRaise(Number(e.target.value))}
-                className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={addScenario}
-                disabled={!newName.trim() || newGross <= 0 || !newStartDate}
-                className="w-full text-xs px-4 py-1.5 rounded-lg border font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  borderColor: 'var(--accent-emerald)',
-                  background: 'var(--accent-emerald)' + '18',
-                  color: 'var(--accent-emerald)',
-                }}
-              >
-                + Add Scenario
-              </button>
-            </div>
-          </div>
-
-          {/* Compensation Package (collapsible) for new scenario */}
-          <div>
-            <button
-              onClick={() => setShowNewCompPkg(prev => !prev)}
-              className="flex items-center gap-1.5 text-xs font-medium w-full"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <ChevronRight
-                size={12}
-                strokeWidth={2.5}
-                className="transition-transform duration-200"
-                style={{ transform: showNewCompPkg ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              />
-              Compensation Package
-              {(newSigningBonus > 0 || newAnnualBonusPct > 0 || newBenefitsMonthly > 0 ||
-                newEmployerMatch > 0 || newEquityAnnual > 0 || newCommuteMonthly > 0) && (
-                <span className="w-1.5 h-1.5 rounded-full ml-1" style={{ background: '#10b981', display: 'inline-block' }} />
-              )}
-            </button>
-            {showNewCompPkg && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Signing Bonus</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
-                    <CurrencyInput
-                      value={newSigningBonus}
-                      onChange={setNewSigningBonus}
-                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>one-time at start</p>
-                </div>
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Annual Bonus %</label>
-                  <input
-                    type="number" min="0" max="100" step="1"
-                    value={newAnnualBonusPct}
-                    onChange={e => setNewAnnualBonusPct(Number(e.target.value))}
-                    className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Benefits Value/mo</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
-                    <CurrencyInput
-                      value={newBenefitsMonthly}
-                      onChange={setNewBenefitsMonthly}
-                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>offsets insurance costs</p>
-                </div>
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>401k Match %</label>
-                  <input
-                    type="number" min="0" max="100" step="0.5"
-                    value={newEmployerMatch}
-                    onChange={e => setNewEmployerMatch(Number(e.target.value))}
-                    className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Equity/RSU Annual</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
-                    <CurrencyInput
-                      value={newEquityAnnual}
-                      onChange={setNewEquityAnnual}
-                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Commute Cost/mo</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>
-                    <CurrencyInput
-                      value={newCommuteMonthly}
-                      onChange={setNewCommuteMonthly}
-                      className="w-full text-sm rounded px-2 py-1.5 focus:outline-none"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="w-full text-sm px-4 py-3 rounded-xl border-2 border-dashed font-medium transition-colors hover:opacity-80"
+          style={{
+            borderColor: 'var(--accent-emerald)',
+            background: 'var(--accent-emerald)' + '08',
+            color: 'var(--accent-emerald)',
+          }}
+        >
+          + Add Scenario
+        </button>
       ) : (
         <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
           Maximum of {MAX_SCENARIOS} scenarios reached. Remove one to add another.
@@ -741,6 +504,14 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
         <p className="text-xs text-center py-6" style={{ color: 'var(--text-faint)' }}>
           Add a job scenario above to compare offers and see how each impacts your financial runway.
         </p>
+      )}
+
+      {/* Add scenario modal */}
+      {showAddModal && (
+        <AddScenarioModal
+          onAdd={addScenario}
+          onClose={() => setShowAddModal(false)}
+        />
       )}
     </div>
   )

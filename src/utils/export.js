@@ -75,6 +75,7 @@ export function exportExpensesCSV(expenses, filename = null) {
     Amount: expense.monthlyAmount?.toFixed(2) || expense.amount?.toFixed(2) || '0.00',
     Essential: expense.essential ? 'Yes' : 'No',
     Category: expense.category || '',
+    Description: expense.description || '',
     Notes: expense.notes || '',
   }))
   
@@ -96,6 +97,7 @@ export function exportSavingsCSV(savingsAccounts, filename = null) {
     Balance: account.amount?.toFixed(2) || '0.00',
     Type: account.type || '',
     Institution: account.institution || '',
+    Description: account.description || '',
     Notes: account.notes || '',
   }))
   

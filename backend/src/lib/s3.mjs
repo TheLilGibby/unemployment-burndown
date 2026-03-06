@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 const BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
 const REGION = process.env.S3_REGION || 'us-west-1'
@@ -21,6 +21,15 @@ function statementsIndexKey(orgId) {
 
 function statementKey(orgId, statementId) {
   return orgId ? `orgs/${orgId}/statements/${statementId}.json` : `statements/${statementId}.json`
+}
+
+async function s3Put(key, data) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: JSON.stringify(data, null, 2),
+    ContentType: 'application/json',
+  }))
 }
 
 async function s3Get(key) {
@@ -95,6 +104,72 @@ export async function writeStatementIndex(orgId, index) {
     Bucket: BUCKET,
     Key: statementsIndexKey(orgId),
     Body: JSON.stringify(index, null, 2),
+    ContentType: 'application/json',
+  }))
+}
+
+/**
+ * Delete a single statement from S3, scoped to org.
+ */
+export async function deleteStatement(orgId, statementId) {
+  await getS3().send(new DeleteObjectCommand({
+    Bucket: BUCKET,
+    Key: statementKey(orgId, statementId),
+  }))
+}
+
+// ── Snapshots ──
+
+function snapshotIndexKey(orgId) {
+  return orgId ? `orgs/${orgId}/snapshots/index.json` : 'snapshots/index.json'
+}
+
+function snapshotKey(orgId, date) {
+  return orgId ? `orgs/${orgId}/snapshots/${date}.json` : `snapshots/${date}.json`
+}
+
+export async function readSnapshotIndex(orgId) {
+  const data = await s3Get(snapshotIndexKey(orgId))
+  return data || { version: 1, dates: [] }
+}
+
+export async function writeSnapshotIndex(orgId, index) {
+  await s3Put(snapshotIndexKey(orgId), index)
+}
+
+export async function readSnapshot(orgId, date) {
+  return s3Get(snapshotKey(orgId, date))
+}
+
+export async function writeSnapshot(orgId, date, snapshot) {
+  await s3Put(snapshotKey(orgId, date), snapshot)
+}
+
+// ── Plaid accounts cache ──
+// Stores the last-known accounts response so /plaid/accounts never needs to
+// call Plaid directly. Written by sync and exchange handlers; read by accounts handler.
+
+function accountsCacheKey(orgId) {
+  return orgId ? `orgs/${orgId}/plaid-accounts-cache.json` : 'plaid-accounts-cache.json'
+}
+
+/**
+ * Read the cached Plaid accounts response from S3.
+ * Returns null if no cache exists yet.
+ */
+export async function readAccountsCache(orgId) {
+  return s3Get(accountsCacheKey(orgId))
+}
+
+/**
+ * Write the Plaid accounts cache to S3.
+ * Shape: { cachedAt: ISO, items: [...] }
+ */
+export async function writeAccountsCache(orgId, items) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: accountsCacheKey(orgId),
+    Body: JSON.stringify({ cachedAt: new Date().toISOString(), items }, null, 2),
     ContentType: 'application/json',
   }))
 }

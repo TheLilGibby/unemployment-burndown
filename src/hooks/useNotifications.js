@@ -1,21 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { formatDate, formatMonths, formatCurrency } from '../utils/formatters'
 
-const LS_KEY = 'burndown-notifications'
 const DEBOUNCE_MS = 3000
-const TOAST_TTL = 8000
-const MAX_TOASTS = 3
-
-function loadDismissed() {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveDismissed(ids) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(ids)) } catch {}
-}
 
 function evaluate(burndown, preferences, initialBalance) {
   if (!preferences.enabled) return []
@@ -90,33 +76,27 @@ function evaluate(burndown, preferences, initialBalance) {
   return notifications
 }
 
-export function useNotifications(burndown, preferences, initialBalance) {
-  const [dismissedIds, setDismissedIds] = useState(loadDismissed)
-  const [toasts, setToasts] = useState([])
+export function useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange } = {}) {
+  const dismissedIds = preferences?.dismissedIds || []
   const prevStateRef = useRef(null)
   const debounceRef = useRef(null)
   const [notifications, setNotifications] = useState([])
 
   const dismiss = useCallback((id) => {
-    setDismissedIds(prev => {
-      const next = [...prev, id]
-      saveDismissed(next)
-      return next
-    })
-  }, [])
+    if (!onPreferencesChange) return
+    onPreferencesChange(prev => ({
+      ...prev,
+      dismissedIds: [...new Set([...(prev.dismissedIds || []), id])],
+    }))
+  }, [onPreferencesChange])
 
   const dismissAll = useCallback(() => {
-    setDismissedIds(prev => {
-      const allIds = [...prev, ...notifications.map(n => n.id)]
-      const unique = [...new Set(allIds)]
-      saveDismissed(unique)
-      return unique
-    })
-  }, [notifications])
-
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
+    if (!onPreferencesChange) return
+    onPreferencesChange(prev => ({
+      ...prev,
+      dismissedIds: [...new Set([...(prev.dismissedIds || []), ...notifications.map(n => n.id)])],
+    }))
+  }, [onPreferencesChange, notifications])
 
   useEffect(() => {
     if (!burndown || !preferences) return
@@ -131,31 +111,19 @@ export function useNotifications(burndown, preferences, initialBalance) {
       setNotifications(active)
 
       const prevIds = prevStateRef.current
-      if (prevIds !== null) {
+      if (prevIds !== null && addToast) {
         const newCrossings = active.filter(
           n => !n.dismissed && !prevIds.has(n.id) && n.severity !== 'info'
         )
-        if (newCrossings.length > 0) {
-          setToasts(prev => {
-            const existing = new Set(prev.map(t => t.id))
-            const fresh = newCrossings.filter(n => !existing.has(n.id))
-            return [...prev, ...fresh].slice(-MAX_TOASTS)
-          })
+        for (const n of newCrossings) {
+          addToast({ title: n.title, message: n.message, severity: n.severity })
         }
       }
       prevStateRef.current = new Set(active.map(n => n.id))
     }, DEBOUNCE_MS)
 
     return () => clearTimeout(debounceRef.current)
-  }, [burndown, preferences, initialBalance, dismissedIds])
-
-  useEffect(() => {
-    if (toasts.length === 0) return
-    const timers = toasts.map(t =>
-      setTimeout(() => removeToast(t.id), TOAST_TTL)
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [toasts, removeToast])
+  }, [burndown, preferences, initialBalance, dismissedIds, addToast])
 
   const visible = notifications.filter(n => !n.dismissed)
   const unreadCount = visible.length
@@ -172,7 +140,5 @@ export function useNotifications(burndown, preferences, initialBalance) {
     highestSeverity,
     dismiss,
     dismissAll,
-    toasts,
-    removeToast,
   }
 }

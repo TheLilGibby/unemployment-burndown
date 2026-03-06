@@ -161,7 +161,8 @@ function renderDot(props) {
 export default function BurndownChart({
   dataPoints,
   runoutDate,
-  baseDataPoints,       // optional: the no-what-if baseline
+  baseDataPoints,                          // optional: the no-what-if baseline or historical snapshot
+  baselineLabel = 'No what-if baseline',   // label shown in callout / legend
   benefitStart,         // Date
   benefitEnd,           // Date
   emergencyFloor,       // number
@@ -172,15 +173,17 @@ export default function BurndownChart({
 
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
 
-  // Merge baseline into primary data points on the same month index
+  // Merge baseline into primary data points, keyed by dateLabel ('MMM YYYY').
+  // This handles both same-start baselines (what-if) and cross-timeline historical
+  // snapshots that may start from a different calendar date.
   const mergedData = useMemo(() => {
     const baseMap = {}
     if (baseDataPoints) {
-      for (const pt of baseDataPoints) baseMap[pt.month] = pt.balance
+      for (const pt of baseDataPoints) baseMap[pt.dateLabel] = pt.balance
     }
     return dataPoints.map(pt => ({
       ...pt,
-      baseline: baseMap[pt.month] ?? null,
+      baseline: baseMap[pt.dateLabel] ?? null,
     }))
   }, [dataPoints, baseDataPoints])
 
@@ -243,7 +246,7 @@ export default function BurndownChart({
           {showBaseline && hasBaseline && (
             <span className="flex items-center gap-1.5">
               <span className="inline-block w-4" style={{ height: 2, background: 'repeating-linear-gradient(90deg,#6b7280 0,#6b7280 4px,transparent 4px,transparent 8px)' }} />
-              Baseline
+              {baselineLabel}
             </span>
           )}
           {benefitStartLabel && (
@@ -291,7 +294,7 @@ export default function BurndownChart({
       </div>
 
       {/* ── Chart ── */}
-      <div style={{ width: '100%', height: 320 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 12, right: 12, left: 8, bottom: 0 }}>
             <defs>
@@ -438,7 +441,7 @@ export default function BurndownChart({
         )}
         {showBaseline && hasBaseline && (
           <span className="bg-gray-800/60 border border-gray-700 text-gray-400 px-2 py-1 rounded-md">
-            Dashed line = no what-if baseline
+            Dashed line = {baselineLabel}
           </span>
         )}
         {oneTimeCount > 0 && (
