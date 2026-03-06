@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight, Download, ChevronLeft } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, findParentCategory, resolveCategory, getParentCategoryKey, isGeneralCategory } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
+import { exportTransactionsCSV } from '../../utils/export'
 
 const FILTER_CATEGORIES_KEY = 'burndown_txn_filter_categories'
 const FILTER_SEARCH_KEY = 'burndown_txn_filter_search'
@@ -105,6 +106,8 @@ export default function TransactionTable({
       return val
     })
   }, [])
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(50)
   const [payrollDropdownTxnId, setPayrollDropdownTxnId] = useState(null)
   const payrollDropdownRef = useRef(null)
   const [categoryDropdownTxnId, setCategoryDropdownTxnId] = useState(null)
@@ -244,6 +247,12 @@ export default function TransactionTable({
       return sortDir === 'desc' ? -cmp : cmp
     })
   }, [transactions, sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
+
+  // Reset to first page when filters/sort change
+  useEffect(() => { setPage(0) }, [sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const paginatedRows = sorted.slice(page * pageSize, (page + 1) * pageSize)
 
   function toggleSort(field) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -534,10 +543,24 @@ export default function TransactionTable({
           <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
             {sorted.length} transaction{sorted.length !== 1 ? 's' : ''}
           </span>
+          <button
+            onClick={() => exportTransactionsCSV(sorted)}
+            disabled={sorted.length === 0}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
+            style={{
+              borderColor: 'var(--border-subtle)',
+              background: 'var(--bg-input)',
+              color: 'var(--text-secondary)',
+            }}
+            title="Export filtered transactions to CSV"
+          >
+            <Download size={12} />
+            Export CSV
+          </button>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-xs px-2 py-1 rounded-lg ml-auto"
+              className="text-xs px-2 py-1 rounded-lg"
               style={{ color: 'var(--accent-blue)', background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)' }}
             >
               Clear filters
@@ -603,7 +626,7 @@ export default function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.slice(0, 100).map((txn, i) => {
+            {paginatedRows.map((txn, i) => {
               const cat = findCategory(txn.category)
               const linkedKey = hasLinking && txnToOverviewMap ? txnToOverviewMap[txn.id] : null
               const payMethod = getPaymentMethod(txn)
@@ -929,14 +952,50 @@ export default function TransactionTable({
             })}
           </tbody>
         </table>
-        {sorted.length > 100 && (
-          <div className="text-center py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Showing first 100 of {sorted.length} transactions
-          </div>
-        )}
         {sorted.length === 0 && transactions.length > 0 && (
           <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
             No transactions match your filters
+          </div>
+        )}
+        {sorted.length > 0 && (
+          <div
+            className="flex items-center justify-between px-3 py-2 text-xs"
+            style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}
+          >
+            <span>
+              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, sorted.length)} of {sorted.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }}
+                className="text-xs rounded border px-1.5 py-0.5 outline-none"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+              >
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="p-1 rounded transition-colors disabled:opacity-30"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="p-1 rounded transition-colors disabled:opacity-30"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>
