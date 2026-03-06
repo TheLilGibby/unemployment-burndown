@@ -51,7 +51,7 @@ function UserBadge({ user }) {
   )
 }
 
-export default function StatementList({ statementIndex, creditCards, savingsAccounts = [], people = [], selectedCardId, onLoadStatement, user }) {
+export default function StatementList({ statementIndex, creditCards, savingsAccounts = [], people = [], selectedCardId, onLoadStatement, user, accountCustomizations = {} }) {
   const [expandedAccounts, setExpandedAccounts] = useState({})
 
   const stmts = (statementIndex?.statements || [])
@@ -111,9 +111,10 @@ export default function StatementList({ statementIndex, creditCards, savingsAcco
         latestDate = latest.closingDate
       }
 
+      const nickname = accountCustomizations[cardId]?.nickname
       groups.push({
         cardId,
-        accountName: isPlaid && latest.accountName ? latest.accountName : getCardName(cardId),
+        accountName: nickname || (isPlaid && latest.accountName ? latest.accountName : getCardName(cardId)),
         last4: card?.last4 || latest.cardLastFour || null,
         issuer: latest.issuer,
         isPlaid,

@@ -47,7 +47,7 @@ function authHeaders() {
 
 export default function CardOverviewBanner({
   creditCards, savingsAccounts = [], statementIndex, selectedCardId, onSelectCard, people = [],
-  onCreditCardsChange, onSavingsChange, onStatementsRefresh, user,
+  onCreditCardsChange, onSavingsChange, onStatementsRefresh, user, accountCustomizations = {},
 }) {
   const [managing, setManaging] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
@@ -222,7 +222,7 @@ export default function CardOverviewBanner({
                     </form>
                   ) : (
                     <div>
-                      {item.name}
+                      {accountCustomizations[item.id]?.nickname || item.name}
                       {item.last4 && (
                         <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                           ••••{item.last4}

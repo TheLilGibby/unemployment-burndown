@@ -87,7 +87,7 @@ export default function CreditCardHubPage({
           cardLastFour: full.cardLastFour || null,
           accountType: full.accountType || null,
           accountSubtype: full.accountSubtype || null,
-          accountName: full.accountName || null,
+          accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
           ...(override || {}),
         }
         // Auto-tag CC payment transactions unless user manually set a category
@@ -98,7 +98,7 @@ export default function CreditCardHubPage({
       }
     }
     return txns
-  }, [index, statements, selectedCardId, transactionOverrides])
+  }, [index, statements, selectedCardId, transactionOverrides, accountCustomizations])
 
   // Collect ALL transactions across all accounts (unfiltered, for linking)
   const allTransactionsUnfiltered = useMemo(() => {
@@ -113,7 +113,7 @@ export default function CreditCardHubPage({
           cardLastFour: full.cardLastFour || null,
           accountType: full.accountType || null,
           accountSubtype: full.accountSubtype || null,
-          accountName: full.accountName || null,
+          accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
         }
         if (isCCPayment(merged)) {
           merged.category = 'ccPayment'
@@ -122,7 +122,7 @@ export default function CreditCardHubPage({
       }
     }
     return txns
-  }, [index, statements])
+  }, [index, statements, accountCustomizations])
 
   // Propagate allTransactions to parent for overview usage
   useEffect(() => {
@@ -214,6 +214,7 @@ export default function CreditCardHubPage({
           selectedCardId={selectedCardId}
           onLoadStatement={loadStatement}
           user={user}
+          accountCustomizations={accountCustomizations}
         />
       </SectionCard>
 
