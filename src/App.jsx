@@ -43,7 +43,6 @@ import SuperAdminPage from './pages/SuperAdminPage'
 import ImpersonationBanner from './components/admin/ImpersonationBanner'
 import OrgSettings from './components/org/OrgSettings'
 import ProfileMenu from './components/profile/ProfileMenu'
-import ProfileSettings from './components/profile/ProfileSettings'
 import { NotificationsProvider } from './context/NotificationsContext'
 import { ToastProvider } from './context/ToastContext'
 import NotificationBell from './components/notifications/NotificationBell'
@@ -364,7 +363,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [presentationMode, setPresentationMode] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [orgOpen, setOrgOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [viewSettings, setViewSettings] = useState(DEFAULT_VIEW)
   const [furloughDate, setFurloughDate] = useState(DEFAULTS.furloughDate)
   const [people, setPeople] = useState(DEFAULTS.people)
@@ -943,15 +941,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         <OrgSettings user={user} onClose={() => setOrgOpen(false)} />
       )}
 
-      {/* Profile settings modal */}
-      {profileOpen && (
-        <ProfileSettings
-          user={user}
-          onClose={() => setProfileOpen(false)}
-          onSave={updateProfile}
-        />
-      )}
-
       <Header
         isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
@@ -971,7 +960,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             />
             <ProfileMenu
               user={user}
-              onProfileOpen={() => setProfileOpen(true)}
               onLogOpen={() => setLogOpen(true)}
               logCount={logEntries.length}
               onPresent={() => setPresentationMode(true)}
@@ -1194,6 +1182,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
         <Route path="/settings" element={
           <UserProfilePage
+            user={user}
+            updateProfile={updateProfile}
             jobs={jobs}
             onJobsChange={onJobsChange}
             people={people}

@@ -1,13 +1,47 @@
-import { useState } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useTheme } from '../context/ThemeContext'
 import { useHiddenMode } from '../context/HiddenModeContext'
+import { PROFILE_COLORS } from '../components/profile/ProfileBubble'
 import MfaSetup from '../components/auth/MfaSetup'
 import AlertSettings from '../components/notifications/AlertSettings'
 import JobsPanel from '../components/finances/JobsPanel'
+
+const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+const TOKEN_KEY = 'burndown_token'
+
+function authHeaders() {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+const COLOR_KEYS = Object.keys(PROFILE_COLORS)
+
+async function compressImage(file, maxPx = 200) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -15,8 +49,18 @@ const SNOOZE_OPTIONS = [
   { label: '1 week', ms: 7 * 24 * 60 * 60 * 1000 },
 ]
 
-export default function UserProfilePage({ jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {} }) {
-  const { user, logout, deleteAccount } = useAuth()
+const NAV_ITEMS = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'account', label: 'Account', icon: Key },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'jobs', label: 'Job History', icon: Briefcase },
+]
+
+export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {} }) {
+  const { user: authUser, logout, deleteAccount } = useAuth()
+  const user = userProp || authUser
+  const [activeSection, setActiveSection] = useState('profile')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -26,6 +70,54 @@ export default function UserProfilePage({ jobs = [], onJobsChange, people = [], 
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
+  // Profile state
+  const [selectedColor, setSelectedColor] = useState(user?.profileColor || 'blue')
+  const [avatarDataUrl, setAvatarDataUrl] = useState(user?.avatarDataUrl || null)
+  const [org, setOrg] = useState(null)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState(null)
+  const [profileSuccess, setProfileSuccess] = useState(false)
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    fetch(`${API_BASE}/api/org`, { headers: authHeaders() })
+      .then(async r => {
+        if (!r.ok) return null
+        const text = await r.text()
+        try { return JSON.parse(text) } catch { return null }
+      })
+      .then(data => { if (data) setOrg(data) })
+      .catch(() => {})
+  }, [user?.orgId])
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setProfileError(null)
+    try {
+      const compressed = await compressImage(file)
+      setAvatarDataUrl(compressed)
+    } catch {
+      setProfileError('Failed to process image. Please try a different file.')
+    }
+  }
+
+  async function handleProfileSave() {
+    if (!updateProfile) return
+    setProfileSaving(true)
+    setProfileError(null)
+    setProfileSuccess(false)
+    const result = await updateProfile({ profileColor: selectedColor, avatarDataUrl })
+    setProfileSaving(false)
+    if (result?.ok === false) {
+      setProfileError(result.error || 'Failed to save profile')
+    } else {
+      setProfileSuccess(true)
+      setTimeout(() => setProfileSuccess(false), 3000)
+    }
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -34,396 +126,499 @@ export default function UserProfilePage({ jobs = [], onJobsChange, people = [], 
     )
   }
 
+  const initials = user?.email ? user.email[0].toUpperCase() : '?'
+  const ringColor = PROFILE_COLORS[selectedColor]
+
+  const sectionRefs = {}
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Settings
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account settings and preferences
-          </p>
-        </div>
-
-        {/* User Info Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Account Information
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</div>
-                <div className="text-gray-900 dark:text-white">{user.email}</div>
-              </div>
-            </div>
-
-            {user.name && (
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</div>
-                  <div className="text-gray-900 dark:text-white">{user.name}</div>
-                </div>
-              </div>
-            )}
-
-            {user.organizationId && (
-              <div className="flex items-start gap-3">
-                <Building2 className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Organization</div>
-                  <div className="text-gray-900 dark:text-white">{user.organizationName || user.organizationId}</div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-gray-400 mt-0.5" />
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Status</div>
-                <div className="text-gray-900 dark:text-white">
-                  {user.mfaEnabled ? (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-sm">
-                      <Shield className="w-3 h-3" />
-                      MFA Enabled
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 rounded-md text-sm">
-                      MFA Not Enabled
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Job History */}
-        {onJobsChange && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5" />
-              Job History
-            </h2>
-            <JobsPanel
-              jobs={jobs}
-              onChange={onJobsChange}
-              people={people}
-              allTransactions={allTransactions}
-              transactionOverrides={transactionOverrides}
-            />
-          </div>
-        )}
-
-        {/* Security Settings */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Key className="w-5 h-5" />
-            Security
-          </h2>
-
-          <div className="space-y-3">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Signed in as <strong className="text-gray-900 dark:text-white">{user.email}</strong>
-            </div>
-            <MfaSetup mfaEnabled={mfaEnabled} onMfaChange={setMfaEnabled} />
-
-            <button
-              onClick={() => {/* TODO: Change password flow */}}
-              className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <div className="font-medium text-gray-900 dark:text-white">Change Password</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Update your account password</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Theme Settings */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Sun className="w-5 h-5" />
-            Theme
-          </h2>
-
-          <div className="flex gap-3">
-            {[
-              { value: 'light', label: 'Light', Icon: Sun },
-              { value: 'dark', label: 'Dark', Icon: Moon },
-              { value: 'system', label: 'System', Icon: Monitor },
-            ].map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setTheme(opt.value)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
-                  theme === opt.value
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                <opt.Icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-
-        {/* Hidden / Demo Mode */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <EyeOff className="w-5 h-5" />
-            Hidden Mode
-          </h2>
-
-          <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div>
-              <div className="font-medium text-gray-900 dark:text-white">Enable hidden mode</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Blur financial numbers so you can demo or share your screen without revealing sensitive data
-              </div>
-            </div>
-            <button
-              onClick={toggleHidden}
-              className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
-              style={{ background: hidden ? '#10b981' : '#d1d5db' }}
-            >
-              <span
-                className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
-                style={{ left: hidden ? 22 : 2 }}
-              />
-            </button>
-          </div>
-
-          {hidden && (
-            <p className="mt-3 text-xs text-emerald-500 dark:text-emerald-400 px-4">
-              Hidden mode is active — all financial figures are blurred.
-            </p>
-          )}
-        </div>
-
-        {/* Notification Settings */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notifications
-          </h2>
-
-          <div className="space-y-5">
-            {/* Enable/disable toggle */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div>
-                <div className="font-medium text-gray-900 dark:text-white">Enable notifications</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Receive alerts about runway, benefits, and balance milestones</div>
-              </div>
-              <button
-                onClick={() => updatePreferences({ enabled: !preferences.enabled })}
-                className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
-                style={{ background: preferences.enabled ? '#10b981' : '#d1d5db' }}
-              >
-                <span
-                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
-                  style={{ left: preferences.enabled ? 22 : 2 }}
-                />
-              </button>
-            </div>
-
-            {preferences.enabled && (
-              <>
-                {/* Thresholds */}
-                <div className="px-4">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Alert Thresholds</h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Critical runway</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(months)</span>
-                      </div>
-                      <input
-                        type="number"
-                        min={1}
-                        max={12}
-                        value={preferences.thresholds.runwayCritical}
-                        onChange={e => updateThreshold('runwayCritical', Number(e.target.value) || 3)}
-                        className="w-16 text-sm text-right px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Warning runway</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(months)</span>
-                      </div>
-                      <input
-                        type="number"
-                        min={1}
-                        max={24}
-                        value={preferences.thresholds.runwayWarning}
-                        onChange={e => updateThreshold('runwayWarning', Number(e.target.value) || 6)}
-                        className="w-16 text-sm text-right px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Benefit expiry warning</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(days)</span>
-                      </div>
-                      <input
-                        type="number"
-                        min={7}
-                        max={90}
-                        value={preferences.thresholds.benefitEndDays}
-                        onChange={e => updateThreshold('benefitEndDays', Number(e.target.value) || 30)}
-                        className="w-16 text-sm text-right px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Snooze */}
-                <div className="px-4">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Snooze</h3>
-                  {isMuted ? (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                      <BellOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300 flex-1">
-                        Muted until {new Date(preferences.mutedUntil).toLocaleString()}
-                      </span>
+    <div className="min-h-screen py-6 sm:py-10" style={{ background: 'var(--bg-primary, #f6f8fa)' }}>
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar nav */}
+          <nav className="lg:w-56 flex-shrink-0">
+            <div className="lg:sticky lg:top-16">
+              <ul className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
+                {NAV_ITEMS.filter(item => item.id !== 'jobs' || onJobsChange).map(item => {
+                  const Icon = item.icon
+                  const isActive = activeSection === item.id
+                  return (
+                    <li key={item.id}>
                       <button
-                        onClick={unsnooze}
-                        className="text-sm px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                        onClick={() => {
+                          setActiveSection(item.id)
+                          document.getElementById(`section-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                          isActive
+                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                        style={isActive ? { borderLeft: '2px solid var(--accent-blue, #3b82f6)' } : { borderLeft: '2px solid transparent' }}
                       >
-                        Unmute
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        {item.label}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </nav>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0 space-y-8">
+
+            {/* ── Profile ── */}
+            <section id="section-profile">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                Profile
+              </h2>
+
+              <div className="flex flex-col sm:flex-row gap-6">
+                {/* Avatar column */}
+                <div className="flex flex-col items-center gap-3 sm:w-48 flex-shrink-0">
+                  <div
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: '50%',
+                      border: `3px solid ${ringColor}`,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: ringColor + '22',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {avatarDataUrl ? (
+                      <img src={avatarDataUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: 36, fontWeight: 700, color: ringColor }}>{initials}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs px-3 py-1.5 rounded-md border transition-colors font-medium"
+                      style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
+                    >
+                      <Camera className="w-3 h-3 inline mr-1" />
+                      {avatarDataUrl ? 'Change' : 'Upload'}
+                    </button>
+                    {avatarDataUrl && (
+                      <button
+                        onClick={() => setAvatarDataUrl(null)}
+                        className="text-xs px-3 py-1.5 rounded-md border transition-colors"
+                        style={{ borderColor: 'var(--border-default, #d1d5db)', color: '#ef4444' }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                </div>
+
+                {/* Info column */}
+                <div className="flex-1 space-y-4">
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
+                    <div className="px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                      {user.email}
+                    </div>
+                  </div>
+
+                  {/* Name */}
+                  {user.name && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
+                      <div className="px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                        {user.name}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Organization */}
+                  {(org || user.organizationId) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Organization</label>
+                      <div className="flex items-center justify-between px-3 py-2 rounded-md text-sm" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                        <span className="text-gray-900 dark:text-white">{org?.name || user.organizationName || user.organizationId}</span>
+                        {user.orgRole && (
+                          <span
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                            style={{
+                              background: user.orgRole === 'owner' ? 'rgba(59,130,246,0.15)' : 'rgba(156,163,175,0.15)',
+                              color: user.orgRole === 'owner' ? '#3b82f6' : '#9ca3af',
+                            }}
+                          >
+                            {user.orgRole}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Outline color */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Profile color</label>
+                    <div className="flex gap-2.5">
+                      {COLOR_KEYS.map(key => {
+                        const hex = PROFILE_COLORS[key]
+                        const isSelected = selectedColor === key
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setSelectedColor(key)}
+                            title={key}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              background: hex,
+                              border: isSelected ? '2px solid var(--text-primary, #111)' : '2px solid transparent',
+                              outline: isSelected ? `2px solid ${hex}` : 'none',
+                              outlineOffset: 1,
+                              cursor: 'pointer',
+                              transition: 'transform 0.1s',
+                              transform: isSelected ? 'scale(1.15)' : 'scale(1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isSelected && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Profile save */}
+                  {profileError && (
+                    <div className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(248,113,113,0.1)', color: '#ef4444' }}>
+                      {profileError}
+                    </div>
+                  )}
+                  {profileSuccess && (
+                    <div className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                      Profile updated successfully.
+                    </div>
+                  )}
+                  {updateProfile && (
+                    <div className="pt-2" style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                      <button
+                        onClick={handleProfileSave}
+                        disabled={profileSaving}
+                        className="px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity"
+                        style={{
+                          background: '#2da44e',
+                          opacity: profileSaving ? 0.6 : 1,
+                          cursor: profileSaving ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {profileSaving ? 'Saving...' : 'Update profile'}
                       </button>
                     </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      {SNOOZE_OPTIONS.map(opt => (
-                        <button
-                          key={opt.label}
-                          onClick={() => snooze(opt.ms)}
-                          className="text-sm px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
                   )}
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Push Alerts & Category Spending Alerts */}
-        {preferences.enabled && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Push Alerts & Spending Limits
-            </h2>
-            <AlertSettings
-              preferences={preferences}
-              onPreferencesChange={onPreferencesChange}
-            />
-          </div>
-        )}
-
-        {/* Privacy & Data */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Privacy & Data
-          </h2>
-
-          <div className="space-y-3">
-            <Link
-              to="/privacy"
-              className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block"
-            >
-              <div className="font-medium text-gray-900 dark:text-white">Privacy Policy</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Review how we collect, use, and protect your data
               </div>
-            </Link>
+            </section>
 
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-              {!showDeleteConfirm ? (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full text-left px-4 py-3 rounded-lg border border-red-200 dark:border-red-800/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <div className="font-medium text-red-600 dark:text-red-400 flex items-center gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Delete Account
+            {/* ── Account (Security) ── */}
+            <section id="section-account">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                Account
+              </h2>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Password</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Update your account password</div>
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Permanently delete your account and all associated data
-                  </div>
-                </button>
-              ) : (
-                <div className="px-4 py-4 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20">
-                  <div className="flex items-start gap-3 mb-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-red-700 dark:text-red-400">
-                        Are you sure you want to delete your account?
-                      </div>
-                      <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                        This action is permanent and cannot be undone. All of your data will be deleted,
-                        including financial data, linked bank accounts, Plaid tokens, and transaction history.
-                      </p>
+                  <button
+                    onClick={() => {/* TODO: Change password flow */}}
+                    className="px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
+                    style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)' }}
+                  >
+                    Change password
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Two-factor authentication</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {user.mfaEnabled ? (
+                        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <Shield className="w-3 h-3" /> Enabled
+                        </span>
+                      ) : 'Not enabled'}
                     </div>
                   </div>
+                  <div className="flex-shrink-0">
+                    <MfaSetup mfaEnabled={mfaEnabled} onMfaChange={setMfaEnabled} />
+                  </div>
+                </div>
 
+                <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <EyeOff className="w-4 h-4" /> Hidden mode
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Blur financial numbers for screen sharing
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleHidden}
+                    className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
+                    style={{ background: hidden ? '#10b981' : '#d1d5db' }}
+                  >
+                    <span
+                      className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
+                      style={{ left: hidden ? 22 : 2 }}
+                    />
+                  </button>
+                </div>
+
+                {hidden && (
+                  <p className="text-xs text-emerald-500 dark:text-emerald-400">
+                    Hidden mode is active — all financial figures are blurred.
+                  </p>
+                )}
+              </div>
+
+              {/* Danger zone */}
+              <div className="mt-8 rounded-md border" style={{ borderColor: '#f87171' }}>
+                <div className="px-4 py-3 rounded-t-md" style={{ background: 'rgba(248,113,113,0.08)' }}>
+                  <h3 className="text-sm font-semibold text-red-600 dark:text-red-400">Danger zone</h3>
+                </div>
+                <div className="px-4 py-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">Delete account</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Permanently delete your account and all data</div>
+                    </div>
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="px-3 py-1.5 text-sm rounded-md border font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                        style={{ borderColor: '#fca5a5' }}
+                      >
+                        Delete account
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+                          disabled={deleting}
+                          className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setDeleting(true)
+                            setDeleteError(null)
+                            const result = await deleteAccount()
+                            if (!result.ok) {
+                              setDeleteError(result.error)
+                              setDeleting(false)
+                            }
+                          }}
+                          disabled={deleting}
+                          className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                        >
+                          {deleting ? 'Deleting...' : 'Confirm delete'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {deleteError && (
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-3 px-8">{deleteError}</p>
+                    <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
                   )}
-
-                  <div className="flex gap-3 justify-end">
+                  <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">Sign out</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Sign out of your account on this device</div>
+                    </div>
                     <button
-                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
-                      disabled={deleting}
-                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={logout}
+                      className="px-3 py-1.5 text-sm rounded-md border font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                      style={{ borderColor: '#fca5a5' }}
                     >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={async () => {
-                        setDeleting(true)
-                        setDeleteError(null)
-                        const result = await deleteAccount()
-                        if (!result.ok) {
-                          setDeleteError(result.error)
-                          setDeleting(false)
-                        }
-                      }}
-                      disabled={deleting}
-                      className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
-                    >
-                      {deleting ? 'Deleting...' : 'Yes, Delete My Account'}
+                      Sign out
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            </section>
 
-        {/* Sign Out */}
-        <div className="flex justify-end">
-          <button
-            onClick={logout}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
-          >
-            Sign Out
-          </button>
+            {/* ── Appearance ── */}
+            <section id="section-appearance">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                Appearance
+              </h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Theme preference</label>
+                <div className="flex gap-3">
+                  {[
+                    { value: 'light', label: 'Light', Icon: Sun },
+                    { value: 'dark', label: 'Dark', Icon: Moon },
+                    { value: 'system', label: 'System', Icon: Monitor },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setTheme(opt.value)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md border transition-colors ${
+                        theme === opt.value
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <opt.Icon className="w-4 h-4" />
+                      <span className="text-sm font-medium">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ── Notifications ── */}
+            <section id="section-notifications">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                Notifications
+              </h2>
+
+              <div className="space-y-5">
+                <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Enable notifications</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Receive alerts about runway, benefits, and balance milestones</div>
+                  </div>
+                  <button
+                    onClick={() => updatePreferences({ enabled: !preferences.enabled })}
+                    className="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
+                    style={{ background: preferences.enabled ? '#10b981' : '#d1d5db' }}
+                  >
+                    <span
+                      className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
+                      style={{ left: preferences.enabled ? 22 : 2 }}
+                    />
+                  </button>
+                </div>
+
+                {preferences.enabled && (
+                  <>
+                    {/* Thresholds */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Alert thresholds</h3>
+                      <div className="space-y-3">
+                        {[
+                          { label: 'Critical runway', unit: 'months', key: 'runwayCritical', min: 1, max: 12, fallback: 3 },
+                          { label: 'Warning runway', unit: 'months', key: 'runwayWarning', min: 1, max: 24, fallback: 6 },
+                          { label: 'Benefit expiry warning', unit: 'days', key: 'benefitEndDays', min: 7, max: 90, fallback: 30 },
+                        ].map(t => (
+                          <div key={t.key} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                            <div>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{t.label}</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({t.unit})</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={t.min}
+                              max={t.max}
+                              value={preferences.thresholds[t.key]}
+                              onChange={e => updateThreshold(t.key, Number(e.target.value) || t.fallback)}
+                              className="w-16 text-sm text-right px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Snooze */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Snooze</h3>
+                      {isMuted ? (
+                        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                          <BellOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-600 dark:text-gray-300 flex-1">
+                            Muted until {new Date(preferences.mutedUntil).toLocaleString()}
+                          </span>
+                          <button
+                            onClick={unsnooze}
+                            className="text-sm px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                          >
+                            Unmute
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          {SNOOZE_OPTIONS.map(opt => (
+                            <button
+                              key={opt.label}
+                              onClick={() => snooze(opt.ms)}
+                              className="text-sm px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Push alerts */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Push alerts & spending limits</h3>
+                      <AlertSettings
+                        preferences={preferences}
+                        onPreferencesChange={onPreferencesChange}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {/* ── Job History ── */}
+            {onJobsChange && (
+              <section id="section-jobs">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                  Job History
+                </h2>
+                <JobsPanel
+                  jobs={jobs}
+                  onChange={onJobsChange}
+                  people={people}
+                  allTransactions={allTransactions}
+                  transactionOverrides={transactionOverrides}
+                />
+              </section>
+            )}
+
+            {/* Privacy link */}
+            <section>
+              <div className="pt-4" style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                <Link
+                  to="/privacy"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </div>
