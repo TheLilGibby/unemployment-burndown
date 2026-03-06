@@ -94,6 +94,14 @@
         "assignedTo": 2
       }
     ],
+    "properties": [
+      { "id": 1, "address": "123 Oak Street, Sacramento, CA 95814", "parcelNumber": "002-0134-015" },
+      { "id": 2, "address": "456 Pine Avenue, Sacramento, CA 95816", "parcelNumber": "007-0221-033" }
+    ],
+    "homeImprovements": [
+      { "id": 1, "description": "Kitchen backsplash", "date": "2026-04-01", "amount": 1200, "propertyId": 1, "assignedTo": 1 },
+      { "id": 2, "description": "Bathroom faucet replacement", "date": "2026-05-15", "amount": 350, "propertyId": 1, "assignedTo": null }
+    ],
     "plaidMeta": {},
     "jobScenarios": [
       {

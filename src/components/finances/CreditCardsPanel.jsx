@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
+import { getEffectivePayment } from '../../utils/ccPayment'
 import { useDragReorder } from '../../hooks/useDragReorder'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
@@ -104,12 +105,16 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
       statementCloseDay: '',
       last4: '',
       assignedTo: null,
+      paymentStrategy: 'minimum',
+      paymentAmount: 0,
+      description: '',
     }])
   }
 
-  const totalBalance = cards.reduce((sum, c) => sum + (Number(c.balance) || 0), 0)
-  const totalMinimum = cards.reduce((sum, c) => sum + (Number(c.minimumPayment) || 0), 0)
-  const totalLimit   = cards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0)
+  const totalBalance    = cards.reduce((sum, c) => sum + (Number(c.balance) || 0), 0)
+  const totalMinimum    = cards.reduce((sum, c) => sum + (Number(c.minimumPayment) || 0), 0)
+  const totalEffective  = cards.reduce((sum, c) => sum + getEffectivePayment(c), 0)
+  const totalLimit      = cards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0)
   const overallUtil  = totalLimit > 0 ? Math.round((totalBalance / totalLimit) * 100) : null
 
   // Weighted-average APR by outstanding balance
@@ -284,7 +289,50 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
                   placeholder="1234"
                   maxLength={4}
                 />
+                {/* Payment strategy selector */}
+                <label className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                    Pays
+                  </span>
+                  <select
+                    value={card.paymentStrategy || 'minimum'}
+                    onChange={e => updateCard(card.id, 'paymentStrategy', e.target.value)}
+                    className="rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500/60"
+                    style={{ background: 'var(--bg-page)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="minimum">Min Only</option>
+                    <option value="full">Full Balance</option>
+                    <option value="fixed">Fixed Amt</option>
+                  </select>
+                </label>
+                {card.paymentStrategy === 'fixed' && (
+                  <DetailField
+                    label="Monthly Pmt"
+                    prefix="$"
+                    value={card.paymentAmount}
+                    onChange={val => updateCard(card.id, 'paymentAmount', val)}
+                    min={0}
+                    step={10}
+                    placeholder="0"
+                  />
+                )}
                 <UtilBadge balance={Number(card.balance) || 0} limit={Number(card.creditLimit) || 0} />
+                {/* Description / notes */}
+                <div className="w-full min-w-0">
+                  <label className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      Notes
+                    </span>
+                    <input
+                      type="text"
+                      value={card.description || ''}
+                      onChange={e => updateCard(card.id, 'description', e.target.value)}
+                      className="rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500/60 w-full"
+                      style={{ background: 'var(--bg-page)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                      placeholder="Add a note..."
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           )})}
@@ -317,12 +365,12 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
         >
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Balance owed: </span>
-            <span className="font-semibold" style={{ color: '#f87171' }}>{formatCurrency(totalBalance)}</span>
+            <span className="font-semibold sensitive" style={{ color: '#f87171' }}>{formatCurrency(totalBalance)}</span>
           </div>
           {totalLimit > 0 && (
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Total credit: </span>
-              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalLimit)}</span>
+              <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalLimit)}</span>
             </div>
           )}
           {overallUtil !== null && (
@@ -337,8 +385,11 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
             </div>
           )}
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Min payments: </span>
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalMinimum)}/mo</span>
+            <span style={{ color: 'var(--text-muted)' }}>Payments: </span>
+            <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalEffective)}/mo</span>
+            {totalEffective !== totalMinimum && (
+              <span className="text-xs ml-1 sensitive" style={{ color: 'var(--text-muted)' }}>(min {formatCurrency(totalMinimum)})</span>
+            )}
           </div>
           {avgApr !== null && (
             <div>
@@ -350,7 +401,7 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
       )}
 
       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-        Minimum payments are added to your monthly expenses. Utilization = balance ÷ limit. Drag <span style={{ color: 'var(--text-muted)' }}>⠿</span> to reorder.
+        Card payments are added to your monthly expenses based on the selected strategy. Utilization = balance ÷ limit. Drag <span style={{ color: 'var(--text-muted)' }}>⠿</span> to reorder.
       </p>
     </div>
   )

@@ -1,18 +1,35 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 const MAX_ENTRIES    = 2000
 const RETENTION_DAYS = 180
-const LS_LOG_KEY     = 'burndown-activity-log'
-const LS_NAME_KEY    = 'burndown-user-name'
+const BASE_LOG_KEY   = 'burndown-activity-log'
+const BASE_NAME_KEY  = 'burndown-user-name'
+
+function logKey(userId)  { return userId ? `${BASE_LOG_KEY}-${userId}` : BASE_LOG_KEY }
+function nameKey(userId) { return userId ? `${BASE_NAME_KEY}-${userId}` : BASE_NAME_KEY }
 
 function retentionCutoff() {
   return Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000
 }
 
-function loadLog() {
+function loadLog(userId) {
   try {
-    const raw = localStorage.getItem(LS_LOG_KEY)
-    if (!raw) return []
+    const key = logKey(userId)
+    const raw = localStorage.getItem(key)
+    if (!raw) {
+      // Migrate from unscoped key if this is a first load with a userId
+      if (userId) {
+        const legacy = localStorage.getItem(BASE_LOG_KEY)
+        if (legacy) {
+          localStorage.setItem(key, legacy)
+          localStorage.removeItem(BASE_LOG_KEY)
+          return JSON.parse(legacy)
+            .map(e => ({ ...e, timestamp: new Date(e.timestamp) }))
+            .filter(e => e.timestamp.getTime() > retentionCutoff())
+        }
+      }
+      return []
+    }
     const cutoff = retentionCutoff()
     return JSON.parse(raw)
       .map(e => ({ ...e, timestamp: new Date(e.timestamp) }))
@@ -20,16 +37,25 @@ function loadLog() {
   } catch { return [] }
 }
 
-export function useActivityLog() {
-  const [entries, setEntries]        = useState(loadLog)
+export function useActivityLog(userId) {
+  const currentUserId = useRef(userId)
+  const [entries, setEntries]        = useState(() => loadLog(userId))
   const [userName, setUserNameState] = useState(
-    () => localStorage.getItem(LS_NAME_KEY) || 'You'
+    () => localStorage.getItem(nameKey(userId)) || 'You'
   )
+
+  // Reload entries when userId changes (login/logout/switch)
+  useEffect(() => {
+    if (currentUserId.current === userId) return
+    currentUserId.current = userId
+    setEntries(loadLog(userId))
+    setUserNameState(localStorage.getItem(nameKey(userId)) || 'You')
+  }, [userId])
 
   const setUserName = useCallback((name) => {
     const trimmed = (name || '').trim() || 'You'
     setUserNameState(trimmed)
-    localStorage.setItem(LS_NAME_KEY, trimmed)
+    localStorage.setItem(nameKey(currentUserId.current), trimmed)
   }, [])
 
   const addEntry = useCallback((type, message, diff = null) => {
@@ -46,7 +72,7 @@ export function useActivityLog() {
             diff: diff ? { before: last.diff?.before ?? diff.before, after: diff.after } : last.diff,
           }
           const next = [updated, ...prev.slice(1)].slice(0, MAX_ENTRIES)
-          try { localStorage.setItem(LS_LOG_KEY, JSON.stringify(next)) } catch {}
+          try { localStorage.setItem(logKey(currentUserId.current), JSON.stringify(next)) } catch {}
           return next
         }
       }
@@ -58,7 +84,7 @@ export function useActivityLog() {
         diff,    // { before: string, after: string } | null
       }
       const next = [entry, ...prev].slice(0, MAX_ENTRIES)
-      try { localStorage.setItem(LS_LOG_KEY, JSON.stringify(next)) } catch {}
+      try { localStorage.setItem(logKey(currentUserId.current), JSON.stringify(next)) } catch {}
       return next
     })
   }, [])
@@ -82,14 +108,14 @@ export function useActivityLog() {
       unique.sort((a, b) => b.timestamp - a.timestamp)
       // Apply 180-day TTL and entry cap
       const pruned = unique.filter(e => e.timestamp.getTime() > cutoff).slice(0, MAX_ENTRIES)
-      try { localStorage.setItem(LS_LOG_KEY, JSON.stringify(pruned)) } catch {}
+      try { localStorage.setItem(logKey(currentUserId.current), JSON.stringify(pruned)) } catch {}
       return pruned
     })
   }, [])
 
   const clearLog = useCallback(() => {
     setEntries([])
-    try { localStorage.removeItem(LS_LOG_KEY) } catch {}
+    try { localStorage.removeItem(logKey(currentUserId.current)) } catch {}
   }, [])
 
   return { entries, addEntry, clearLog, loadEntries, userName, setUserName }

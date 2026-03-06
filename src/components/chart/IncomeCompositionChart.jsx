@@ -119,7 +119,7 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 280 }}>
+      <div className="sensitive-chart" style={{ width: '100%', height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}

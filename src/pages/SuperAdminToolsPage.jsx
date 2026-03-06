@@ -92,14 +92,14 @@ const AWS_SERVICES = [
     id: 'bedrock',
     name: 'AWS Bedrock',
     category: 'AI/ML',
-    description: 'Claude 3 Haiku for credit card statement parsing',
+    description: 'Claude Haiku 4.5 for credit card statement parsing',
     icon: 'bedrock',
     freeTier: {},
-    pricing: { perInputToken: 0.00000025, perOutputToken: 0.00000125 },
+    pricing: { perInputToken: 0.000001, perOutputToken: 0.000005 },
     estimateMonthly: (usage) => {
       // Avg statement parse: ~2000 input tokens, ~500 output tokens
-      const inputCost = usage.parserInvocations * 2000 * 0.00000025
-      const outputCost = usage.parserInvocations * 500 * 0.00000125
+      const inputCost = usage.parserInvocations * 2000 * 0.000001
+      const outputCost = usage.parserInvocations * 500 * 0.000005
       return inputCost + outputCost
     },
   },
@@ -127,6 +127,18 @@ const AWS_SERVICES = [
       return usage.plaidCalls * 0.10
     },
   },
+  {
+    id: 'snaptrade',
+    name: 'SnapTrade API',
+    category: 'Third Party',
+    description: 'Investment/brokerage account linking (Fidelity) — $1.50/connected user/mo',
+    icon: 'snaptrade',
+    freeTier: { connectedUsers: 5 },
+    pricing: { perConnectedUser: 1.50 },
+    estimateMonthly: (usage) => {
+      return Math.max(0, usage.snaptradeUsers - 5) * 1.50
+    },
+  },
 ]
 
 // Preset usage profiles
@@ -146,6 +158,7 @@ const USAGE_PROFILES = {
     getRequests: 2_000,
     inboundEmails: 5,
     plaidCalls: 20,
+    snaptradeUsers: 1,
   },
   moderate: {
     label: 'Moderate (5-10 users, regular use)',
@@ -162,6 +175,7 @@ const USAGE_PROFILES = {
     getRequests: 20_000,
     inboundEmails: 30,
     plaidCalls: 60,
+    snaptradeUsers: 5,
   },
   heavy: {
     label: 'Heavy (20+ users, active daily)',
@@ -178,6 +192,7 @@ const USAGE_PROFILES = {
     getRequests: 100_000,
     inboundEmails: 100,
     plaidCalls: 100,
+    snaptradeUsers: 20,
   },
 }
 
@@ -233,6 +248,11 @@ function getServiceIcon(icon) {
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
         <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+    snaptrade: (
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 12h5l3-9 4 18 3-9h5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   }
@@ -612,10 +632,888 @@ function ImpersonationUsersTable({ users, onImpersonate }) {
 
 // ---------------------------------------------------------------------------
 
+function PlaidLimitsEditor({ getToken, onLimitsUpdated }) {
+  const [limits, setLimits] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+
+  const fetchLimits = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/plaid-limits`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch limits')
+      const data = await res.json()
+      setLimits(data)
+      setDraft(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => { fetchLimits() }, [fetchLimits])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/plaid-limits`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monthlyBudget: parseFloat(draft.monthlyBudget),
+          estCostPerCall: parseFloat(draft.estCostPerCall),
+          maxSyncPages: parseInt(draft.maxSyncPages, 10),
+          syncCooldownSeconds: parseInt(draft.syncCooldownSeconds, 10),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update limits')
+      }
+      const data = await res.json()
+      setLimits(data.after)
+      setDraft(data.after)
+      setSuccess('Limits updated successfully')
+      if (onLimitsUpdated) onLimitsUpdated()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isDirty = draft && limits && (
+    parseFloat(draft.monthlyBudget) !== limits.monthlyBudget ||
+    parseFloat(draft.estCostPerCall) !== limits.estCostPerCall ||
+    parseInt(draft.maxSyncPages, 10) !== limits.maxSyncPages ||
+    parseInt(draft.syncCooldownSeconds, 10) !== limits.syncCooldownSeconds
+  )
+
+  const derivedMaxCalls = draft
+    ? Math.floor(parseFloat(draft.monthlyBudget || 0) / parseFloat(draft.estCostPerCall || 1))
+    : 0
+
+  if (loading && !limits) {
+    return (
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>API Limit Configuration</h3>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Adjust Plaid API rate limits and budget caps. Changes take effect immediately for all users.
+          </p>
+        </div>
+      </div>
+
+      {draft && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Monthly Budget ($)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="10000"
+                value={draft.monthlyBudget}
+                onChange={e => setDraft({ ...draft, monthlyBudget: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Est. Cost Per Call ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="100"
+                value={draft.estCostPerCall}
+                onChange={e => setDraft({ ...draft, estCostPerCall: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Max Sync Pages
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max="100"
+                value={draft.maxSyncPages}
+                onChange={e => setDraft({ ...draft, maxSyncPages: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Sync Cooldown (seconds)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="86400"
+                value={draft.syncCooldownSeconds}
+                onChange={e => setDraft({ ...draft, syncCooldownSeconds: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            </div>
+          </div>
+
+          <div className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
+            Derived max calls/month: <strong style={{ color: 'var(--text-primary)' }}>{derivedMaxCalls}</strong>
+            {' '}({draft.monthlyBudget ? `$${parseFloat(draft.monthlyBudget).toFixed(2)}` : '$0'} / ${draft.estCostPerCall ? `$${parseFloat(draft.estCostPerCall).toFixed(2)}` : '$0'} per call)
+          </div>
+
+          {success && (
+            <div className="px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={saving || !isDirty}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: !isDirty ? 'var(--bg-input)' : saving ? 'var(--bg-input)' : 'rgba(59, 130, 246, 0.15)',
+              color: !isDirty ? 'var(--text-muted)' : saving ? 'var(--text-muted)' : '#3b82f6',
+              cursor: !isDirty || saving ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={e => { if (isDirty && !saving) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)' }}
+            onMouseLeave={e => { if (isDirty && !saving) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)' }}
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: '#3b82f6' }} />
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save Limits
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlaidBudgetPanel({ getToken }) {
+  const [budget, setBudget] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
+  const [error, setError] = useState(null)
+  const [resetResult, setResetResult] = useState(null)
+
+  const fetchBudget = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/plaid/budget`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch budget status')
+      const data = await res.json()
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => { fetchBudget() }, [fetchBudget])
+
+  const handleReset = async () => {
+    if (!window.confirm(
+      'Are you sure you want to reset the Plaid API call counter to 0?\n\n' +
+      'This is a one-time exception override. The counter tracks monthly spend against the budget cap.'
+    )) return
+
+    setResetting(true)
+    setError(null)
+    setResetResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/reset-plaid-budget`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to reset budget')
+      }
+      const data = await res.json()
+      setResetResult(data)
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const usagePercent = budget ? Math.min(100, (budget.used / budget.limit) * 100) : 0
+  const isExhausted = budget && budget.remaining === 0
+
+  return (
+    <div className="space-y-4">
+      {/* Budget Status Card */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Current Month Budget Status
+          </h2>
+          <button
+            onClick={fetchBudget}
+            disabled={loading}
+            className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors"
+            style={{ color: 'var(--accent-blue)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+
+        {loading && !budget ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+          </div>
+        ) : error && !budget ? (
+          <div className="text-center py-8">
+            <p className="text-sm mb-3" style={{ color: '#ef4444' }}>{error}</p>
+            <button onClick={fetchBudget} className="text-xs font-medium" style={{ color: 'var(--accent-blue)' }}>Retry</button>
+          </div>
+        ) : budget ? (
+          <div>
+            {/* Usage bar */}
+            <div className="mb-4">
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <span className="text-3xl font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>
+                    {budget.used}
+                  </span>
+                  <span className="text-sm ml-1" style={{ color: 'var(--text-muted)' }}>/ {budget.limit} calls</span>
+                </div>
+                <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
+                  {budget.month}
+                </span>
+              </div>
+              <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${usagePercent}%`,
+                    background: usagePercent >= 90 ? '#ef4444' : usagePercent >= 70 ? '#f59e0b' : '#10b981',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {budget.remaining} calls remaining
+                </span>
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  ${(budget.used * (budget.estCostPerCall || 0.10)).toFixed(2)} / ${(budget.budgetDollars || 10).toFixed(2)} budget
+                </span>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Budget</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.budgetDollars || 10).toFixed(2)}/mo</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Cost/Call</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.estCostPerCall || 0.10).toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Used</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>{budget.used} calls</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : '#10b981' }}>
+                  {isExhausted ? 'Exhausted' : 'Active'}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Limits Editor Card */}
+      <PlaidLimitsEditor getToken={getToken} onLimitsUpdated={fetchBudget} />
+
+      {/* Reset Tool Card */}
+      <div className="rounded-xl border p-5" style={{
+        background: 'var(--bg-card)',
+        borderColor: isExhausted ? '#ef4444' : 'var(--border-subtle)',
+      }}>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Reset API Call Counter</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              One-time exception override. Resets the monthly Plaid API call counter back to 0,
+              allowing additional API calls beyond the normal budget cap. This action is audit-logged.
+            </p>
+          </div>
+        </div>
+
+        {resetResult && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+            Budget reset successfully. Previous count: {resetResult.previousCount} &rarr; 0.
+            The budget now has {resetResult.remaining}/{resetResult.limit} calls available.
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleReset}
+          disabled={resetting || loading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={{
+            background: resetting ? 'var(--bg-input)' : 'rgba(239, 68, 68, 0.15)',
+            color: resetting ? 'var(--text-muted)' : '#ef4444',
+            cursor: resetting ? 'not-allowed' : 'pointer',
+          }}
+          onMouseEnter={e => { if (!resetting) e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)' }}
+          onMouseLeave={e => { if (!resetting) e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)' }}
+        >
+          {resetting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: '#ef4444' }} />
+              Resetting...
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              Reset Call Counter to 0
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SnapTrade Budget Panel — mirrors PlaidBudgetPanel
+// ---------------------------------------------------------------------------
+
+function SnapTradeBudgetPanel({ getToken }) {
+  const [budget, setBudget] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
+  const [error, setError] = useState(null)
+  const [resetResult, setResetResult] = useState(null)
+  const [limits, setLimitsState] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [limitsError, setLimitsError] = useState(null)
+  const [limitsSuccess, setLimitsSuccess] = useState(null)
+
+  const fetchBudget = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/snaptrade/budget`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch SnapTrade budget status')
+      const data = await res.json()
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [getToken])
+
+  const fetchLimits = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/snaptrade-limits`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch limits')
+      const data = await res.json()
+      setLimitsState(data)
+      setDraft(data)
+    } catch (e) {
+      setLimitsError(e.message)
+    }
+  }, [getToken])
+
+  useEffect(() => { fetchBudget(); fetchLimits() }, [fetchBudget, fetchLimits])
+
+  const handleSaveLimits = async () => {
+    setSaving(true)
+    setLimitsError(null)
+    setLimitsSuccess(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/snaptrade-limits`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          monthlyBudget: parseFloat(draft.monthlyBudget),
+          estCostPerCall: parseFloat(draft.estCostPerCall),
+          maxSyncPages: parseInt(draft.maxSyncPages, 10),
+          syncCooldownSeconds: parseInt(draft.syncCooldownSeconds, 10),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to update limits')
+      const data = await res.json()
+      setLimitsState(data.after)
+      setDraft(data.after)
+      setLimitsSuccess('Limits updated successfully')
+      fetchBudget()
+    } catch (e) {
+      setLimitsError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReset = async () => {
+    if (!window.confirm('Reset the SnapTrade API call counter to 0?')) return
+    setResetting(true)
+    setError(null)
+    setResetResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/reset-snaptrade-budget`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error('Failed to reset budget')
+      const data = await res.json()
+      setResetResult(data)
+      setBudget(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const usagePercent = budget ? Math.min(100, (budget.used / budget.limit) * 100) : 0
+  const isExhausted = budget && budget.remaining === 0
+  const isDirty = draft && limits && (
+    parseFloat(draft.monthlyBudget) !== limits.monthlyBudget ||
+    parseFloat(draft.estCostPerCall) !== limits.estCostPerCall
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* Budget Status */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            SnapTrade Monthly Budget Status
+          </h2>
+          <button onClick={fetchBudget} disabled={loading} className="text-[11px] font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--accent-blue)' }}>
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+        {loading && !budget ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--border-subtle)', borderTopColor: 'var(--accent-blue)' }} />
+          </div>
+        ) : budget ? (
+          <div>
+            <div className="mb-4">
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <span className="text-3xl font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>{budget.used}</span>
+                  <span className="text-sm ml-1" style={{ color: 'var(--text-muted)' }}>/ {budget.limit} calls</span>
+                </div>
+                <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{budget.month}</span>
+              </div>
+              <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
+                <div className="h-full rounded-full transition-all duration-500" style={{
+                  width: `${usagePercent}%`,
+                  background: usagePercent >= 90 ? '#ef4444' : usagePercent >= 70 ? '#f59e0b' : '#10b981',
+                }} />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{budget.remaining} calls remaining</span>
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  ${(budget.used * (budget.estCostPerCall || 0.50)).toFixed(2)} / ${(budget.budgetDollars || 15).toFixed(2)} budget
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Budget</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.budgetDollars || 15).toFixed(2)}/mo</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Cost/Call</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>${(budget.estCostPerCall || 0.50).toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Used</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : 'var(--text-primary)' }}>{budget.used} calls</div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-input)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</div>
+                <div className="text-sm font-bold" style={{ color: isExhausted ? '#ef4444' : '#10b981' }}>{isExhausted ? 'Exhausted' : 'Active'}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Limits Editor */}
+      {draft && (
+        <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>API Limit Configuration</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Monthly Budget ($)</label>
+              <input type="number" step="1" min="0" max="10000" value={draft.monthlyBudget}
+                onChange={e => setDraft({ ...draft, monthlyBudget: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Est. Cost Per Call ($)</label>
+              <input type="number" step="0.01" min="0.01" max="100" value={draft.estCostPerCall}
+                onChange={e => setDraft({ ...draft, estCostPerCall: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }} />
+            </div>
+          </div>
+          {limitsSuccess && <div className="mt-3 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>{limitsSuccess}</div>}
+          {limitsError && <div className="mt-3 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>{limitsError}</div>}
+          <button onClick={handleSaveLimits} disabled={saving || !isDirty}
+            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: !isDirty ? 'var(--bg-input)' : 'rgba(59, 130, 246, 0.15)',
+              color: !isDirty ? 'var(--text-muted)' : '#3b82f6',
+              cursor: !isDirty || saving ? 'not-allowed' : 'pointer',
+            }}>
+            {saving ? 'Saving...' : 'Save Limits'}
+          </button>
+        </div>
+      )}
+
+      {/* Reset Tool */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: isExhausted ? '#ef4444' : 'var(--border-subtle)' }}>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Reset API Call Counter</h3>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          Resets the monthly SnapTrade API call counter to 0. This action is audit-logged.
+        </p>
+        {resetResult && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+            Budget reset successfully. Previous count: {resetResult.previousCount} &rarr; 0.
+          </div>
+        )}
+        {error && !loading && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>{error}</div>
+        )}
+        <button onClick={handleReset} disabled={resetting}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={{
+            background: resetting ? 'var(--bg-input)' : 'rgba(239, 68, 68, 0.15)',
+            color: resetting ? 'var(--text-muted)' : '#ef4444',
+            cursor: resetting ? 'not-allowed' : 'pointer',
+          }}>
+          {resetting ? 'Resetting...' : 'Reset Call Counter to 0'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Tech Stack Wiki Panel
+// ---------------------------------------------------------------------------
+
+const TECH_STACK_SECTIONS = [
+  {
+    title: 'Frontend',
+    color: '#3b82f6',
+    items: [
+      { name: 'React 19', desc: 'UI component library with hooks-based state management' },
+      { name: 'Tailwind CSS 4', desc: 'Utility-first CSS framework with custom CSS variable theming' },
+      { name: 'Vite 7', desc: 'Build tool and dev server with HMR, proxy, and React plugin' },
+      { name: 'Recharts', desc: 'React charting library for burndown visualization' },
+      { name: 'Lucide React', desc: 'Icon library (open source, tree-shakeable)' },
+      { name: 'dayjs', desc: 'Lightweight date formatting and manipulation' },
+      { name: 'html2canvas', desc: 'Client-side screenshot/export functionality' },
+    ],
+  },
+  {
+    title: 'Backend (Production)',
+    color: '#f59e0b',
+    items: [
+      { name: 'AWS SAM', desc: 'Infrastructure-as-code for serverless deployment (template.yaml)' },
+      { name: 'AWS Lambda (arm64)', desc: '42+ handler functions on Graviton2, Node.js runtime, 256-512 MB' },
+      { name: 'API Gateway (REST)', desc: 'CORS-enabled API with JWT auth on all endpoints' },
+      { name: 'Express.js 5', desc: 'Local dev server with in-memory stores (mirrors Lambda handlers)' },
+    ],
+  },
+  {
+    title: 'Database',
+    color: '#8b5cf6',
+    items: [
+      { name: 'DynamoDB (On-Demand)', desc: '5 tables: PlaidTokens, BurndownUsers, Organizations, OrgMembers, Jobs' },
+      { name: 'PlaidTokens Table', desc: 'Stores encrypted access tokens, budget counters, cooldowns, limit overrides for both Plaid and SnapTrade' },
+      { name: 'BurndownUsers Table', desc: 'User auth records with MFA secrets, org membership' },
+    ],
+  },
+  {
+    title: 'Storage',
+    color: '#10b981',
+    items: [
+      { name: 'Amazon S3', desc: 'Org-scoped storage: data.json, statements, snapshots, account caches' },
+      { name: 'SSE-S3 Encryption', desc: 'AES-256 server-side encryption at no additional cost' },
+      { name: 'Org-scoped paths', desc: 'Pattern: orgs/{orgId}/data.json, orgs/{orgId}/statements/*.json' },
+    ],
+  },
+  {
+    title: 'Authentication & Security',
+    color: '#ef4444',
+    items: [
+      { name: 'JWT (jsonwebtoken)', desc: '24-hour tokens with org/role/superadmin claims' },
+      { name: 'bcryptjs', desc: 'Password hashing with salt rounds' },
+      { name: 'TOTP MFA', desc: 'Two-factor authentication with QR code enrollment (otplib)' },
+      { name: 'AES-256-GCM', desc: 'At-rest encryption for Plaid/SnapTrade access tokens in DynamoDB' },
+      { name: 'TLS 1.2+', desc: 'HTTPS with minimum TLS 1.2 on dev server' },
+    ],
+  },
+  {
+    title: 'Financial Integrations',
+    color: '#06b6d4',
+    items: [
+      { name: 'Plaid API', desc: 'Credit cards & bank accounts — budget-capped at $10/mo, Proxy-guarded client' },
+      { name: 'SnapTrade API', desc: 'Investment/brokerage accounts (Fidelity, Schwab) — $1.50/user/mo, redirect-based auth flow' },
+      { name: 'Budget Guards', desc: 'Both Plaid & SnapTrade use Proxy-wrapped clients that check DynamoDB budget before every API call' },
+      { name: 'Accounts Cache', desc: 'S3-cached account data prevents redundant API calls on page loads' },
+    ],
+  },
+  {
+    title: 'AI / ML',
+    color: '#a855f7',
+    items: [
+      { name: 'AWS Bedrock', desc: 'Claude Haiku 4.5 for credit card statement parsing (per-token pricing)' },
+    ],
+  },
+  {
+    title: 'Email & Notifications',
+    color: '#ec4899',
+    items: [
+      { name: 'SendGrid', desc: 'Transactional email (password reset, invitations)' },
+      { name: 'Amazon SES', desc: 'Inbound email receipt for statement PDF ingestion' },
+      { name: 'ntfy.sh', desc: 'Push notifications to iOS/Android via open-source service' },
+    ],
+  },
+  {
+    title: 'DevOps & Hosting',
+    color: '#64748b',
+    items: [
+      { name: 'AWS Amplify', desc: 'Frontend hosting with CI/CD builds from git' },
+      { name: 'SAM CLI', desc: 'sam build && sam deploy for Lambda + API Gateway + DynamoDB' },
+      { name: 'Vite Dev Server', desc: 'Port 5173 with proxy to Express backend on port 3001' },
+      { name: 'ESLint 9', desc: 'Code quality and style enforcement' },
+      { name: 'Vitest', desc: 'Unit testing framework with coverage support' },
+    ],
+  },
+]
+
+function TechStackWikiPanel() {
+  const [expandedSection, setExpandedSection] = useState(null)
+
+  return (
+    <div className="space-y-3">
+      {/* Overview card */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Platform Architecture Overview</h2>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+          Unemployment Burndown is a serverless financial planning platform built on AWS. It uses React for the frontend,
+          Lambda + API Gateway + DynamoDB for the backend, and integrates with Plaid (banks/credit cards) and SnapTrade (investment accounts)
+          for live financial data aggregation.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg p-3 text-center" style={{ background: 'var(--bg-input)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--accent-blue)' }}>42+</div>
+            <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Lambda Functions</div>
+          </div>
+          <div className="rounded-lg p-3 text-center" style={{ background: 'var(--bg-input)' }}>
+            <div className="text-2xl font-bold" style={{ color: '#10b981' }}>5</div>
+            <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>DynamoDB Tables</div>
+          </div>
+          <div className="rounded-lg p-3 text-center" style={{ background: 'var(--bg-input)' }}>
+            <div className="text-2xl font-bold" style={{ color: '#f59e0b' }}>2</div>
+            <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Financial APIs</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Coverage matrix */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
+          Financial Data Coverage
+        </h2>
+        <div className="space-y-2">
+          {[
+            { type: 'Credit Cards', provider: 'Plaid', color: '#3b82f6', desc: 'Balance, transactions, statement parsing' },
+            { type: 'Bank Accounts', provider: 'Plaid', color: '#3b82f6', desc: 'Checking, savings, balances, transactions' },
+            { type: 'Investment Accounts', provider: 'SnapTrade', color: '#10b981', desc: 'Fidelity 401(k), IRA, brokerage — holdings & positions' },
+          ].map(item => (
+            <div key={item.type} className="flex items-center gap-3 px-3 py-2.5 rounded-lg" style={{ background: 'var(--bg-input)' }}>
+              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+              <div className="flex-1">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.type}</div>
+                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{item.desc}</div>
+              </div>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${item.color}20`, color: item.color }}>
+                {item.provider}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tech stack sections */}
+      {TECH_STACK_SECTIONS.map(section => (
+        <div key={section.title} className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <button
+            onClick={() => setExpandedSection(expandedSection === section.title ? null : section.title)}
+            className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: section.color }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{section.title}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+                {section.items.length}
+              </span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className="transition-transform" style={{ color: 'var(--text-muted)', transform: expandedSection === section.title ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {expandedSection === section.title && (
+            <div className="px-5 pb-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+              <div className="space-y-2 mt-3">
+                {section.items.map(item => (
+                  <div key={item.name} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: section.color, opacity: 0.5 }} />
+                    <div>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                      <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>&mdash; {item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Env vars reference */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
+          Key Environment Variables
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {[
+            { key: 'PLAID_CLIENT_ID', desc: 'Plaid API client identifier' },
+            { key: 'PLAID_SECRET', desc: 'Plaid API secret key' },
+            { key: 'PLAID_ENCRYPTION_KEY', desc: 'AES-256 key for token encryption' },
+            { key: 'SNAPTRADE_CLIENT_ID', desc: 'SnapTrade API client identifier' },
+            { key: 'SNAPTRADE_CONSUMER_KEY', desc: 'SnapTrade HMAC signing key' },
+            { key: 'JWT_SECRET', desc: 'JWT signing secret (32+ chars)' },
+            { key: 'S3_BUCKET', desc: 'Data storage bucket name' },
+            { key: 'SUPER_ADMINS', desc: 'Comma-separated admin email list' },
+          ].map(env => (
+            <div key={env.key} className="flex items-start gap-2 px-2 py-1.5 rounded" style={{ background: 'var(--bg-input)' }}>
+              <code className="font-mono text-[10px] font-semibold flex-shrink-0" style={{ color: '#10b981' }}>{env.key}</code>
+              <span style={{ color: 'var(--text-muted)' }}>{env.desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
 export default function SuperAdminToolsPage() {
   const { user, getToken, impersonate } = useAuth()
   const navigate = useNavigate()
-  const [activeSection, setActiveSection] = useState(user?.isSuperAdmin ? 'impersonation' : 'costs')
+  const [activeSection, setActiveSection] = useState('index')
   const [usageProfile, setUsageProfile] = useState('minimal')
   const [growthRate, setGrowthRate] = useState(10)
   const [expandedService, setExpandedService] = useState(null)
@@ -638,6 +1536,7 @@ export default function SuperAdminToolsPage() {
         getRequests: usage.getRequests,
         inboundEmails: usage.inboundEmails,
         plaidCalls: usage.plaidCalls,
+        snaptradeUsers: usage.snaptradeUsers,
       }
       const monthlyCost = service.estimateMonthly(usageMap)
       return { ...service, monthlyCost }
@@ -674,7 +1573,7 @@ export default function SuperAdminToolsPage() {
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
   }, [serviceCosts])
 
-  if (user?.orgRole !== 'owner' && !user?.isSuperAdmin) {
+  if (!user?.isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
         <div className="text-center">
@@ -716,48 +1615,90 @@ export default function SuperAdminToolsPage() {
               Superadmin Tools
             </h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {activeSection === 'impersonation' ? 'View as any user to debug and support' : 'AWS infrastructure cost analysis & projections'}
+              {activeSection === 'index' ? 'Administrative tools and utilities'
+                : activeSection === 'impersonation' ? 'View as any user to debug and support'
+                : activeSection === 'plaidBudget' ? 'Monitor and manage Plaid API call budget'
+                : activeSection === 'snaptradeBudget' ? 'Monitor and manage SnapTrade API budget'
+                : activeSection === 'techStack' ? 'Platform architecture, services, and integration reference'
+                : 'AWS infrastructure cost analysis & projections'}
             </p>
           </div>
         </div>
 
-        {/* Section Tabs */}
-        <div className="flex gap-2 mb-6">
-          {user?.isSuperAdmin && (
-            <button
-              onClick={() => setActiveSection('impersonation')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
-              style={{
-                background: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'transparent',
-                color: activeSection === 'impersonation' ? '#fff' : 'var(--text-secondary)',
-                borderColor: activeSection === 'impersonation' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-              </svg>
-              User Impersonation
-            </button>
-          )}
+        {/* Back to tools index when inside a tool */}
+        {activeSection !== 'index' && (
           <button
-            onClick={() => setActiveSection('costs')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
-            style={{
-              background: activeSection === 'costs' ? 'var(--accent-blue)' : 'transparent',
-              color: activeSection === 'costs' ? '#fff' : 'var(--text-secondary)',
-              borderColor: activeSection === 'costs' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-            }}
+            onClick={() => setActiveSection('index')}
+            className="flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ color: 'var(--accent-blue)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M15 18l-6-6 6-6" />
             </svg>
-            Cost Analysis
+            Back to Tools
           </button>
-        </div>
+        )}
+
+        {/* Tools Index Table */}
+        {activeSection === 'index' && (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tool</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: 'impersonation', name: 'User Impersonation', desc: 'View as any user to debug and support', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg> },
+                  { key: 'techStack', name: 'Tech Stack Wiki', desc: 'Platform architecture, services, and integration reference', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg> },
+                  { key: 'costs', name: 'Cost Analysis', desc: 'AWS + Plaid + SnapTrade cost analysis & projections', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg> },
+                  { key: 'plaidBudget', name: 'Plaid Budget', desc: 'Monitor and manage Plaid API call budget', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg> },
+                  { key: 'snaptradeBudget', name: 'SnapTrade Budget', desc: 'Monitor and manage SnapTrade API budget for investments', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 12h5l3-9 4 18 3-9h5" /></svg> },
+                ].map(tool => (
+                  <tr
+                    key={tool.key}
+                    onClick={() => setActiveSection(tool.key)}
+                    className="cursor-pointer transition-colors"
+                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <span style={{ color: 'var(--accent-blue)' }}>{tool.icon}</span>
+                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{tool.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{tool.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Impersonation Panel */}
-        {activeSection === 'impersonation' && user?.isSuperAdmin && (
+        {activeSection === 'impersonation' && (
           <ImpersonationPanel getToken={getToken} impersonate={impersonate} />
+        )}
+
+        {/* Plaid Budget Panel */}
+        {activeSection === 'plaidBudget' && (
+          <PlaidBudgetPanel getToken={getToken} />
+        )}
+
+        {/* SnapTrade Budget Panel */}
+        {activeSection === 'snaptradeBudget' && (
+          <SnapTradeBudgetPanel getToken={getToken} />
+        )}
+
+        {/* Tech Stack Wiki */}
+        {activeSection === 'techStack' && (
+          <TechStackWikiPanel />
         )}
 
         {/* Cost Analysis Content */}
@@ -959,6 +1900,11 @@ export default function SuperAdminToolsPage() {
                         Budget cap: $10.00/mo ({Math.floor(10 / 0.10)} calls max). This is enforced server-side.
                       </div>
                     )}
+                    {service.id === 'snaptrade' && (
+                      <div className="mt-2 px-3 py-2 rounded-md" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                        Free tier: 5 connected users. Covers investment/brokerage accounts (Fidelity, Schwab, etc.) Budget-guarded server-side.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -988,7 +1934,7 @@ export default function SuperAdminToolsPage() {
                 {serviceCosts.sort((a, b) => b.monthlyCost - a.monthlyCost).map(service => {
                   const monthCosts = projectionMonths.slice(0, 4).map((m, i) => {
                     const mult = Math.pow(1 + growthRate / 100, i)
-                    // Plaid has a hard budget cap
+                    // Plaid has a hard budget cap; SnapTrade scales with users
                     if (service.id === 'plaid') return Math.min(service.monthlyCost * mult, 10)
                     return service.monthlyCost * mult
                   })
@@ -1047,11 +1993,19 @@ export default function SuperAdminToolsPage() {
             </div>
             <div className="flex items-start gap-2">
               <span style={{ color: '#f59e0b' }}>!</span>
-              <span><strong style={{ color: 'var(--text-primary)' }}>Bedrock (Claude 3 Haiku)</strong> &mdash; Per-token pricing; costs scale with statement parsing volume</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Bedrock (Claude Haiku 4.5)</strong> &mdash; Per-token pricing; costs scale with statement parsing volume</span>
             </div>
             <div className="flex items-start gap-2">
               <span style={{ color: '#f59e0b' }}>!</span>
               <span><strong style={{ color: 'var(--text-primary)' }}>Free Tier</strong> &mdash; Many services stay within AWS free tier at low usage. Free tier expires 12 months after account creation</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span style={{ color: '#10b981' }}>&#x2713;</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>SnapTrade Free Tier</strong> &mdash; First 5 connected users at no cost for investment account linking</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span style={{ color: '#f59e0b' }}>!</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>SnapTrade Scaling</strong> &mdash; Cost scales linearly at $1.50/connected user/month beyond 5-user free tier</span>
             </div>
           </div>
         </div>

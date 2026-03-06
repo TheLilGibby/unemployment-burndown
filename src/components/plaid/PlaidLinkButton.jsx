@@ -3,7 +3,7 @@ import { usePlaidLink } from 'react-plaid-link'
 import PlaidConsentModal from './PlaidConsentModal'
 
 /**
- * "Connect Bank" button that opens the Plaid Link modal.
+ * "Add Bank" button that opens the Plaid Link modal.
  * Shows a consent screen before the first connection.
  *
  * Props:
@@ -13,7 +13,7 @@ import PlaidConsentModal from './PlaidConsentModal'
  *   linkedCount     – number of already-connected institutions
  *   syncing         – boolean, true while a sync is in progress
  */
-export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAll, linkedCount = 0, syncing = false }) {
+export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAll, linkedCount = 0, syncing = false, variant = 'button' }) {
   const [linkToken, setLinkToken] = useState(null)
   const [preparing, setPreparing] = useState(false)
   const [showConsent, setShowConsent] = useState(false)
@@ -70,45 +70,72 @@ export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAl
     }
   }, [linkToken, ready, open])
 
+  const disabled = preparing || syncing
+  const label = preparing ? 'Connecting...' : syncing ? 'Syncing...' : linkedCount > 0 ? 'Add Bank' : 'Connect Bank'
+
+  // Row variant: looks like account rows in the sidebar
+  if (variant === 'row') {
+    return (
+      <>
+        <button
+          onClick={handleClick}
+          disabled={disabled}
+          className="w-full flex items-center gap-2 px-3 py-2 text-left transition-all rounded-lg"
+          style={{
+            background: 'transparent',
+            borderLeft: '2px solid transparent',
+            opacity: disabled ? 0.6 : 1,
+            cursor: disabled ? 'wait' : 'pointer',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--accent-blue) 6%, var(--bg-card))' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          title={linkedCount > 0 ? 'Connect another bank account' : 'Connect your bank via Plaid'}
+        >
+          <span
+            className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </span>
+          <span className="text-xs" style={{ color: 'var(--accent-blue)' }}>
+            {label}
+          </span>
+        </button>
+
+        {showConsent && (
+          <PlaidConsentModal
+            onAccept={handleConsentAccept}
+            onDecline={handleConsentDecline}
+          />
+        )}
+      </>
+    )
+  }
+
   return (
     <>
       <button
         onClick={handleClick}
-        disabled={preparing || syncing}
+        disabled={disabled}
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
         style={{
-          borderColor: linkedCount > 0 ? 'var(--accent-emerald)' : 'var(--accent-blue)',
-          background: linkedCount > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-          color: linkedCount > 0 ? 'var(--accent-emerald)' : 'var(--accent-blue)',
-          opacity: (preparing || syncing) ? 0.6 : 1,
-          cursor: (preparing || syncing) ? 'wait' : 'pointer',
+          borderColor: 'var(--accent-blue)',
+          background: 'rgba(59, 130, 246, 0.1)',
+          color: 'var(--accent-blue)',
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? 'wait' : 'pointer',
         }}
         title={linkedCount > 0 ? 'Connect another bank account' : 'Connect your bank via Plaid'}
       >
-        {/* Bank icon */}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="6" width="22" height="16" rx="2" />
-          <path d="M1 10h22" />
-          <path d="M7 15h4" />
+        {/* Plus icon */}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span className="hidden sm:inline">
-          {preparing ? 'Connecting...' : syncing ? 'Syncing...' : linkedCount > 0 ? `${linkedCount} Bank${linkedCount > 1 ? 's' : ''}` : 'Connect Bank'}
-        </span>
-        {linkedCount > 0 && !preparing && !syncing && (
-          <span
-            className="text-xs font-semibold px-1 rounded-full tabular-nums"
-            style={{
-              background: 'var(--accent-emerald)',
-              color: '#fff',
-              fontSize: '10px',
-              lineHeight: '16px',
-              minWidth: 16,
-              textAlign: 'center',
-            }}
-          >
-            {linkedCount}
-          </span>
-        )}
+        <span>{label}</span>
       </button>
 
       {showConsent && (

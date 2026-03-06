@@ -44,7 +44,7 @@ export default function CurrencyInput({ value, onChange, className, style, place
       onFocus={handleFocus}
       onChange={handleChange}
       onBlur={handleBlur}
-      className={className}
+      className={`${className || ''} sensitive`}
       style={style}
       placeholder={placeholder ?? '0'}
     />

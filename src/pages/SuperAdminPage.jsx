@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Building2, Users, Eye, ChevronDown, ChevronRight, Search, Shield } from 'lucide-react'
+import { Building2, Users, Eye, ChevronDown, ChevronRight, Search, Shield, Activity } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
@@ -7,6 +7,9 @@ const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 export default function SuperAdminPage() {
   const { getToken, impersonate } = useAuth()
   const [activeTab, setActiveTab] = useState('orgs')
+  const [statusData, setStatusData] = useState(null)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusError, setStatusError] = useState(null)
   const [orgs, setOrgs] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +42,28 @@ export default function SuperAdminPage() {
   }, [activeTab, getToken])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  const fetchStatus = useCallback(async () => {
+    setStatusLoading(true)
+    setStatusError(null)
+    const token = getToken()
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/connection-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to load connection status')
+      const data = await res.json()
+      setStatusData(data)
+    } catch (e) {
+      setStatusError(e.message)
+    } finally {
+      setStatusLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => {
+    if (activeTab === 'status') fetchStatus()
+  }, [activeTab, fetchStatus])
 
   const toggleOrg = useCallback(async (orgId) => {
     if (expandedOrg === orgId) {
@@ -127,6 +152,17 @@ export default function SuperAdminPage() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => { setActiveTab('status'); setSearch('') }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'status'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Connection Status
+          </button>
         </div>
 
         {/* Search */}
@@ -151,6 +187,8 @@ export default function SuperAdminPage() {
             <p className="text-red-500 mb-4">{error}</p>
             <button onClick={fetchData} className="text-blue-500 hover:underline text-sm">Retry</button>
           </div>
+        ) : activeTab === 'status' ? (
+          <ConnectionStatusPanel data={statusData} loading={statusLoading} error={statusError} onRefresh={fetchStatus} />
         ) : activeTab === 'orgs' ? (
           <OrgsTable
             orgs={filteredOrgs}
@@ -242,6 +280,114 @@ function OrgsTable({ orgs, expandedOrg, orgMembers, onToggle, onImpersonate }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function ConnectionStatusPanel({ data, loading: statusLoading, error: statusError, onRefresh }) {
+  if (statusLoading && !data) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
+    )
+  }
+
+  if (statusError && !data) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="text-center py-8">
+          <p className="text-red-500 mb-4">{statusError}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            The connection status endpoint may not be deployed yet. Connection details from the accounts sidebar have been moved here.
+          </p>
+          <button onClick={onRefresh} className="text-blue-500 hover:underline text-sm">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const institutions = data?.institutions || []
+  const totalAccounts = data?.totalAccounts || 0
+  const totalStatements = data?.totalStatements || 0
+  const hasError = data?.hasError || false
+  const lastSync = data?.lastSync
+
+  return (
+    <div className="space-y-4">
+      {/* Overview cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</div>
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${hasError ? 'bg-red-400' : 'bg-green-400'}`} />
+            <span className={`text-sm font-semibold ${hasError ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+              {hasError ? 'Connection Error' : 'Connected'}
+            </span>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Institutions</div>
+          <div className="text-lg font-bold text-gray-900 dark:text-white">{institutions.length}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Accounts</div>
+          <div className="text-lg font-bold text-gray-900 dark:text-white">{totalAccounts}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Statements</div>
+          <div className="text-lg font-bold text-gray-900 dark:text-white">{totalStatements}</div>
+        </div>
+      </div>
+
+      {lastSync && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Last sync: {new Date(lastSync).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+        </p>
+      )}
+
+      {/* Institutions list */}
+      {institutions.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Connected Institutions</h3>
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+            {institutions.map((inst, i) => (
+              <div key={inst.id || i} className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{inst.name || 'Unknown Institution'}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {inst.accountCount || 0} account{(inst.accountCount || 0) !== 1 ? 's' : ''}
+                    {inst.lastSync && ` · synced ${new Date(inst.lastSync).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {inst.error ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                      Error
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                      OK
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          onClick={onRefresh}
+          disabled={statusLoading}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60 transition-colors disabled:opacity-50"
+        >
+          {statusLoading ? 'Refreshing...' : 'Refresh Status'}
+        </button>
+      </div>
     </div>
   )
 }

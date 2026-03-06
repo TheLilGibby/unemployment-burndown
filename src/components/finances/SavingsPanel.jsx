@@ -30,7 +30,7 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
   }
 
   function addAccount() {
-    onChange([...accounts, { id: Date.now(), name: 'New Account', amount: 0, active: true, assignedTo: null }])
+    onChange([...accounts, { id: Date.now(), name: 'New Account', amount: 0, active: true, assignedTo: null, description: '' }])
   }
 
   const total = accounts
@@ -81,13 +81,13 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                 <button
                   onClick={() => toggleAccount(account.id)}
                   title={isActive ? 'Exclude from total' : 'Include in total'}
-                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative ${
+                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative overflow-hidden ${
                     isActive ? 'bg-blue-500' : 'bg-gray-600'
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      isActive ? 'translate-x-3' : 'translate-x-0.5'
+                      isActive ? 'translate-x-3.5' : 'translate-x-0.5'
                     }`}
                   />
                 </button>
@@ -124,6 +124,16 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                   <TrashIcon />
                 </button>
               </div>
+              {/* Description / notes */}
+              <div className="sm:col-span-7">
+                <input
+                  type="text"
+                  value={account.description || ''}
+                  onChange={e => updateAccount(account.id, 'description', e.target.value)}
+                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  placeholder="Add a note..."
+                />
+              </div>
             </div>
           )
         })}
@@ -138,7 +148,7 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
 
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex items-center justify-between">
         <span className="text-gray-400 text-sm font-medium">Total Cash Available</span>
-        <span className="text-white text-2xl font-bold">{formatCurrency(total)}</span>
+        <span className="text-white text-2xl font-bold sensitive">{formatCurrency(total)}</span>
       </div>
     </div>
   )
