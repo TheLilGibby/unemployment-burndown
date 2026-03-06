@@ -292,6 +292,8 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     dataPoints, runoutDate, totalRunwayMonths: runoutMonth,
     currentNetBurn, effectiveExpenses, monthlyBenefits, monthlyInvestments,
     benefitEnd: benefitEnd.toDate(),
+    benefitStart: benefitStart.toDate(),
+    emergencyFloor,
   }
 }
 
@@ -1044,82 +1046,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               </div>
               <ViewMenu value={viewSettings} onChange={setViewSettings} />
             </div>
-            <FinancialSidebar
-              totalSavings={totalSavings}
-              assetProceeds={assetProceeds}
-              effectiveExpenses={current.effectiveExpenses}
-              monthlyBenefits={current.monthlyBenefits}
-              monthlyInvestments={current.monthlyInvestments}
-              currentNetBurn={current.currentNetBurn}
-              totalRunwayMonths={current.totalRunwayMonths}
-              benefitEnd={current.benefitEnd}
-              savingsAccounts={savingsAccounts}
-              expenses={expenses}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              investments={investments}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimePurchases={oneTimePurchases}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              unemployment={unemployment}
-              jobs={jobs}
-              people={people}
-              filterPersonId={filterPersonId}
-            />
-            <BurndownPage
-              current={current}
-              base={base}
-              hasWhatIf={hasWhatIf}
-              totalSavings={totalSavings}
-              viewSettings={viewSettings}
-              people={people}
-              savingsAccounts={savingsAccounts}
-              unemployment={unemployment}
-              expenses={expenses}
-              whatIf={whatIf}
-              oneTimeExpenses={oneTimeExpenses}
-              oneTimePurchases={oneTimePurchases}
-              oneTimeIncome={oneTimeIncome}
-              monthlyIncome={monthlyIncome}
-              assets={assets}
-              investments={investments}
-              subscriptions={subscriptions}
-              creditCards={creditCards}
-              jobs={jobs}
-              jobScenarios={jobScenarios}
-              onJobsChange={onJobsChange}
-              onSavingsChange={onSavingsChange}
-              onUnemploymentChange={onUnemploymentChange}
-              onFurloughChange={onFurloughChange}
-              onExpensesChange={onExpensesChange}
-              onWhatIfChange={onWhatIfChange}
-              onOneTimeExpChange={onOneTimeExpChange}
-              onOneTimePurchChange={onOneTimePurchChange}
-              onOneTimeIncChange={onOneTimeIncChange}
-              onMonthlyIncChange={onMonthlyIncChange}
-              onAssetsChange={onAssetsChange}
-              onInvestmentsChange={onInvestmentsChange}
-              onSubsChange={onSubsChange}
-              onCreditCardsChange={onCreditCardsChange}
-              onJobScenariosChange={onJobScenariosChange}
-              furloughDate={furloughDate}
-              derivedStartDate={derivedStartDate}
-              assetProceeds={assetProceeds}
-              onWhatIfReset={() => {
-                const snap = activeTemplateId ? getSnapshot(activeTemplateId) : null
-                setWhatIf(snap?.whatIf ? { ...DEFAULTS.whatIf, ...snap.whatIf } : DEFAULTS.whatIf)
-              }}
-              templates={templates}
-              templateResults={templateResults}
-              jobScenarioResults={jobScenarioResults}
-              plaid={plaid}
-              snapTrade={snapTrade}
-              filterPersonId={filterPersonId}
-              onFilterPersonChange={setFilterPersonId}
-              retirement={retirement}
-              onRetirementChange={onRetirementChange}
-            />
             <ErrorBoundary level="component">
               <FinancialSidebar
                 totalSavings={totalSavings}

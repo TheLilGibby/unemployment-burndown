@@ -8,7 +8,7 @@ function TrashIcon() {
   )
 }
 
-export default function PropertyPanel({ properties, onChange }) {
+export default function PropertyPanel({ properties = [], onChange }) {
   function updateProperty(id, field, val) {
     onChange(properties.map(p => p.id === id ? { ...p, [field]: val } : p))
   }
