@@ -8,6 +8,12 @@ import { HiddenModeProvider } from './context/HiddenModeContext.jsx'
 import ErrorBoundary from './components/common/ErrorBoundary.jsx'
 // import BugDropWidget from './components/feedback/BugDropWidget.jsx'
 
+// Strip trailing slash to prevent Amplify refresh routing issues
+const { pathname, search, hash } = window.location;
+if (pathname.length > 1 && pathname.endsWith('/')) {
+  window.history.replaceState(null, '', pathname.slice(0, -1) + search + hash);
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary level="page">
