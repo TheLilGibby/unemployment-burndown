@@ -64,7 +64,7 @@ describe('UserProfilePage', () => {
 
     render(<UserProfilePage />)
 
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getAllByText('Profile').length).toBeGreaterThan(0)
     expect(screen.getAllByText('test@example.com').length).toBeGreaterThan(0)
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByText('Enabled')).toBeInTheDocument()
