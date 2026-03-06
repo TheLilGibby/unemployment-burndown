@@ -804,6 +804,205 @@ Resources:
             Path: /api/statements/by-account/{cardId}
             Method: delete
 
+  # ---------- Snapshot Lambda Functions ----------
+  GetSnapshotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshots.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: get
+
+  PostSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/postSnapshot.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: post
+
+  GetSnapshotByDateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshotByDate.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots/{date}
+            Method: get
+
+  # ---------- Admin Lambda Functions ----------
+  AdminImpersonateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminImpersonate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/impersonate
+            Method: post
+
+  AdminOrgsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminOrgs.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/orgs
+            Method: get
+
+  AdminUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminUsers.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/users
+            Method: get
+
+  AdminOrgDetailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminOrgDetail.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrganizationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/orgs/{orgId}
+            Method: get
+
+  AdminPlaidLimitsGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.getHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: get
+
+  AdminPlaidLimitsPutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.putHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: put
+
+  AdminResetPlaidBudgetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminResetPlaidBudget.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/reset-plaid-budget
+            Method: post
+
+  # ---------- Alert Lambda Functions ----------
+  AlertsEvaluateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/sendAlerts.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/evaluate
+            Method: post
+
+  AlertsTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/testAlert.handler
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/test
+            Method: post
+
+  # ---------- Feedback Lambda Function ----------
+  FeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/feedback.handler
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/feedback
+            Method: post
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
