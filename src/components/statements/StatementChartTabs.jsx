@@ -64,7 +64,14 @@ export default function StatementChartTabs({
 
   // Category filters (collapsible)
   const [showFilters, setShowFilters] = useState(false)
-  const [hiddenCategories, setHiddenCategories] = useState(new Set())
+  const [hiddenCategories, setHiddenCategories] = useState(() => {
+    try {
+      const stored = localStorage.getItem('burndown_chart_hidden_categories')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
 
   // Transaction drawer state
   const [selectedTxn, setSelectedTxn] = useState(null)
@@ -139,11 +146,13 @@ export default function StatementChartTabs({
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      localStorage.setItem('burndown_chart_hidden_categories', JSON.stringify([...next]))
       return next
     })
   }
 
   function clearFilters() {
+    localStorage.removeItem('burndown_chart_hidden_categories')
     setHiddenCategories(new Set())
   }
 
