@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import goragLogo from '../../assets/gorag-logo.svg'
 
 const BASE_TABS = [
   { path: '/',              label: 'Overview',      shortLabel: 'Overview' },
@@ -56,6 +57,12 @@ export default function Header({ rightSlot, isSuperAdmin }) {
       }}
     >
       <nav className="flex items-center">
+        <img
+          src={goragLogo}
+          alt="GoRAG"
+          className="h-6 mr-3 cursor-pointer"
+          onClick={() => navigate('/')}
+        />
         {tabs.map(tab => {
           const isActive = activePath === tab.path
           return (
