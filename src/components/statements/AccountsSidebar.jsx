@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
+import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
 import AccountCustomizeModal from './AccountCustomizeModal'
@@ -303,6 +303,15 @@ export default function AccountsSidebar({
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              onClick={() => { if (!plaid?.syncing) onSync?.() }}
+              className="p-1 rounded transition-colors"
+              style={{ color: plaid?.syncing ? 'var(--accent-blue)' : 'var(--text-muted)' }}
+              title="Refresh transactions"
+              disabled={plaid?.syncing}
+            >
+              <RefreshCw size={14} className={plaid?.syncing ? 'animate-spin' : ''} />
+            </button>
+            <button
               onClick={() => setCustomizeOpen(true)}
               className="p-1 rounded transition-colors"
               style={{ color: customizeOpen ? 'var(--accent-blue)' : 'var(--text-muted)' }}
@@ -402,6 +411,16 @@ export default function AccountsSidebar({
     <div className="xl:hidden space-y-3">
       {/* Compact account pills */}
       <div className="flex flex-wrap gap-1.5">
+        {/* Refresh button for mobile */}
+        <button
+          onClick={() => { if (!plaid?.syncing) onSync?.() }}
+          className="flex items-center justify-center px-2 py-1.5 rounded-lg border transition-colors"
+          style={{ borderColor: 'var(--border-input)', background: 'var(--bg-input)', color: plaid?.syncing ? 'var(--accent-blue)' : 'var(--text-muted)' }}
+          title="Refresh transactions"
+          disabled={plaid?.syncing}
+        >
+          <RefreshCw size={12} className={plaid?.syncing ? 'animate-spin' : ''} />
+        </button>
         {/* Settings gear for mobile */}
         <button
           onClick={() => setCustomizeOpen(true)}
