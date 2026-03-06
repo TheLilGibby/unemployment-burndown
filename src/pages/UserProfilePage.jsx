@@ -132,7 +132,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
   const sectionRefs = {}
 
   return (
-    <div className="min-h-screen py-6 sm:py-10" style={{ background: 'var(--bg-primary, #f6f8fa)' }}>
+    <div className="min-h-screen py-6 sm:py-10" style={{ background: 'var(--bg-page)' }}>
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar nav */}
