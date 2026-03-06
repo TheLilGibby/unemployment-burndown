@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight, Download, ChevronLeft } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
-import { STATEMENT_CATEGORIES, findCategory, findParentCategory, resolveCategory, getParentCategoryKey, isGeneralCategory } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
 import { isCCPayment } from '../../utils/ccPaymentDetector'
 import { isInternalTransfer } from '../../utils/transferDetector'
@@ -702,30 +702,19 @@ export default function TransactionTable({
                             setPayrollDropdownTxnId(null)
                             setCategoryDropdownTxnId(categoryDropdownTxnId === txn.id ? null : txn.id)
                           }}
-                          className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-80"
                           style={cat
-                            ? { background: cat.color + '15', color: cat.color }
+                            ? { background: cat.color + '20', color: cat.color }
                             : { background: 'rgba(107,114,128,0.15)', color: 'var(--text-muted)' }
                           }
                           title="Change category"
                         >
-                          {cat ? (() => {
-                            const parentCat = findParentCategory(txn.category)
-                            const isGeneral = isGeneralCategory(txn.category)
-                            return (
-                              <span className="inline-flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
-                                {isGeneral ? (
-                                  <span className="font-medium">{cat.label}</span>
-                                ) : (
-                                  <span className="inline-flex flex-col leading-tight">
-                                    <span className="text-[9px] opacity-60">{parentCat?.label || ''}</span>
-                                    <span className="font-medium text-[11px]">{cat.label}</span>
-                                  </span>
-                                )}
-                              </span>
-                            )
-                          })() : (
+                          {cat ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
+                              {cat.label}
+                            </>
+                          ) : (
                             <>
                               <Tag size={10} strokeWidth={1.5} />
                               <span>Uncategorized</span>
@@ -795,26 +784,15 @@ export default function TransactionTable({
                         )}
                       </>
                     ) : (
-                      cat && (() => {
-                        const parentCat = findParentCategory(txn.category)
-                        const isGeneral = isGeneralCategory(txn.category)
-                        return (
-                          <span
-                            className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
-                            style={{ background: cat.color + '15', color: cat.color }}
-                          >
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
-                            {isGeneral ? (
-                              <span className="font-medium">{cat.label}</span>
-                            ) : (
-                              <span className="inline-flex flex-col leading-tight">
-                                <span className="text-[9px] opacity-60">{parentCat?.label || ''}</span>
-                                <span className="font-medium text-[11px]">{cat.label}</span>
-                              </span>
-                            )}
-                          </span>
-                        )
-                      })()
+                      cat && (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                          style={{ background: cat.color + '20', color: cat.color }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
+                          {cat.label}
+                        </span>
+                      )
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
