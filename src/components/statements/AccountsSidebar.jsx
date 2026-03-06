@@ -23,6 +23,16 @@ function getInitials(name) {
     .slice(0, 2) || '?'
 }
 
+function getLatestStatementBalance(cardId, statementIndex) {
+  const stmts = (statementIndex?.statements || [])
+    .filter(s => s.cardId === cardId)
+    .sort((a, b) => (b.closingDate || '').localeCompare(a.closingDate || ''))
+  if (stmts.length > 0 && stmts[0].statementBalance != null) {
+    return Math.abs(stmts[0].statementBalance)
+  }
+  return null
+}
+
 function ChevronIcon({ open }) {
   return open ? <ChevronDown size={12} /> : <ChevronRight size={12} />
 }
@@ -176,6 +186,7 @@ export default function AccountsSidebar({
       .filter(sa => sa.plaidAccountId && plaidBankAccountIds.has(sa.plaidAccountId))
       .map(sa => {
         const stmts = (statementIndex?.statements || []).filter(s => s.cardId === sa.id)
+        const latestBal = getLatestStatementBalance(sa.id, statementIndex)
         let subtype = sa.plaidSubtype || null
         if (!subtype && sa.plaidAccountId) {
           const stmtEntry = (statementIndex?.statements || []).find(s => s.plaidAccountId === sa.plaidAccountId)
@@ -187,7 +198,7 @@ export default function AccountsSidebar({
         }
         return {
           ...sa,
-          balance: sa.amount,
+          balance: latestBal ?? sa.amount,
           isDepository: true,
           statementCount: stmts.length,
           subtype,
@@ -220,7 +231,13 @@ export default function AccountsSidebar({
   const allCards = useMemo(() => {
     const stateCards = creditCards.map(card => {
       const stmts = (statementIndex?.statements || []).filter(s => s.cardId === card.id)
-      return { ...card, statementCount: stmts.length, isDepository: false }
+      const latestBal = getLatestStatementBalance(card.id, statementIndex)
+      return {
+        ...card,
+        balance: latestBal ?? card.balance,
+        statementCount: stmts.length,
+        isDepository: false,
+      }
     })
 
     // Include credit accounts from statementIndex that aren't in creditCards state
