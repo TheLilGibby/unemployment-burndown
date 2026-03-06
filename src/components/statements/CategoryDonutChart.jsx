@@ -110,6 +110,7 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick,
                   fill={s.color}
                   opacity={active === null || active === i ? 1 : 0.45}
                   style={{ cursor: onCategoryClick ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+                  onClick={() => handleSliceClick(s.key)}
                 />
               ))}
             </Pie>
@@ -139,9 +140,10 @@ export default function CategoryDonutChart({ transactions = [], onCategoryClick,
           return (
             <div
               key={slice.key}
-              className="cursor-default"
+              className={onCategoryClick ? 'cursor-pointer' : 'cursor-default'}
               onMouseEnter={() => animDone && setActive(i)}
               onMouseLeave={() => animDone && setActive(null)}
+              onClick={() => handleSliceClick(slice.key)}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">

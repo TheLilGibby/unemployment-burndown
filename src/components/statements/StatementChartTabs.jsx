@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { PieChart, BarChart3, Store, GitMerge } from 'lucide-react'
 import CategoryDonutChart from './CategoryDonutChart'
+import { CategoryDetailView } from './CategoryExplorer'
 import MonthlySpendingBarChart from './MonthlySpendingBarChart'
 import TopMerchantsChart from './TopMerchantsChart'
 import CashFlowWaterfallChart from '../chart/CashFlowWaterfallChart'
-import { STATEMENT_CATEGORIES } from '../../constants/categories'
+import { STATEMENT_CATEGORIES, findCategory } from '../../constants/categories'
 import { formatCurrency } from '../../utils/formatters'
 
 const CHART_DEFS = [
@@ -44,6 +45,15 @@ export default function StatementChartTabs({
   const [activeId, setActiveId] = useState('categories')
   const [hoveredId, setHoveredId] = useState(null)
   const [selectedCategories, setSelectedCategories] = useState(new Set())
+  const [drillCategory, setDrillCategory] = useState(null)
+
+  const handleCategoryClick = useCallback((categoryKey) => {
+    setDrillCategory(categoryKey)
+  }, [])
+
+  const handleDrillBack = useCallback(() => {
+    setDrillCategory(null)
+  }, [])
 
   const activeChart = CHART_DEFS.find(c => c.id === activeId)
 
@@ -124,7 +134,7 @@ export default function StatementChartTabs({
               )}
 
               <button
-                onClick={() => setActiveId(chart.id)}
+                onClick={() => { setActiveId(chart.id); setDrillCategory(null) }}
                 onMouseEnter={() => setHoveredId(chart.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 className="relative flex items-center gap-1.5 px-3.5 py-3 text-sm font-medium transition-all duration-150"
@@ -234,7 +244,20 @@ export default function StatementChartTabs({
       {/* Chart content */}
       <div className="p-4 sm:p-5">
         {activeId === 'categories' && (
-          <CategoryDonutChart transactions={filteredTransactions} />
+          drillCategory ? (
+            <CategoryDetailView
+              categoryKey={drillCategory}
+              transactions={filteredTransactions}
+              onBack={handleDrillBack}
+              categoryColor={findCategory(drillCategory)?.color}
+              membersByUserId={membersByUserId}
+            />
+          ) : (
+            <CategoryDonutChart
+              transactions={filteredTransactions}
+              onCategoryClick={handleCategoryClick}
+            />
+          )
         )}
         {activeId === 'monthly' && (
           <MonthlySpendingBarChart transactions={filteredTransactions} creditCards={creditCards} />

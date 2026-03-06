@@ -497,7 +497,7 @@ function DetailRow({ label, value, mono, color, last }) {
 
 /* ───────── Category Detail View ───────── */
 
-function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap, membersByUserId = {} }) {
+export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap, membersByUserId = {} }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [merchantFilter, setMerchantFilter] = useState(null)
