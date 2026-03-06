@@ -792,6 +792,78 @@ app.put('/api/admin/plaid-limits', superAdminMiddleware, (req, res) => {
 })
 
 // ═══════════════════════════════════════════════════════════════
+// SNAPTRADE ADMIN ROUTES (in-memory for dev)
+// ═══════════════════════════════════════════════════════════════
+
+let ST_MONTHLY_BUDGET = 15
+let ST_EST_COST_PER_CALL = 0.50
+let ST_MAX_SYNC_PAGES = 10
+let ST_SYNC_COOLDOWN_MS = 300_000
+let ST_MAX_MONTHLY_CALLS = Math.floor(ST_MONTHLY_BUDGET / ST_EST_COST_PER_CALL)
+let stCallCounter = { count: 0, month: new Date().toISOString().slice(0, 7) }
+
+function checkSnapTradeBudget() {
+  const now = new Date().toISOString().slice(0, 7)
+  if (now !== stCallCounter.month) { stCallCounter = { count: 0, month: now } }
+  const remaining = Math.max(0, ST_MAX_MONTHLY_CALLS - stCallCounter.count)
+  return { used: stCallCounter.count, limit: ST_MAX_MONTHLY_CALLS, remaining }
+}
+
+app.get('/api/snaptrade/budget', authMiddleware, (req, res) => {
+  const budget = checkSnapTradeBudget()
+  res.json({
+    ...budget,
+    allowed: budget.remaining > 0,
+    budgetDollars: ST_MONTHLY_BUDGET,
+    estCostPerCall: ST_EST_COST_PER_CALL,
+    maxSyncPages: ST_MAX_SYNC_PAGES,
+    syncCooldownSeconds: ST_SYNC_COOLDOWN_MS / 1000,
+    month: stCallCounter.month,
+  })
+})
+
+app.get('/api/admin/snaptrade-limits', superAdminMiddleware, (req, res) => {
+  res.json({
+    monthlyBudget: ST_MONTHLY_BUDGET,
+    estCostPerCall: ST_EST_COST_PER_CALL,
+    maxSyncPages: ST_MAX_SYNC_PAGES,
+    syncCooldownSeconds: ST_SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: ST_MAX_MONTHLY_CALLS,
+  })
+})
+
+app.put('/api/admin/snaptrade-limits', superAdminMiddleware, (req, res) => {
+  const before = {
+    monthlyBudget: ST_MONTHLY_BUDGET,
+    estCostPerCall: ST_EST_COST_PER_CALL,
+    maxSyncPages: ST_MAX_SYNC_PAGES,
+    syncCooldownSeconds: ST_SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: ST_MAX_MONTHLY_CALLS,
+  }
+  const { monthlyBudget, estCostPerCall, maxSyncPages, syncCooldownSeconds } = req.body
+  if (monthlyBudget !== undefined) ST_MONTHLY_BUDGET = parseFloat(monthlyBudget)
+  if (estCostPerCall !== undefined) ST_EST_COST_PER_CALL = parseFloat(estCostPerCall)
+  if (maxSyncPages !== undefined) ST_MAX_SYNC_PAGES = parseInt(maxSyncPages, 10)
+  if (syncCooldownSeconds !== undefined) ST_SYNC_COOLDOWN_MS = parseInt(syncCooldownSeconds, 10) * 1000
+  ST_MAX_MONTHLY_CALLS = Math.floor(ST_MONTHLY_BUDGET / ST_EST_COST_PER_CALL)
+  const after = {
+    monthlyBudget: ST_MONTHLY_BUDGET,
+    estCostPerCall: ST_EST_COST_PER_CALL,
+    maxSyncPages: ST_MAX_SYNC_PAGES,
+    syncCooldownSeconds: ST_SYNC_COOLDOWN_MS / 1000,
+    maxMonthlyCalls: ST_MAX_MONTHLY_CALLS,
+  }
+  res.json({ updated: true, before, after })
+})
+
+app.post('/api/admin/reset-snaptrade-budget', superAdminMiddleware, (req, res) => {
+  const previousCount = stCallCounter.count
+  stCallCounter.count = 0
+  const budget = checkSnapTradeBudget()
+  res.json({ reset: true, month: stCallCounter.month, previousCount, ...budget, budgetDollars: ST_MONTHLY_BUDGET, estCostPerCall: ST_EST_COST_PER_CALL })
+})
+
+// ═══════════════════════════════════════════════════════════════
 // JOBS ROUTES (in-memory store for dev)
 // ═══════════════════════════════════════════════════════════════
 
@@ -1436,6 +1508,196 @@ app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
     req.log.error({ err }, 'disconnect failed')
     res.status(500).json({ error: err.message })
   }
+})
+
+// ═══════════════════════════════════════════════════════════════
+// SNAPTRADE ROUTES (mock for dev server)
+// ═══════════════════════════════════════════════════════════════
+
+const snaptradeConnections = new Map() // orgId -> Map<connectionId, connectionData>
+
+// POST /api/snaptrade/connect — generate mock redirect URL for brokerage connection
+app.post('/api/snaptrade/connect', orgMiddleware, (req, res) => {
+  const { broker } = req.body
+  const mockRedirectUrl = `https://app.snaptrade.com/connect?broker=${broker || 'FIDELITY'}&userId=${req.user.orgId}&dev=true`
+  res.json({
+    redirectUrl: mockRedirectUrl,
+    broker: broker || 'FIDELITY',
+  })
+})
+
+// POST /api/snaptrade/callback — handle mock callback after brokerage connection
+app.post('/api/snaptrade/callback', orgMiddleware, (req, res) => {
+  const { authorizationId } = req.body
+  if (!authorizationId) return res.status(400).json({ error: 'authorizationId is required' })
+
+  const orgId = req.user.orgId
+  if (!snaptradeConnections.has(orgId)) snaptradeConnections.set(orgId, new Map())
+  const orgConns = snaptradeConnections.get(orgId)
+
+  const connectionId = authorizationId || `st_conn_${Date.now()}`
+  const mockConnection = {
+    id: connectionId,
+    brokerage: 'Fidelity',
+    brokerageId: 'FIDELITY',
+    status: 'CONNECTED',
+    createdAt: new Date().toISOString(),
+  }
+  orgConns.set(connectionId, mockConnection)
+
+  const mockAccounts = [
+    {
+      id: `st_acct_401k_${Date.now()}`,
+      name: 'Fidelity 401(k)',
+      number: '****1234',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 145230.50,
+      cashBalance: 2150.00,
+      holdings: [
+        { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', quantity: 250, price: 268.45, value: 67112.50, currency: 'USD' },
+        { symbol: 'VXUS', name: 'Vanguard Total International Stock ETF', quantity: 300, price: 58.20, value: 17460.00, currency: 'USD' },
+        { symbol: 'BND', name: 'Vanguard Total Bond Market ETF', quantity: 400, price: 72.30, value: 28920.00, currency: 'USD' },
+        { symbol: 'FXAIX', name: 'Fidelity 500 Index Fund', quantity: 180, price: 175.88, value: 31658.40, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+    {
+      id: `st_acct_ira_${Date.now()}`,
+      name: 'Fidelity Roth IRA',
+      number: '****5678',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 52840.25,
+      cashBalance: 840.25,
+      holdings: [
+        { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', quantity: 50, price: 510.30, value: 25515.00, currency: 'USD' },
+        { symbol: 'QQQ', name: 'Invesco QQQ Trust', quantity: 30, price: 495.00, value: 14850.00, currency: 'USD' },
+        { symbol: 'AAPL', name: 'Apple Inc.', quantity: 40, price: 190.88, value: 7635.20, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+  ]
+
+  res.json({
+    authorizationId: connectionId,
+    connection: mockConnection,
+    accounts: mockAccounts,
+    connectedBy: req.user.sub,
+  })
+})
+
+// GET /api/snaptrade/accounts — list connected investment accounts
+app.get('/api/snaptrade/accounts', orgMiddleware, (req, res) => {
+  const orgConns = snaptradeConnections.get(req.user.orgId)
+  if (!orgConns || orgConns.size === 0) {
+    return res.json({ accounts: [], fromCache: false })
+  }
+
+  const mockAccounts = [
+    {
+      id: 'st_acct_401k_mock',
+      name: 'Fidelity 401(k)',
+      number: '****1234',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 145230.50,
+      cashBalance: 2150.00,
+      holdings: [
+        { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', quantity: 250, price: 268.45, value: 67112.50, currency: 'USD' },
+        { symbol: 'VXUS', name: 'Vanguard Total International Stock ETF', quantity: 300, price: 58.20, value: 17460.00, currency: 'USD' },
+        { symbol: 'BND', name: 'Vanguard Total Bond Market ETF', quantity: 400, price: 72.30, value: 28920.00, currency: 'USD' },
+        { symbol: 'FXAIX', name: 'Fidelity 500 Index Fund', quantity: 180, price: 175.88, value: 31658.40, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+    {
+      id: 'st_acct_ira_mock',
+      name: 'Fidelity Roth IRA',
+      number: '****5678',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 52840.25,
+      cashBalance: 840.25,
+      holdings: [
+        { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', quantity: 50, price: 510.30, value: 25515.00, currency: 'USD' },
+        { symbol: 'QQQ', name: 'Invesco QQQ Trust', quantity: 30, price: 495.00, value: 14850.00, currency: 'USD' },
+        { symbol: 'AAPL', name: 'Apple Inc.', quantity: 40, price: 190.88, value: 7635.20, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+  ]
+
+  res.json({ accounts: mockAccounts, cachedAt: new Date().toISOString(), fromCache: true })
+})
+
+// POST /api/snaptrade/sync — sync investment holdings
+app.post('/api/snaptrade/sync', orgMiddleware, (req, res) => {
+  stCallCounter.count++
+
+  const mockAccounts = [
+    {
+      id: 'st_acct_401k_mock',
+      name: 'Fidelity 401(k)',
+      number: '****1234',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 145230.50 + (Math.random() * 1000 - 500),
+      cashBalance: 2150.00,
+      holdings: [
+        { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', quantity: 250, price: 268.45 + Math.random() * 5, value: 0, currency: 'USD' },
+        { symbol: 'VXUS', name: 'Vanguard Total International Stock ETF', quantity: 300, price: 58.20 + Math.random() * 2, value: 0, currency: 'USD' },
+        { symbol: 'BND', name: 'Vanguard Total Bond Market ETF', quantity: 400, price: 72.30 + Math.random(), value: 0, currency: 'USD' },
+        { symbol: 'FXAIX', name: 'Fidelity 500 Index Fund', quantity: 180, price: 175.88 + Math.random() * 3, value: 0, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+    {
+      id: 'st_acct_ira_mock',
+      name: 'Fidelity Roth IRA',
+      number: '****5678',
+      type: 'investment',
+      institution: 'Fidelity',
+      institutionId: 'FIDELITY',
+      currency: 'USD',
+      totalValue: 52840.25 + (Math.random() * 300 - 150),
+      cashBalance: 840.25,
+      holdings: [
+        { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', quantity: 50, price: 510.30 + Math.random() * 10, value: 0, currency: 'USD' },
+        { symbol: 'QQQ', name: 'Invesco QQQ Trust', quantity: 30, price: 495.00 + Math.random() * 8, value: 0, currency: 'USD' },
+        { symbol: 'AAPL', name: 'Apple Inc.', quantity: 40, price: 190.88 + Math.random() * 4, value: 0, currency: 'USD' },
+      ],
+      lastSync: new Date().toISOString(),
+    },
+  ]
+
+  // Fix up value fields
+  for (const acct of mockAccounts) {
+    for (const h of acct.holdings) {
+      h.value = Math.round(h.quantity * h.price * 100) / 100
+      h.price = Math.round(h.price * 100) / 100
+    }
+    acct.totalValue = Math.round(acct.holdings.reduce((s, h) => s + h.value, 0) * 100) / 100 + acct.cashBalance
+  }
+
+  res.json({ updated: true, accounts: mockAccounts, syncedAt: new Date().toISOString() })
+})
+
+// DELETE /api/snaptrade/connections/:connectionId — disconnect a brokerage
+app.delete('/api/snaptrade/connections/:connectionId', orgMiddleware, (req, res) => {
+  const orgConns = snaptradeConnections.get(req.user.orgId)
+  if (orgConns) orgConns.delete(req.params.connectionId)
+  res.json({ disconnected: true, connectionId: req.params.connectionId })
 })
 
 // ── Helpers: balance-mapping for dev server sync ──

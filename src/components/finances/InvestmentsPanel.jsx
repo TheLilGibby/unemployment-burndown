@@ -1,10 +1,14 @@
+import { useState, useEffect } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
 import { useDragReorder } from '../../hooks/useDragReorder'
+import { useSnapTrade } from '../../hooks/useSnapTrade'
 import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
+import SnapTradeConnectButton from '../snaptrade/SnapTradeConnectButton'
+import SnapTradeAccountsPanel from '../snaptrade/SnapTradeAccountsPanel'
 
 function TrashIcon() {
   return (
@@ -16,6 +20,14 @@ function TrashIcon() {
 
 export default function InvestmentsPanel({ investments, onChange, people = [], filterPersonId = null }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(investments, onChange)
+  const snapTrade = useSnapTrade()
+  const [snapTradeLoaded, setSnapTradeLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!snapTradeLoaded) {
+      snapTrade.fetchAccounts().then(() => setSnapTradeLoaded(true))
+    }
+  }, [snapTradeLoaded])
 
   function update(id, field, val) {
     onChange(investments.map(inv => inv.id === id ? { ...inv, [field]: val } : inv))
@@ -42,6 +54,37 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
 
   return (
     <div className="space-y-3">
+      {/* SnapTrade — Connected Brokerage Accounts */}
+      {snapTrade.accounts.length > 0 ? (
+        <SnapTradeAccountsPanel
+          accounts={snapTrade.accounts}
+          syncing={snapTrade.syncing}
+          lastSync={snapTrade.lastSync}
+          onSync={() => snapTrade.syncAll()}
+          onDisconnect={(id) => snapTrade.disconnect(id)}
+        />
+      ) : (
+        <div className="rounded-lg border border-dashed px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connect Brokerage</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Link Fidelity or other investment accounts via SnapTrade
+              </div>
+            </div>
+            <SnapTradeConnectButton
+              generateConnectUrl={snapTrade.generateConnectUrl}
+              loading={snapTrade.loading}
+              onConnect={() => snapTrade.fetchAccounts()}
+            />
+          </div>
+          {snapTrade.error && (
+            <p className="mt-2 text-xs" style={{ color: '#ef4444' }}>{snapTrade.error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Manual Investments */}
       {investments.length === 0 ? (
         <p className="text-sm text-gray-600 text-center py-4">
           No investments yet. Add things like 401k contributions, brokerage deposits, crypto DCA, or Roth IRA.
