@@ -169,11 +169,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
           </nav>
 
           {/* Main content */}
-          <div className="flex-1 min-w-0 space-y-8">
+          <div className="flex-1 min-w-0 space-y-14">
 
             {/* ── Profile ── */}
             <section id="section-profile">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Profile
               </h2>
 
@@ -336,7 +336,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Account (Security) ── */}
             <section id="section-account">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Account
               </h2>
 
@@ -467,7 +467,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Appearance ── */}
             <section id="section-appearance">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Appearance
               </h2>
 
@@ -498,7 +498,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Notifications ── */}
             <section id="section-notifications">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Notifications
               </h2>
 
@@ -606,7 +606,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
             {/* ── Job History ── */}
             {onJobsChange && (
               <section id="section-jobs">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                   Job History
                 </h2>
                 <JobsPanel
