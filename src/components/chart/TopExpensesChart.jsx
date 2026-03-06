@@ -34,7 +34,7 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function TopExpensesChart({ expenses, subscriptions, creditCards, investments }) {
+export default function TopExpensesChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
   const chartData = useMemo(() => {
     const all = [
       ...expenses.map(e => ({

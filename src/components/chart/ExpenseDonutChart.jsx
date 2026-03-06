@@ -94,7 +94,7 @@ function Toggle({ checked, onChange, size = 'sm' }) {
   )
 }
 
-export default function ExpenseDonutChart({ expenses, subscriptions, creditCards, investments }) {
+export default function ExpenseDonutChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
   const [active, setActive] = useState(null)
   const [animDone, setAnimDone] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
