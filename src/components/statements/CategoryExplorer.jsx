@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, X, Tag, EyeOff, Eye, Link2, Unlink, Search, ChevronDown } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import CategoryDonutChart from './CategoryDonutChart'
@@ -497,10 +497,32 @@ function DetailRow({ label, value, mono, color, last }) {
 
 /* ───────── Category Detail View ───────── */
 
-export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, categoryColor, txnToOverviewMap, membersByUserId = {} }) {
+export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransactions, onBack, onTransactionClick, onTransactionUpdate, categoryColor, txnToOverviewMap, membersByUserId = {} }) {
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [merchantFilter, setMerchantFilter] = useState(null)
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [lastClickedIndex, setLastClickedIndex] = useState(null)
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false)
+  const bulkCategoryRef = useRef(null)
+  const { addToast } = useToast()
+
+  // Clear selection when view context changes
+  useEffect(() => { setSelectedIds(new Set()); setLastClickedIndex(null); setBulkCategoryOpen(false) }, [categoryKey, merchantFilter])
+
+  // Close bulk category picker on outside click
+  useEffect(() => {
+    if (!bulkCategoryOpen) return
+    function handleClick(e) {
+      if (bulkCategoryRef.current && !bulkCategoryRef.current.contains(e.target)) {
+        setBulkCategoryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [bulkCategoryOpen])
 
   const cfg = findCategory(categoryKey) || { key: categoryKey, label: categoryKey, color: '#6b7280' }
   const color = categoryColor || cfg.color
@@ -580,9 +602,63 @@ export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransa
     })
   }, [categoryTxns, sortField, sortDir, merchantFilter])
 
+  const visibleTxns = sortedTxns.slice(0, 50)
+
   function toggleSort(field) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('desc') }
+  }
+
+  // Multi-select handlers
+  function toggleSelection(index, shiftKey) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (shiftKey && lastClickedIndex !== null) {
+        const start = Math.min(lastClickedIndex, index)
+        const end = Math.max(lastClickedIndex, index)
+        for (let i = start; i <= end; i++) {
+          if (visibleTxns[i]) next.add(visibleTxns[i].id)
+        }
+      } else {
+        const id = visibleTxns[index]?.id
+        if (id) {
+          if (next.has(id)) next.delete(id)
+          else next.add(id)
+        }
+      }
+      return next
+    })
+    setLastClickedIndex(index)
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === visibleTxns.length && visibleTxns.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(visibleTxns.map(t => t.id)))
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+    setLastClickedIndex(null)
+    setBulkCategoryOpen(false)
+  }
+
+  function handleBulkCategoryChange(newCategoryKey) {
+    if (!onTransactionUpdate || selectedIds.size === 0) return
+    const selected = visibleTxns.filter(t => selectedIds.has(t.id))
+    for (const txn of selected) {
+      onTransactionUpdate(txn.id, { category: newCategoryKey }, txn.statementId)
+    }
+    const catLabel = findCategory(newCategoryKey)?.label || newCategoryKey
+    addToast({
+      title: 'Bulk category update',
+      message: `${selected.length} transaction${selected.length > 1 ? 's' : ''} \u2192 ${catLabel}`,
+      severity: 'info',
+      ttl: 6000,
+    })
+    clearSelection()
   }
 
   const SortIcon = ({ field }) => {
@@ -725,10 +801,88 @@ export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransa
           Transactions {merchantFilter ? `— ${merchantFilter}` : ''}
           <span className="ml-2 normal-case font-normal">({sortedTxns.length})</span>
         </p>
+
+        {/* Bulk action bar */}
+        {onTransactionUpdate && selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-2 relative" style={{ background: 'color-mix(in srgb, var(--accent-blue) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)' }}>
+            <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--accent-blue)' }}>
+              {selectedIds.size} selected
+            </span>
+            <div className="relative" ref={bulkCategoryRef}>
+              <button
+                onClick={() => setBulkCategoryOpen(!bulkCategoryOpen)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+              >
+                <Tag size={11} strokeWidth={1.5} />
+                Change Category
+                <ChevronDown size={12} style={{ transform: bulkCategoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+              </button>
+              {bulkCategoryOpen && (
+                <div
+                  className="absolute left-0 top-full z-50 mt-1 rounded-lg shadow-lg py-1 min-w-[280px] max-h-[320px] overflow-y-auto"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+                >
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                    Move {selectedIds.size} transaction{selectedIds.size > 1 ? 's' : ''} to...
+                  </div>
+                  {STATEMENT_CATEGORIES.map(c => (
+                    <div key={c.key}>
+                      <button
+                        onClick={() => handleBulkCategoryChange(c.key + '_general')}
+                        className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2"
+                        style={{ color: 'var(--text-primary)' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                        <span className="truncate">{c.label}</span>
+                      </button>
+                      {c.subCategories && c.subCategories.filter(s => s.key !== c.key + '_general').map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => handleBulkCategoryChange(sub.key)}
+                          className="w-full text-left pl-7 pr-3 py-1 text-[11px] transition-colors flex items-center gap-2"
+                          style={{ color: 'var(--text-secondary)' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.05))' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sub.color }} />
+                          <span className="truncate">{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={clearSelection}
+              className="text-xs transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--bg-subtle, var(--bg-card))', borderBottom: '1px solid var(--border-subtle)' }}>
+                {onTransactionUpdate && (
+                  <th className="px-1 py-1.5 text-center" style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleTxns.length > 0 && selectedIds.size === visibleTxns.length}
+                      onChange={toggleSelectAll}
+                      className="accent-blue-500 cursor-pointer"
+                      title="Select all"
+                    />
+                  </th>
+                )}
                 {Object.keys(membersByUserId).length > 1 && (
                   <th
                     className="px-2 py-1.5 text-center"
@@ -769,8 +923,12 @@ export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransa
               </tr>
             </thead>
             <tbody>
-              {sortedTxns.slice(0, 50).map((txn, i) => {
+              {visibleTxns.map((txn, i) => {
                 const linkedKey = txnToOverviewMap ? txnToOverviewMap[txn.id] : null
+                const isSelected = selectedIds.has(txn.id)
+                const rowBg = isSelected
+                  ? 'color-mix(in srgb, var(--accent-blue) 12%, transparent)'
+                  : (i % 2 === 0 ? 'transparent' : 'var(--bg-subtle, rgba(255,255,255,0.02))')
                 return (
                 <tr
                   key={txn.id || i}
@@ -778,12 +936,22 @@ export function CategoryDetailView({ categoryKey, transactions, prevPeriodTransa
                   className="transition-colors duration-100"
                   style={{
                     borderBottom: '1px solid var(--border-subtle)',
-                    background: i % 2 === 0 ? 'transparent' : 'var(--bg-subtle, rgba(255,255,255,0.02))',
+                    background: rowBg,
                     cursor: onTransactionClick ? 'pointer' : 'default',
                   }}
-                  onMouseEnter={e => { if (onTransactionClick) e.currentTarget.style.background = color + '0a' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-subtle, rgba(255,255,255,0.02))' }}
+                  onMouseEnter={e => { if (onTransactionClick) e.currentTarget.style.background = isSelected ? 'color-mix(in srgb, var(--accent-blue) 18%, transparent)' : color + '0a' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = rowBg }}
                 >
+                  {onTransactionUpdate && (
+                    <td className="px-1 py-2 text-center" style={{ width: 32 }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => toggleSelection(i, e.nativeEvent.shiftKey)}
+                        className="accent-blue-500 cursor-pointer"
+                      />
+                    </td>
+                  )}
                   {Object.keys(membersByUserId).length > 1 && (
                     <td className="px-2 py-2 text-center" style={{ width: 32 }}>
                       <TransactionUserBadge userId={txn.syncedByUserId} membersByUserId={membersByUserId} />
@@ -1005,6 +1173,7 @@ export default function CategoryExplorer({
           prevPeriodTransactions={prevPeriodTxns}
           onBack={handleBack}
           onTransactionClick={(onTransactionUpdate || hasLinking) ? handleTransactionClick : undefined}
+          onTransactionUpdate={onTransactionUpdate ? handleTransactionUpdate : undefined}
           categoryColor={findCategory(drillCategory)?.color}
           txnToOverviewMap={hasLinking ? txnToOverviewMap : undefined}
           membersByUserId={membersByUserId}
