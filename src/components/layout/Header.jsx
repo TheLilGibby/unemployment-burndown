@@ -14,7 +14,7 @@ const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin' }
 export default function Header({ rightSlot, isSuperAdmin }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const activePath = location.pathname
+  const activePath = location.pathname.replace(/\/+$/, '') || '/'
 
   const tabs = useMemo(() =>
     isSuperAdmin ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS,
