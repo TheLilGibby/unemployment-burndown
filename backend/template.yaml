@@ -68,6 +68,28 @@ Parameters:
     Type: String
     Description: AES-256-GCM key for encrypting Plaid access tokens at rest
     NoEcho: true
+  GitHubToken:
+    Type: String
+    Description: GitHub personal access token for creating feedback issues
+    NoEcho: true
+    Default: ''
+  SuperAdmins:
+    Type: String
+    Description: Comma-separated list of superadmin email addresses
+    Default: 'goragconsulting@gmail.com'
+  NtfyBaseUrl:
+    Type: String
+    Description: Base URL for ntfy.sh push notification service
+    Default: 'https://ntfy.sh'
+  NtfyTopic:
+    Type: String
+    Description: Default ntfy.sh topic for push notifications
+    Default: ''
+  NtfyToken:
+    Type: String
+    Description: Optional access token for private ntfy topics
+    NoEcho: true
+    Default: ''
 
 Globals:
   Function:
@@ -97,10 +119,16 @@ Globals:
         SENDGRID_FROM_EMAIL: !Ref SendGridFromEmail
         APP_URL: !Ref AppUrl
         PLAID_ENCRYPTION_KEY: !Ref PlaidEncryptionKey
+        GITHUB_TOKEN: !Ref GitHubToken
+        JOBS_TABLE: !Ref JobsTable
+        SUPER_ADMINS: !Ref SuperAdmins
+        NTFY_BASE_URL: !Ref NtfyBaseUrl
+        NTFY_TOPIC: !Ref NtfyTopic
+        NTFY_TOKEN: !Ref NtfyToken
 
   Api:
     Cors:
-      AllowMethods: "'GET,POST,PUT,OPTIONS'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization'"
       AllowOrigin: "'*'"
 
@@ -178,6 +206,22 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Jobs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orgId
+          AttributeType: S
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orgId
+          KeyType: HASH
+        - AttributeName: jobId
+          KeyType: RANGE
+
   # ---------- Org Lambda Functions ----------
   OrgCreateFunction:
     Type: AWS::Serverless::Function
@@ -254,6 +298,67 @@ Resources:
           Properties:
             Path: /api/org/regenerate-code
             Method: post
+
+  # ---------- Jobs Lambda Functions ----------
+  JobsListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsList.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs
+            Method: get
+
+  JobsCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsCreate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs
+            Method: post
+
+  JobsUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsUpdate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs/{jobId}
+            Method: put
+
+  JobsDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/jobsDelete.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/jobs/{jobId}
+            Method: delete
 
   # ---------- Auth Lambda Functions ----------
   RegisterFunction:
@@ -450,6 +555,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -483,6 +590,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${S3Bucket}
       Events:
         Api:
           Type: Api
@@ -498,6 +611,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
       Events:
         Api:
           Type: Api
@@ -519,6 +634,140 @@ Resources:
           Properties:
             Path: /plaid/budget
             Method: get
+
+  # ---------- Admin ----------
+  AdminResetPlaidBudgetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminResetPlaidBudget.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/reset-plaid-budget
+            Method: post
+
+  AdminGetPlaidLimitsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.getHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: get
+
+  AdminPutPlaidLimitsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/adminPlaidLimits.putHandler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/admin/plaid-limits
+            Method: put
+
+  # ---------- Feedback ----------
+  FeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/feedback.handler
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/feedback
+            Method: post
+
+  # ---------- Alerts / Push Notifications ----------
+  SendAlertsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/sendAlerts.handler
+      CodeUri: .
+      Timeout: 30
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/evaluate
+            Method: post
+
+  TestAlertFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/testAlert.handler
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/alerts/test
+            Method: post
+
+  # ---------- Snapshots API ----------
+  GetSnapshotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshots.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: get
+
+  GetSnapshotByDateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getSnapshotByDate.handler
+      CodeUri: .
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots/{date}
+            Method: get
+
+  PostSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/postSnapshot.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/snapshots
+            Method: post
 
   # ---------- Data API (secured S3 proxy) ----------
   GetDataFunction:
@@ -580,6 +829,36 @@ Resources:
           Properties:
             Path: /api/statements/{statementId}
             Method: get
+
+  PatchTransactionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/patchTransaction.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/{statementId}/transactions/{transactionId}
+            Method: patch
+
+  DeleteStatementsByAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteStatementsByAccount.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/statements/by-account/{cardId}
+            Method: delete
 
 Outputs:
   ApiUrl:

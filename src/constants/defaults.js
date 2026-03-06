@@ -5,8 +5,8 @@ export const DEFAULTS = {
   ],
   // savingsAccounts replaces the single currentSavings number
   savingsAccounts: [
-    { id: 1, name: 'Checking Account', amount: 5000,  active: true, assignedTo: null },
-    { id: 2, name: 'Savings Account',  amount: 10000, active: true, assignedTo: null },
+    { id: 1, name: 'Checking Account', amount: 5000,  active: true, assignedTo: null, description: '' },
+    { id: 2, name: 'Savings Account',  amount: 10000, active: true, assignedTo: null, description: '' },
   ],
   furloughDate: '2026-02-21',
   unemployment: {
@@ -16,13 +16,13 @@ export const DEFAULTS = {
     assignedTo: null,
   },
   expenses: [
-    { id: 1, category: 'Rent / Mortgage',    monthlyAmount: 1500, essential: true,  assignedTo: null },
-    { id: 2, category: 'Food & Groceries',   monthlyAmount: 400,  essential: true,  assignedTo: null },
-    { id: 3, category: 'Utilities',          monthlyAmount: 150,  essential: true,  assignedTo: null },
-    { id: 4, category: 'Health / Insurance', monthlyAmount: 250,  essential: true,  assignedTo: null },
-    { id: 5, category: 'Transportation',     monthlyAmount: 200,  essential: false, assignedTo: null },
-    { id: 6, category: 'Subscriptions',      monthlyAmount: 80,   essential: false, assignedTo: null },
-    { id: 7, category: 'Misc / Personal',    monthlyAmount: 120,  essential: false, assignedTo: null },
+    { id: 1, category: 'Rent / Mortgage',    monthlyAmount: 1500, essential: true,  assignedTo: null, description: '' },
+    { id: 2, category: 'Food & Groceries',   monthlyAmount: 400,  essential: true,  assignedTo: null, description: '' },
+    { id: 3, category: 'Utilities',          monthlyAmount: 150,  essential: true,  assignedTo: null, description: '' },
+    { id: 4, category: 'Health / Insurance', monthlyAmount: 250,  essential: true,  assignedTo: null, description: '' },
+    { id: 5, category: 'Transportation',     monthlyAmount: 200,  essential: false, assignedTo: null, description: '' },
+    { id: 6, category: 'Subscriptions',      monthlyAmount: 80,   essential: false, assignedTo: null, description: '' },
+    { id: 7, category: 'Misc / Personal',    monthlyAmount: 120,  essential: false, assignedTo: null, description: '' },
   ],
   whatIf: {
     expenseReductionPct: 0,
@@ -45,12 +45,21 @@ export const DEFAULTS = {
   jobs: [],
   assets: [],
   investments: [],
+  child1Investments: [],
+  child2Investments: [],
   subscriptions: [
-    { id: 101, name: 'Netflix',  monthlyAmount: 17,  active: true, assignedTo: null },
-    { id: 102, name: 'Spotify',  monthlyAmount: 11,  active: true, assignedTo: null },
-    { id: 103, name: 'Internet', monthlyAmount: 60,  active: true, assignedTo: null },
+    { id: 101, name: 'Netflix',  monthlyAmount: 17,  active: true, assignedTo: null, description: '' },
+    { id: 102, name: 'Spotify',  monthlyAmount: 11,  active: true, assignedTo: null, description: '' },
+    { id: 103, name: 'Internet', monthlyAmount: 60,  active: true, assignedTo: null, description: '' },
   ],
   creditCards: [],
+  properties: [],
+  homeImprovements: [],
+  goals: [],
+  advertisingRevenue: {
+    costs: [],
+    revenue: [],
+  },
   notificationPreferences: {
     enabled: true,
     thresholds: {
@@ -62,7 +71,19 @@ export const DEFAULTS = {
     },
     dismissedIds: [],
     mutedUntil: null,
+    push: {
+      enabled: false,
+      ntfyTopic: '',
+      ntfyToken: '',
+      redactAmounts: true,
+      sentAlertIds: [],
+    },
+    categoryAlerts: [],
+    // categoryAlerts shape: [{ id, categoryKey, categoryLabel, monthlyLimit, enabled }]
   },
+  transactionLinks: {},
+  transactionOverrides: {},
+  accountCustomizations: {},
   plaidMeta: {},
   jobScenarios: [],
   retirement: {

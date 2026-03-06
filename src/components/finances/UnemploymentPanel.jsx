@@ -90,11 +90,11 @@ export default function UnemploymentPanel({ value, onChange, furloughDate, onFur
       <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
         <div>
           <span className="text-gray-500">Total benefits: </span>
-          <span className="text-white font-semibold">{formatCurrency(totalBenefits)}</span>
+          <span className="text-white font-semibold sensitive">{formatCurrency(totalBenefits)}</span>
         </div>
         <div>
           <span className="text-gray-500">Monthly equiv: </span>
-          <span className="text-white font-semibold">{formatCurrency(monthlyBenefits)}/mo</span>
+          <span className="text-white font-semibold sensitive">{formatCurrency(monthlyBenefits)}/mo</span>
         </div>
         <div>
           <span className="text-gray-500">Benefits end: </span>

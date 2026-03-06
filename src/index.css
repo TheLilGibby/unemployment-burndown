@@ -8,9 +8,11 @@
   --bg-card:          #1f2937; /* gray-800 */
   --bg-input:         #111827; /* gray-900 */
   --bg-hover:         #374151; /* gray-700 */
+  --bg-subtle:        rgba(255,255,255,0.06);
 
   --border-default:   #374151; /* gray-700 */
   --border-subtle:    rgba(255,255,255,0.06);
+  --border-input:     #374151; /* gray-700 */
 
   --text-primary:     #f9fafb; /* gray-50  */
   --text-secondary:   #9ca3af; /* gray-400 */
@@ -37,9 +39,11 @@
   --bg-card:          #ffffff;
   --bg-input:         #f9fafb; /* gray-50  */
   --bg-hover:         #e5e7eb; /* gray-200 */
+  --bg-subtle:        rgba(0,0,0,0.04);
 
   --border-default:   #d1d5db; /* gray-300 */
   --border-subtle:    rgba(0,0,0,0.06);
+  --border-input:     #d1d5db; /* gray-300 */
 
   --text-primary:     #111827; /* gray-900 */
   --text-secondary:   #4b5563; /* gray-600 */
@@ -103,6 +107,29 @@ body {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-blue) 30%, transparent);
 }
 
+/* ─── Themed input focus ring ────────────────────────────────── */
+
+.theme-focus:focus {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-blue) 30%, transparent);
+}
+
+/* ─── Hidden / Demo mode ─────────────────────────────────────── */
+
+[data-hidden-mode="true"] .sensitive {
+  filter: blur(10px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
+[data-hidden-mode="true"] .sensitive-chart {
+  filter: blur(14px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
 /* ─── Mobile-first improvements ────────────────────────────────── */
 
 /* Faster tap response — removes 300ms double-tap delay on iOS */
@@ -124,7 +151,7 @@ button, a {
 /* Desktop grid-template-columns for finance panel rows (applied at sm+) */
 @media (min-width: 640px) {
   .row-savings-sm    { grid-template-columns: 20px 32px 1fr 130px 32px 32px 32px; }
-  .row-expense-sm    { grid-template-columns: 20px 1fr 110px 80px 32px 32px 32px; }
+  .row-expense-sm    { grid-template-columns: 24px 20px 1fr 110px 80px 32px 32px 32px; }
   .row-creditcard-sm { grid-template-columns: 20px 1fr 130px 130px 32px 32px 32px; }
   .row-invest-sm     { grid-template-columns: 20px 1fr 120px 72px 32px 32px 32px; }
   .row-onetimeexp-sm   { grid-template-columns: 20px 1fr 130px 110px 32px 32px 32px; }
