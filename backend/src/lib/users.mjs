@@ -12,18 +12,24 @@ function doc() {
   return _doc
 }
 
-export async function createUser({ userId, email, passwordHash }) {
+export async function createUser({ userId, email, passwordHash, phoneNumber, inviteToken }) {
+  const item = {
+    userId,
+    email: email.toLowerCase(),
+    passwordHash,
+    mfaEnabled: false,
+    mfaSecret: null,
+    phoneNumber: phoneNumber || null,
+    phoneVerified: false,
+    mfaMethod: null,
+    inviteToken: inviteToken || null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
   await doc().send(new PutCommand({
     TableName: TABLE,
-    Item: {
-      userId,
-      email: email.toLowerCase(),
-      passwordHash,
-      mfaEnabled: false,
-      mfaSecret: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
+    Item: item,
     ConditionExpression: 'attribute_not_exists(userId)',
   }))
 }
@@ -138,6 +144,75 @@ export async function updatePassword(userId, passwordHash) {
       ':ph': passwordHash,
       ':n': null,
       ':n2': null,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function updateUserPhone(userId, phoneNumber, phoneVerified) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET phoneNumber = :pn, phoneVerified = :pv, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':pn': phoneNumber,
+      ':pv': phoneVerified,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function setPhoneOtp(userId, otpHash, otpExpiry) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET phoneOtpHash = :h, phoneOtpExpiry = :e, phoneOtpAttempts = :a, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':h': otpHash,
+      ':e': otpExpiry,
+      ':a': 0,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function clearPhoneOtp(userId) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET phoneOtpHash = :n, phoneOtpExpiry = :n2, phoneOtpAttempts = :n3, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':n': null,
+      ':n2': null,
+      ':n3': null,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function incrementOtpAttempts(userId) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET phoneOtpAttempts = if_not_exists(phoneOtpAttempts, :zero) + :one',
+    ExpressionAttributeValues: {
+      ':zero': 0,
+      ':one': 1,
+    },
+  }))
+}
+
+export async function setPhoneVerified(userId) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET phoneVerified = :t, mfaEnabled = :t, mfaMethod = :m, phoneOtpHash = :n, phoneOtpExpiry = :n2, phoneOtpAttempts = :n3, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':t': true,
+      ':m': 'sms',
+      ':n': null,
+      ':n2': null,
+      ':n3': null,
       ':u': new Date().toISOString(),
     },
   }))

@@ -130,13 +130,17 @@ export function useAuth() {
     }
   }, [tempToken])
 
-  const register = useCallback(async (email, password) => {
+  const register = useCallback(async (email, password, { inviteToken, phoneNumber } = {}) => {
     setError(null)
     try {
+      const body = { email, password }
+      if (inviteToken) body.inviteToken = inviteToken
+      if (phoneNumber) body.phoneNumber = phoneNumber
+
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       const data = await parseResponse(res)
       if (!res.ok) {
@@ -169,6 +173,60 @@ export function useAuth() {
         // Don't block registration if consent recording fails
       }
 
+      if (data.phoneVerificationRequired) {
+        return { phoneVerificationRequired: true, token: data.token }
+      }
+
+      return true
+    } catch (e) {
+      setError(e.message || 'Network error. Please try again.')
+      return false
+    }
+  }, [])
+
+  const sendPhoneOtp = useCallback(async (phoneNumber) => {
+    setError(null)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/send-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ phoneNumber }),
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Failed to send code')
+        return false
+      }
+      return true
+    } catch (e) {
+      setError(e.message || 'Network error. Please try again.')
+      return false
+    }
+  }, [])
+
+  const verifyPhoneOtp = useCallback(async (code) => {
+    setError(null)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/verify-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code }),
+      })
+      const data = await parseResponse(res)
+      if (!res.ok) {
+        setError(extractError(data) || 'Verification failed')
+        return false
+      }
+      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setUser(data.user)
       return true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
@@ -415,5 +473,7 @@ export function useAuth() {
     deleteAccount,
     impersonate,
     stopImpersonating,
+    sendPhoneOtp,
+    verifyPhoneOtp,
   }
 }
