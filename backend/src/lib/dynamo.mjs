@@ -70,7 +70,8 @@ export async function getPlaidItemsByUser(userId) {
   const res = await getDocClient().send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: 'userId = :uid',
-    ExpressionAttributeValues: { ':uid': userId },
+    FilterExpression: 'NOT begins_with(itemId, :stPrefix)',
+    ExpressionAttributeValues: { ':uid': userId, ':stPrefix': 'st_' },
   }))
   return (res.Items || []).map(decryptItem)
 }

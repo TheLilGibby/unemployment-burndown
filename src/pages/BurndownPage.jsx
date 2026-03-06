@@ -16,6 +16,7 @@ import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import RetirementPanel from '../components/finances/RetirementPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
+import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
 
 export default function BurndownPage({
   current,
@@ -66,6 +67,7 @@ export default function BurndownPage({
   templateResults,
   jobScenarioResults,
   plaid,
+  snapTrade,
 }) {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
@@ -213,6 +215,23 @@ export default function BurndownPage({
             syncAll={plaid.syncAll}
             disconnect={plaid.disconnect}
             hasFetched={plaid.hasFetched}
+          />
+        </SectionCard>
+      )}
+
+      {/* Connected brokerage accounts via SnapTrade — full width */}
+      {import.meta.env.VITE_PLAID_API_URL && snapTrade && (
+        <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
+          <ConnectedBrokeragesPanel
+            connections={snapTrade.connections}
+            syncing={snapTrade.syncing}
+            lastSync={snapTrade.lastSync}
+            error={snapTrade.error}
+            loading={snapTrade.loading}
+            fetchAccounts={snapTrade.fetchAccounts}
+            syncAll={snapTrade.syncAll}
+            disconnect={snapTrade.disconnect}
+            hasFetched={snapTrade.hasFetched}
           />
         </SectionCard>
       )}

@@ -4,6 +4,8 @@ import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 import { deleteUser, getUser } from '../lib/users.mjs'
 import { getPlaidItemsByUser, deletePlaidItem } from '../lib/dynamo.mjs'
 import { getPlaidClient } from '../lib/plaid.mjs'
+import { getSnapTradeClient } from '../lib/snaptrade.mjs'
+import { getSnapTradeUser, getSnapTradeConnectionsByUser, deleteSnapTradeConnection, deleteSnapTradeUser } from '../lib/snapTradeDynamo.mjs'
 import { S3Client, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 
 const S3_BUCKET = process.env.S3_BUCKET || 'rag-consulting-burndown'
@@ -46,6 +48,28 @@ export async function handler(event) {
       }
     } catch (plaidErr) {
       log.warn({ err: plaidErr }, 'Error cleaning up Plaid items during account deletion')
+    }
+
+    // 1b. Delete SnapTrade user and connections
+    try {
+      const stUser = await getSnapTradeUser(plaidUserId)
+      if (stUser) {
+        try {
+          const stClient = getSnapTradeClient()
+          await stClient.authentication.deleteSnapTradeUser({
+            userId: stUser.snapTradeUserId,
+          })
+        } catch (stApiErr) {
+          log.warn({ err: stApiErr }, 'SnapTrade user deletion API call failed')
+        }
+        const stConns = await getSnapTradeConnectionsByUser(plaidUserId)
+        for (const conn of stConns) {
+          await deleteSnapTradeConnection(plaidUserId, conn.connectionId)
+        }
+        await deleteSnapTradeUser(plaidUserId)
+      }
+    } catch (stErr) {
+      log.warn({ err: stErr }, 'Error cleaning up SnapTrade data during account deletion')
     }
 
     // 2. Delete org data from S3

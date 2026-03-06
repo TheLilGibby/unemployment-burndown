@@ -68,6 +68,28 @@ Parameters:
     Type: String
     Description: AES-256-GCM key for encrypting Plaid access tokens at rest
     NoEcho: true
+  SnapTradeClientId:
+    Type: String
+    Description: SnapTrade API client ID
+    NoEcho: true
+    Default: ''
+  SnapTradeApiSecret:
+    Type: String
+    Description: SnapTrade API consumer key (secret)
+    NoEcho: true
+    Default: ''
+  SnapTradeMonthlyBudget:
+    Type: String
+    Description: Max monthly SnapTrade spend in dollars
+    Default: '10'
+  SnapTradeEstCostPerCall:
+    Type: String
+    Description: Estimated cost per SnapTrade API call in dollars
+    Default: '0.01'
+  SnapTradeSyncCooldownSeconds:
+    Type: String
+    Description: Minimum seconds between SnapTrade syncs
+    Default: '300'
 
 Globals:
   Function:
@@ -97,6 +119,11 @@ Globals:
         SENDGRID_FROM_EMAIL: !Ref SendGridFromEmail
         APP_URL: !Ref AppUrl
         PLAID_ENCRYPTION_KEY: !Ref PlaidEncryptionKey
+        SNAPTRADE_CLIENT_ID: !Ref SnapTradeClientId
+        SNAPTRADE_API_SECRET: !Ref SnapTradeApiSecret
+        SNAPTRADE_MONTHLY_BUDGET: !Ref SnapTradeMonthlyBudget
+        SNAPTRADE_EST_COST_PER_CALL: !Ref SnapTradeEstCostPerCall
+        SNAPTRADE_SYNC_COOLDOWN_SECONDS: !Ref SnapTradeSyncCooldownSeconds
 
   Api:
     Cors:
@@ -519,6 +546,85 @@ Resources:
           Properties:
             Path: /plaid/budget
             Method: get
+
+  # ---------- SnapTrade Lambda Functions ----------
+  SnapTradeConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeConnect.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/connect
+            Method: post
+
+  SnapTradeCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeCallback.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/callback
+            Method: post
+
+  SnapTradeAccountsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeAccounts.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/accounts
+            Method: get
+
+  SnapTradeSyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeSync.handler
+      CodeUri: .
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/sync
+            Method: post
+
+  SnapTradeDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeDisconnect.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/disconnect
+            Method: post
 
   # ---------- Data API (secured S3 proxy) ----------
   GetDataFunction:

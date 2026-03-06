@@ -1399,6 +1399,281 @@ async function mergeStatementsFromPlaid(orgId, added, modified, removed, account
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SNAPTRADE ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+let Snaptrade = null
+let snapTradeClient = null
+try {
+  const stModule = await import('snaptrade-typescript-sdk')
+  Snaptrade = stModule.default || stModule.Snaptrade
+  if (process.env.SNAPTRADE_CLIENT_ID && process.env.SNAPTRADE_API_SECRET) {
+    snapTradeClient = new Snaptrade({
+      consumerKey: process.env.SNAPTRADE_API_SECRET,
+      clientId: process.env.SNAPTRADE_CLIENT_ID,
+    })
+    log.info('SnapTrade client initialized')
+  }
+} catch {
+  log.info('snaptrade-typescript-sdk not installed — SnapTrade routes disabled')
+}
+
+// In-memory stores for dev server
+const snapTradeUsers = new Map()   // orgId -> { snapTradeUserId, userSecret }
+const snapTradeConns = new Map()   // orgId -> Map<connectionId, { connectionId, brokerageName }>
+const stLastSyncTimes = new Map()
+const ST_SYNC_COOLDOWN_MS = parseInt(process.env.SNAPTRADE_SYNC_COOLDOWN_SECONDS || '300', 10) * 1000
+
+// POST /api/snaptrade/connect — register user (lazy) + get portal URL
+app.post('/api/snaptrade/connect', orgMiddleware, async (req, res) => {
+  if (!snapTradeClient) return res.status(503).json({ error: 'SnapTrade not configured' })
+  try {
+    const orgId = req.user.orgId
+
+    // Lazy-register
+    if (!snapTradeUsers.has(orgId)) {
+      const regRes = await snapTradeClient.authentication.registerSnapTradeUser({ userId: orgId })
+      snapTradeUsers.set(orgId, {
+        snapTradeUserId: regRes.data.userId || orgId,
+        userSecret: regRes.data.userSecret,
+      })
+    }
+
+    const stUser = snapTradeUsers.get(orgId)
+    const loginRes = await snapTradeClient.authentication.loginSnapTradeUser({
+      userId: stUser.snapTradeUserId,
+      userSecret: stUser.userSecret,
+    })
+
+    res.json({ portalUrl: loginRes.data.redirectURI || loginRes.data.loginRedirectURI })
+  } catch (err) {
+    req.log.error({ err }, 'SnapTrade connect failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/snaptrade/callback — store new connection
+app.post('/api/snaptrade/callback', orgMiddleware, async (req, res) => {
+  if (!snapTradeClient) return res.status(503).json({ error: 'SnapTrade not configured' })
+  try {
+    const orgId = req.user.orgId
+    const { authorizationId } = req.body
+    if (!authorizationId) return res.status(400).json({ error: 'authorizationId is required' })
+
+    const stUser = snapTradeUsers.get(orgId)
+    if (!stUser) return res.status(400).json({ error: 'SnapTrade user not registered' })
+
+    let brokerageName = 'Connected Brokerage'
+    try {
+      const connRes = await snapTradeClient.connections.detailBrokerageAuthorization({
+        authorizationId,
+        userId: stUser.snapTradeUserId,
+        userSecret: stUser.userSecret,
+      })
+      brokerageName = connRes.data?.brokerage?.name || brokerageName
+    } catch { /* use default name */ }
+
+    if (!snapTradeConns.has(orgId)) snapTradeConns.set(orgId, new Map())
+    snapTradeConns.get(orgId).set(authorizationId, { connectionId: authorizationId, brokerageName })
+
+    res.json({ connectionId: authorizationId, brokerageName })
+  } catch (err) {
+    req.log.error({ err }, 'SnapTrade callback failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/snaptrade/accounts — list connected brokerages
+app.get('/api/snaptrade/accounts', orgMiddleware, async (req, res) => {
+  if (!snapTradeClient) return res.status(503).json({ error: 'SnapTrade not configured' })
+  try {
+    const orgId = req.user.orgId
+    const stUser = snapTradeUsers.get(orgId)
+    if (!stUser) return res.json({ connections: [] })
+
+    const conns = snapTradeConns.get(orgId)
+    if (!conns || conns.size === 0) return res.json({ connections: [] })
+
+    let allAccounts = []
+    try {
+      const acctRes = await snapTradeClient.accountInformation.listUserAccounts({
+        userId: stUser.snapTradeUserId,
+        userSecret: stUser.userSecret,
+      })
+      allAccounts = acctRes.data || []
+    } catch { /* empty accounts */ }
+
+    const result = []
+    for (const [connId, conn] of conns) {
+      const connAccounts = allAccounts.filter(
+        a => a.brokerage_authorization === connId || a.brokerage_authorization?.id === connId
+      )
+      result.push({
+        connectionId: connId,
+        brokerageName: conn.brokerageName,
+        accounts: connAccounts.map(a => ({
+          id: a.id,
+          name: a.name,
+          number: a.number,
+          type: a.institution_type || a.type,
+          balance: a.balance?.total?.amount ?? null,
+          currency: a.balance?.total?.currency || 'USD',
+        })),
+      })
+    }
+
+    res.json({ connections: result })
+  } catch (err) {
+    req.log.error({ err }, 'SnapTrade accounts failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/snaptrade/sync — sync holdings into data.json
+app.post('/api/snaptrade/sync', orgMiddleware, async (req, res) => {
+  if (!snapTradeClient) return res.status(503).json({ error: 'SnapTrade not configured' })
+  try {
+    const orgId = req.user.orgId
+    const stUser = snapTradeUsers.get(orgId)
+    if (!stUser) return res.status(400).json({ error: 'SnapTrade user not registered' })
+
+    const conns = snapTradeConns.get(orgId)
+    if (!conns || conns.size === 0) return res.json({ updated: false, message: 'No connections to sync' })
+
+    // Cooldown check
+    const { connectionId } = req.body || {}
+    const connIds = connectionId ? [connectionId] : [...conns.keys()]
+    for (const cid of connIds) {
+      const lastSync = stLastSyncTimes.get(cid) || 0
+      if (Date.now() - lastSync < ST_SYNC_COOLDOWN_MS) {
+        const waitSec = Math.ceil((ST_SYNC_COOLDOWN_MS - (Date.now() - lastSync)) / 1000)
+        return res.status(429).json({ error: `Sync cooldown: please wait ${waitSec} seconds.` })
+      }
+    }
+
+    // Read data.json
+    let data
+    try { data = await s3Get(dataKey(orgId)) } catch { data = null }
+    if (!data || !data.state) return res.status(400).json({ error: 'No existing data found' })
+
+    const state = data.state
+    if (!state.investments) state.investments = []
+
+    // Fetch accounts + holdings
+    const accountsRes = await snapTradeClient.accountInformation.listUserAccounts({
+      userId: stUser.snapTradeUserId,
+      userSecret: stUser.userSecret,
+    })
+    const allAccounts = accountsRes.data || []
+
+    const holdingsRes = await snapTradeClient.accountInformation.getAllUserHoldings({
+      userId: stUser.snapTradeUserId,
+      userSecret: stUser.userSecret,
+    })
+    const allHoldings = holdingsRes.data || []
+
+    // Group holdings by account
+    const accountMap = new Map()
+    for (const acct of allAccounts) accountMap.set(acct.id, { ...acct, holdings: [] })
+    for (const h of allHoldings) {
+      const aid = h.account?.id
+      if (aid && accountMap.has(aid)) accountMap.get(aid).holdings.push(h)
+    }
+
+    // Map into investments
+    let accountsUpdated = 0
+    const syncConnIds = new Set(connIds)
+    for (const [, acctData] of accountMap) {
+      const connId = acctData.brokerage_authorization?.id || acctData.brokerage_authorization
+      if (!syncConnIds.has(connId)) continue
+
+      const totalValue = acctData.balance?.total?.amount ?? 0
+      const snapTradeAccountId = acctData.id
+
+      let existing = state.investments.find(i => i.snapTradeAccountId === snapTradeAccountId)
+      if (!existing) {
+        const stName = (acctData.name || '').toLowerCase()
+        existing = state.investments.find(i =>
+          !i.snapTradeAccountId && i.name && stName.includes(i.name.toLowerCase())
+        )
+      }
+
+      const holdings = (acctData.holdings || []).map(h => ({
+        symbol: h.symbol?.symbol || h.symbol?.description || 'Unknown',
+        units: h.units ?? 0,
+        price: h.price ?? 0,
+        value: (h.units || 0) * (h.price || 0),
+        currency: h.currency?.code || 'USD',
+      }))
+
+      if (existing) {
+        existing.balance = Math.round(totalValue * 100) / 100
+        existing.snapTradeAccountId = snapTradeAccountId
+        existing.snapTradeConnectionId = connId
+        existing.snapTradeLastSync = new Date().toISOString()
+        existing.holdings = holdings
+      } else {
+        state.investments.push({
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          name: acctData.name || 'Linked Investment Account',
+          balance: Math.round(totalValue * 100) / 100,
+          monthlyContribution: 0,
+          active: true,
+          assignedTo: null,
+          snapTradeAccountId,
+          snapTradeConnectionId: connId,
+          snapTradeLastSync: new Date().toISOString(),
+          holdings,
+        })
+      }
+      accountsUpdated++
+    }
+
+    if (!data.snapTradeMeta) data.snapTradeMeta = {}
+    data.snapTradeMeta.lastSync = new Date().toISOString()
+    data.savedAt = new Date().toISOString()
+
+    await s3Put(dataKey(orgId), data)
+    for (const cid of connIds) stLastSyncTimes.set(cid, Date.now())
+
+    res.json({ updated: true, accountsUpdated, data })
+  } catch (err) {
+    req.log.error({ err }, 'SnapTrade sync failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/snaptrade/disconnect — remove brokerage connection
+app.post('/api/snaptrade/disconnect', orgMiddleware, async (req, res) => {
+  if (!snapTradeClient) return res.status(503).json({ error: 'SnapTrade not configured' })
+  try {
+    const orgId = req.user.orgId
+    const { connectionId } = req.body
+    if (!connectionId) return res.status(400).json({ error: 'connectionId is required' })
+
+    const stUser = snapTradeUsers.get(orgId)
+    if (stUser) {
+      try {
+        await snapTradeClient.connections.removeBrokerageAuthorization({
+          authorizationId: connectionId,
+          userId: stUser.snapTradeUserId,
+          userSecret: stUser.userSecret,
+        })
+      } catch { /* tolerate failure */ }
+    }
+
+    const conns = snapTradeConns.get(orgId)
+    if (conns) conns.delete(connectionId)
+    stLastSyncTimes.delete(connectionId)
+
+    res.json({ success: true, connectionId })
+  } catch (err) {
+    req.log.error({ err }, 'SnapTrade disconnect failed')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
 // DATA API (S3 proxy — org-scoped)
 // ═══════════════════════════════════════════════════════════════
 

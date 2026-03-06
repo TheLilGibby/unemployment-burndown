@@ -24,10 +24,12 @@ import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { usePlaid } from './hooks/usePlaid'
+import { useSnapTrade } from './hooks/useSnapTrade'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import PlaidLinkButton from './components/plaid/PlaidLinkButton'
+import SnapTradeConnectButton from './components/snaptrade/SnapTradeConnectButton'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
@@ -385,6 +387,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
+
+  // SnapTrade integration — auto-updates investment holdings from brokerage data
+  const handleSnapTradeSync = (updatedFullState) => {
+    if (updatedFullState) {
+      applyFullState(updatedFullState)
+      addEntry('sync', 'SnapTrade sync: investment balances updated from brokerage')
+    }
+  }
+  const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
 
   function buildSnapshot() {
     return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement }
@@ -756,6 +767,13 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 syncing={plaid.syncing}
               />
             )}
+            {import.meta.env.VITE_PLAID_API_URL && (
+              <SnapTradeConnectButton
+                connect={snapTrade.connect}
+                connectionCount={snapTrade.connections.length}
+                syncing={snapTrade.syncing}
+              />
+            )}
             <NotificationBell />
             <TemplateManager
               templates={templates}
@@ -873,6 +891,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               templateResults={templateResults}
               jobScenarioResults={jobScenarioResults}
               plaid={plaid}
+              snapTrade={snapTrade}
               filterPersonId={filterPersonId}
               onFilterPersonChange={setFilterPersonId}
               retirement={retirement}
@@ -950,6 +969,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 templateResults={templateResults}
                 jobScenarioResults={jobScenarioResults}
                 plaid={plaid}
+              snapTrade={snapTrade}
                 filterPersonId={filterPersonId}
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}
