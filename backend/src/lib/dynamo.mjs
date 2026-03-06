@@ -72,15 +72,19 @@ export async function getPlaidItem(userId, itemId) {
 
 /**
  * Get all Plaid items for a user.
+ * Excludes SnapTrade items (itemId prefixed with 'st_') which share the same table.
+ * Filtering is done in-process because DynamoDB FilterExpression cannot reference
+ * sort key attributes — itemId is the sort key, so it must not appear in FilterExpression.
  */
 export async function getPlaidItemsByUser(userId) {
   const res = await getDocClient().send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: 'userId = :uid',
-    FilterExpression: 'NOT begins_with(itemId, :stPrefix)',
-    ExpressionAttributeValues: { ':uid': userId, ':stPrefix': 'st_' },
+    ExpressionAttributeValues: { ':uid': userId },
   }))
-  return (res.Items || []).map(decryptItem)
+  return (res.Items || [])
+    .filter(item => !item.itemId?.startsWith('st_'))
+    .map(decryptItem)
 }
 
 /**
