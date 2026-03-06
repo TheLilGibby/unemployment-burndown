@@ -1189,6 +1189,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             people={people}
             allTransactions={allTransactionsCache}
             transactionOverrides={transactionOverrides}
+            properties={properties}
+            onPropertiesChange={onPropertiesChange}
           />
         } />
         <Route path="/admin/tools" element={<SuperAdminToolsPage />} />

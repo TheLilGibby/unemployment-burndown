@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
@@ -8,6 +8,7 @@ import { useHiddenMode } from '../context/HiddenModeContext'
 import { PROFILE_COLORS } from '../components/profile/ProfileBubble'
 import MfaSetup from '../components/auth/MfaSetup'
 import AlertSettings from '../components/notifications/AlertSettings'
+import PropertyLocationSettings from '../components/settings/PropertyLocationSettings'
 import JobsPanel from '../components/finances/JobsPanel'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
@@ -54,10 +55,11 @@ const NAV_ITEMS = [
   { id: 'account', label: 'Account', icon: Key },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'properties', label: 'Properties', icon: MapPin },
   { id: 'jobs', label: 'Job History', icon: Briefcase },
 ]
 
-export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {} }) {
+export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {}, properties = [], onPropertiesChange }) {
   const { user: authUser, logout, deleteAccount } = useAuth()
   const user = userProp || authUser
   const [activeSection, setActiveSection] = useState('profile')
@@ -139,7 +141,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
           <nav className="lg:w-56 flex-shrink-0">
             <div className="lg:sticky lg:top-16">
               <ul className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
-                {NAV_ITEMS.filter(item => item.id !== 'jobs' || onJobsChange).map(item => {
+                {NAV_ITEMS.filter(item => (item.id !== 'jobs' || onJobsChange) && (item.id !== 'properties' || onPropertiesChange)).map(item => {
                   const Icon = item.icon
                   const isActive = activeSection === item.id
                   return (
@@ -590,6 +592,16 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                 )}
               </div>
             </section>
+
+            {/* ── Properties ── */}
+            {onPropertiesChange && (
+              <section id="section-properties">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                  Property Locations
+                </h2>
+                <PropertyLocationSettings properties={properties} onChange={onPropertiesChange} />
+              </section>
+            )}
 
             {/* ── Job History ── */}
             {onJobsChange && (
