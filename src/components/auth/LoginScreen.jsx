@@ -239,14 +239,12 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
       >
         <div className="mb-8 text-center">
-          <div
-            className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
-            style={{ background: 'var(--accent-blue)', opacity: 0.9 }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
+          <img
+            src="/gorag-logo-1024.png"
+            alt="GoRAG Logo"
+            className="inline-block w-16 h-16 rounded-xl mb-4"
+            style={{ objectFit: 'contain' }}
+          />
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
             Financial Burndown
           </h1>

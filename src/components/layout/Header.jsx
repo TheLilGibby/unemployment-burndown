@@ -57,6 +57,12 @@ export default function Header({ rightSlot, isSuperAdmin }) {
       }}
     >
       <nav className="flex items-center">
+        <img
+          src="/gorag-logo-1024.png"
+          alt="GoRAG Logo"
+          className="h-7 w-7 mr-1 sm:mr-2 rounded"
+          style={{ objectFit: 'contain' }}
+        />
         {tabs.map(tab => {
           const isActive = activePath === tab.path
           return (
