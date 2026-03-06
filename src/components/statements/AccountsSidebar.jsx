@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import usePersistedState from '../../hooks/usePersistedState'
 import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import PlaidLinkButton from '../plaid/PlaidLinkButton'
