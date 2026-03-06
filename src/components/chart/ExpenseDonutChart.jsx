@@ -42,6 +42,7 @@ function CustomTooltip({ active, payload }) {
 
 export default function ExpenseDonutChart({ expenses, subscriptions, creditCards, investments }) {
   const [active, setActive] = useState(null)
+  const [animDone, setAnimDone] = useState(false)
 
   const slices = useMemo(() => {
     const essential = expenses.filter(e => e.essential)
@@ -121,8 +122,9 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
               dataKey="value"
               paddingAngle={2}
               strokeWidth={0}
-              onMouseEnter={(_, idx) => setActive(idx)}
-              onMouseLeave={() => setActive(null)}
+              onMouseEnter={(_, idx) => animDone && setActive(idx)}
+              onMouseLeave={() => animDone && setActive(null)}
+              onAnimationEnd={() => setAnimDone(true)}
             >
               {slices.map((s, i) => {
                 const cfg = SLICE_CONFIG.find(c => c.key === s.key)
@@ -161,8 +163,8 @@ export default function ExpenseDonutChart({ expenses, subscriptions, creditCards
             <div
               key={slice.key}
               className="cursor-default"
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
+              onMouseEnter={() => animDone && setActive(i)}
+              onMouseLeave={() => animDone && setActive(null)}
             >
               {/* Row: label + pct + amount */}
               <div className="flex items-center justify-between mb-1">

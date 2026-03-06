@@ -34,6 +34,7 @@ function CustomTooltip({ active, payload }) {
 
 export default function CategoryDonutChart({ transactions = [] }) {
   const [active, setActive] = useState(null)
+  const [animDone, setAnimDone] = useState(false)
 
   const slices = useMemo(() => {
     const byCategory = {}
@@ -87,8 +88,9 @@ export default function CategoryDonutChart({ transactions = [] }) {
               dataKey="value"
               paddingAngle={2}
               strokeWidth={0}
-              onMouseEnter={(_, idx) => setActive(idx)}
-              onMouseLeave={() => setActive(null)}
+              onMouseEnter={(_, idx) => animDone && setActive(idx)}
+              onMouseLeave={() => animDone && setActive(null)}
+              onAnimationEnd={() => setAnimDone(true)}
             >
               {slices.map((s, i) => (
                 <Cell
@@ -123,8 +125,8 @@ export default function CategoryDonutChart({ transactions = [] }) {
             <div
               key={slice.key}
               className="cursor-default"
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
+              onMouseEnter={() => animDone && setActive(i)}
+              onMouseLeave={() => animDone && setActive(null)}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
