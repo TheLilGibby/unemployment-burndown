@@ -7,14 +7,7 @@ import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
 import JobPayrollDrawer from './JobPayrollDrawer'
-
-function TrashIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-      <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-    </svg>
-  )
-}
+import { ChevronDown, ChevronUp, Trash2, Plus, Briefcase, Calendar, Building2, DollarSign } from 'lucide-react'
 
 const STATUS_OPTIONS = [
   { value: 'active',     label: 'Active' },
@@ -30,15 +23,24 @@ const STATUS_STYLES = {
   quit:       { bg: 'color-mix(in srgb, var(--accent-red) 20%, var(--bg-input))',     border: 'color-mix(in srgb, var(--accent-red) 40%, var(--border-input))',     color: 'var(--accent-red)' },
 }
 
+function formatDateRange(startDate, endDate) {
+  const fmt = d => d ? dayjs(d).format('MMM YYYY') : null
+  const start = fmt(startDate)
+  const end = fmt(endDate)
+  if (start && end) return `${start} — ${end}`
+  if (start) return `${start} — Present`
+  return ''
+}
+
 export default function JobsPanel({ jobs, onChange, people = [], allTransactions = [], transactionOverrides = {} }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(jobs, onChange)
   const [expandedJobId, setExpandedJobId] = usePersistedState('burndown_expanded_job', null)
+  const [payrollOpenJobId, setPayrollOpenJobId] = usePersistedState('burndown_payroll_open_job', null)
 
   function updateItem(id, field, val) {
     onChange(jobs.map(job => {
       if (job.id !== id) return job
       const updated = { ...job, [field]: val }
-      // Auto-populate statusDate when status changes away from active
       if (field === 'status' && val !== 'active') {
         if (!job.statusDate) updated.statusDate = dayjs().format('YYYY-MM-DD')
         if (!job.endDate) updated.endDate = dayjs().format('YYYY-MM-DD')
@@ -52,10 +54,12 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
   }
 
   function addItem() {
+    const newId = Date.now()
     onChange([
       ...jobs,
-      { id: Date.now(), title: '', employer: '', monthlySalary: 0, startDate: '', endDate: '', status: 'active', statusDate: '', assignedTo: null },
+      { id: newId, title: '', employer: '', monthlySalary: 0, startDate: '', endDate: '', status: 'active', statusDate: '', assignedTo: null },
     ])
+    setExpandedJobId(newId)
   }
 
   const today = dayjs()
@@ -70,180 +74,246 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
   return (
     <div className="space-y-3">
       {jobs.length === 0 ? (
-        <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          No jobs yet. Add current or past employment, job offers, or expected positions.
-        </p>
+        <div className="text-center py-8 space-y-3">
+          <Briefcase className="w-10 h-10 mx-auto" style={{ color: 'var(--text-faint)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            No jobs yet. Add current or past employment to track income and payroll.
+          </p>
+        </div>
       ) : (
-        <>
-          {/* Column headers — desktop only */}
-          <div
-            className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 0.7fr 110px 110px 110px 100px 110px 32px 32px 32px', color: 'var(--text-muted)' }}
-          >
-            <span></span>
-            <span>Job Title</span>
-            <span>Employer</span>
-            <span>Salary/Mo</span>
-            <span>Start</span>
-            <span>End</span>
-            <span>Status</span>
-            <span>Status Date</span>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+        <div className="space-y-2">
+          {jobs.map(job => {
+            const st = STATUS_STYLES[job.status] || STATUS_STYLES.active
+            const isExpanded = expandedJobId === job.id
+            const statusLabel = STATUS_OPTIONS.find(o => o.value === job.status)?.label || job.status
+            const displayTitle = job.title || 'Untitled Position'
+            const displayEmployer = job.employer || ''
 
-          <div className="space-y-2">
-            {jobs.map(job => {
-              const st = STATUS_STYLES[job.status] || STATUS_STYLES.active
-              return (
+            return (
+              <div
+                key={job.id}
+                className={`rounded-lg transition-all ${
+                  draggingId === job.id ? 'opacity-40' : ''
+                } ${
+                  overedId === job.id && draggingId !== job.id
+                    ? 'ring-2 ring-emerald-500/50 ring-inset'
+                    : ''
+                }`}
+                style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card, var(--bg-input))' }}
+                {...getItemProps(job.id)}
+              >
+                {/* Card header — always visible */}
                 <div
-                  key={job.id}
-                  className={`flex flex-col gap-2 sm:grid sm:items-center rounded-lg transition-all ${
-                    draggingId === job.id ? 'opacity-40' : ''
-                  } ${
-                    overedId === job.id && draggingId !== job.id
-                      ? 'ring-2 ring-emerald-500/50 ring-inset'
-                      : ''
-                  }`}
-                  style={{ gridTemplateColumns: '20px 1fr 0.7fr 110px 110px 110px 100px 110px 32px 32px 32px' }}
-                  {...getItemProps(job.id)}
+                  className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                  onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
                 >
-                  {/* Row 1 (mobile): drag + title + employer */}
-                  <div className="flex items-center gap-2 sm:contents">
-                    <div
-                      className="flex items-center justify-center select-none flex-shrink-0 transition-colors"
-                      style={{ color: 'var(--text-muted)' }}
-                      {...dragHandleProps(job.id)}
-                    >
-                      <DragHandle />
-                    </div>
-                    <input
-                      type="text"
-                      value={job.title}
-                      onChange={e => updateItem(job.id, 'title', e.target.value)}
-                      className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                      style={{
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-input)',
-                        color: 'var(--text-primary)',
-                      }}
-                      placeholder="Job title"
-                    />
-                    <input
-                      type="text"
-                      value={job.employer}
-                      onChange={e => updateItem(job.id, 'employer', e.target.value)}
-                      className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                      style={{
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-input)',
-                        color: 'var(--text-primary)',
-                      }}
-                      placeholder="Employer"
-                    />
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                    onClick={e => e.stopPropagation()}
+                    {...dragHandleProps(job.id)}
+                  >
+                    <DragHandle />
                   </div>
 
-                  {/* Row 2 (mobile): salary · dates · status · controls */}
-                  <div className="flex items-center gap-2 sm:contents">
-                    <div
-                      className="flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 focus-within:ring-1 focus-within:ring-emerald-500"
-                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)' }}
-                    >
-                      <span className="text-sm mr-1" style={{ color: 'var(--accent-emerald)' }}>$</span>
-                      <CurrencyInput
-                        value={job.monthlySalary}
-                        onChange={val => updateItem(job.id, 'monthlySalary', val)}
-                        className="bg-transparent text-sm w-full outline-none"
-                        style={{ color: 'var(--text-primary)' }}
-                        min="0"
-                      />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium truncate" style={{ color: job.title ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {displayTitle}
+                      </span>
+                      {displayEmployer && (
+                        <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                          at {displayEmployer}
+                        </span>
+                      )}
                     </div>
-                    <input
-                      type="date"
-                      value={job.startDate}
-                      onChange={e => updateItem(job.id, 'startDate', e.target.value)}
-                      className="flex-shrink-0 rounded-lg px-2 py-2 text-sm focus:outline-none w-full sm:w-auto"
-                      style={{
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-input)',
-                        color: 'var(--text-primary)',
-                      }}
-                      title="Employment start date"
-                    />
-                    <input
-                      type="date"
-                      value={job.endDate}
-                      onChange={e => updateItem(job.id, 'endDate', e.target.value)}
-                      className="flex-shrink-0 rounded-lg px-2 py-2 text-sm focus:outline-none w-full sm:w-auto"
-                      style={{
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-input)',
-                        color: 'var(--text-primary)',
-                      }}
-                      title="Employment end date (blank = ongoing)"
-                    />
-                    <select
-                      value={job.status}
-                      onChange={e => updateItem(job.id, 'status', e.target.value)}
-                      className="flex-shrink-0 rounded-lg px-2 py-2 text-sm focus:outline-none cursor-pointer font-medium"
-                      style={{
-                        background: st.bg,
-                        border: `1px solid ${st.border}`,
-                        color: st.color,
-                      }}
-                    >
-                      {STATUS_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="date"
-                      value={job.statusDate}
-                      onChange={e => updateItem(job.id, 'statusDate', e.target.value)}
-                      className="flex-shrink-0 rounded-lg px-2 py-2 text-sm focus:outline-none w-full sm:w-auto"
-                      style={{
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-input)',
-                        color: 'var(--text-primary)',
-                      }}
-                      title="Date status changed (e.g. furlough date)"
-                    />
-                    <AssigneeSelect
-                      people={people}
-                      value={job.assignedTo ?? null}
-                      onChange={val => updateItem(job.id, 'assignedTo', val)}
-                    />
-                    <CommentButton itemId={`job_${job.id}`} label={job.title || job.employer || 'Job'} />
-                    <button
-                      onClick={() => deleteItem(job.id)}
-                      className="flex items-center justify-center transition-colors"
-                      style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                    >
-                      <TrashIcon />
-                    </button>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {(job.monthlySalary > 0) && (
+                        <span className="font-medium sensitive" style={{ color: 'var(--accent-emerald)' }}>
+                          {formatCurrency(job.monthlySalary)}/mo
+                        </span>
+                      )}
+                      {(job.startDate || job.endDate) && (
+                        <span>{formatDateRange(job.startDate, job.endDate)}</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Payroll transactions drawer */}
-                  <JobPayrollDrawer
-                    job={job}
-                    allTransactions={allTransactions}
-                    transactionOverrides={transactionOverrides}
-                    open={expandedJobId === job.id}
-                    onToggle={() => setExpandedJobId(prev => prev === job.id ? null : job.id)}
-                  />
+                  <span
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                    style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.color }}
+                  >
+                    {statusLabel}
+                  </span>
+
+                  <div className="flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        </>
+
+                {/* Card body — expanded */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+                      {/* Job Title */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          <Briefcase size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />
+                          Job Title
+                        </label>
+                        <input
+                          type="text"
+                          value={job.title}
+                          onChange={e => updateItem(job.id, 'title', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                          placeholder="e.g. Software Engineer"
+                        />
+                      </div>
+
+                      {/* Employer */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          <Building2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />
+                          Employer
+                        </label>
+                        <input
+                          type="text"
+                          value={job.employer}
+                          onChange={e => updateItem(job.id, 'employer', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                          placeholder="e.g. Acme Corp"
+                        />
+                      </div>
+
+                      {/* Monthly Salary */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          <DollarSign size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />
+                          Monthly Salary
+                        </label>
+                        <div
+                          className="flex items-center rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-emerald-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)' }}
+                        >
+                          <span className="text-sm mr-1" style={{ color: 'var(--accent-emerald)' }}>$</span>
+                          <CurrencyInput
+                            value={job.monthlySalary}
+                            onChange={val => updateItem(job.id, 'monthlySalary', val)}
+                            className="bg-transparent text-sm w-full outline-none"
+                            style={{ color: 'var(--text-primary)' }}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Status</label>
+                        <select
+                          value={job.status}
+                          onChange={e => updateItem(job.id, 'status', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium"
+                          style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.color }}
+                        >
+                          {STATUS_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Start Date */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          <Calendar size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={job.startDate}
+                          onChange={e => updateItem(job.id, 'startDate', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+
+                      {/* End Date */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          <Calendar size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={job.endDate}
+                          onChange={e => updateItem(job.id, 'endDate', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                          placeholder="Blank = ongoing"
+                        />
+                      </div>
+
+                      {/* Status Date */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          Status Date
+                        </label>
+                        <input
+                          type="date"
+                          value={job.statusDate}
+                          onChange={e => updateItem(job.id, 'statusDate', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-primary)' }}
+                          title="Date status changed (e.g. furlough date)"
+                        />
+                      </div>
+
+                      {/* Assigned To */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Assigned To</label>
+                        <AssigneeSelect
+                          people={people}
+                          value={job.assignedTo ?? null}
+                          onChange={val => updateItem(job.id, 'assignedTo', val)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions row */}
+                    <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-center gap-2">
+                        <JobPayrollDrawer
+                          job={job}
+                          allTransactions={allTransactions}
+                          transactionOverrides={transactionOverrides}
+                          open={payrollOpenJobId === job.id}
+                          onToggle={() => setPayrollOpenJobId(prev => prev === job.id ? null : job.id)}
+                        />
+                        <CommentButton itemId={`job_${job.id}`} label={job.title || job.employer || 'Job'} />
+                      </div>
+                      <button
+                        onClick={() => deleteItem(job.id)}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(248,113,113,0.08)' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <Trash2 size={13} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
       <button
         onClick={addItem}
-        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        className="w-full py-2.5 rounded-lg border border-dashed text-sm transition-colors flex items-center justify-center gap-1.5"
         style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
         onMouseEnter={e => {
           e.currentTarget.style.borderColor = 'var(--accent-emerald)'
@@ -254,7 +324,8 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
           e.currentTarget.style.color = 'var(--text-muted)'
         }}
       >
-        + Add Job
+        <Plus size={14} />
+        Add Job
       </button>
 
       {jobs.length > 0 && (
@@ -273,7 +344,7 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
       )}
 
       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-        Active jobs contribute their salary to the burndown as income. Status date is used to auto-derive the simulation start date. Drag <span style={{ color: 'var(--text-muted)' }}>&#x2807;</span> to reorder. Click the payroll button on each job to see linked payroll transactions.
+        Active jobs contribute their salary to the burndown as income. Click a card to expand and edit details. Drag <span style={{ color: 'var(--text-muted)' }}>&#x2807;</span> to reorder.
       </p>
     </div>
   )
