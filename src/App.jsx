@@ -32,6 +32,7 @@ import { useSnapTrade } from './hooks/useSnapTrade'
 import { useOrgMembers } from './hooks/useOrgMembers'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
 import { getEffectivePayment } from './utils/ccPayment'
+import { isCCPayment } from './utils/ccPaymentDetector'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
@@ -395,7 +396,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [transactionLinks, setTransactionLinks] = useState(DEFAULTS.transactionLinks)
   const [transactionOverrides, setTransactionOverrides] = useState(DEFAULTS.transactionOverrides)
   const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
-  const [allTransactionsCache, setAllTransactionsCache] = useState([])
   const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
 
@@ -440,7 +440,43 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   }
   const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
   const { membersByUserId } = useOrgMembers(user)
-  const { index: statementIndex, loading: statementsLoading, error: statementsError, refreshIndex: refreshStatementIndex } = useStatementStorage()
+  const { index: statementIndex, statements: appStatements, loading: statementsLoading, error: statementsError, loadStatement: appLoadStatement, refreshIndex: refreshStatementIndex } = useStatementStorage()
+
+  // Eagerly load all statements so transactions are available on every page (e.g. Settings > Job History payroll drawer)
+  useEffect(() => {
+    if (!statementIndex?.statements?.length) return
+    for (const s of statementIndex.statements) {
+      if (!appStatements[s.id]) appLoadStatement(s.id)
+    }
+  }, [statementIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build allTransactionsCache from loaded statements
+  const appAllTransactions = useMemo(() => {
+    const txns = []
+    for (const stmtMeta of (statementIndex?.statements || [])) {
+      const full = appStatements[stmtMeta.id]
+      if (!full?.transactions) continue
+      for (const txn of full.transactions) {
+        const merged = {
+          ...txn,
+          cardId: full.cardId,
+          cardLastFour: full.cardLastFour || null,
+          accountType: full.accountType || null,
+          accountSubtype: full.accountSubtype || null,
+          accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
+        }
+        if (isCCPayment(merged)) {
+          merged.category = 'ccPayment'
+        }
+        txns.push(merged)
+      }
+    }
+    return txns
+  }, [statementIndex, appStatements, accountCustomizations])
+
+  // Keep allTransactionsCache in sync - prefer app-level data, allow CreditCardHubPage to update too
+  const [allTransactionsCache, setAllTransactionsCache] = useState([])
+  const effectiveTransactions = appAllTransactions.length > 0 ? appAllTransactions : allTransactionsCache
 
   function buildSnapshot() {
     return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations }
@@ -1094,7 +1130,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}
                 onRetirementChange={onRetirementChange}
-                allTransactions={allTransactionsCache}
+                allTransactions={effectiveTransactions}
                 transactionLinks={transactionLinks}
                 txnToOverviewMap={txnToOverviewMap}
                 onLinkTransaction={handleLinkTransaction}
@@ -1189,7 +1225,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             jobs={jobs}
             onJobsChange={onJobsChange}
             people={people}
-            allTransactions={allTransactionsCache}
+            allTransactions={effectiveTransactions}
             transactionOverrides={transactionOverrides}
             properties={properties}
             onPropertiesChange={onPropertiesChange}
