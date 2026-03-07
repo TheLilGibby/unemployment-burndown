@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera, MapPin } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera, MapPin, Download, Table, FileText, Package } from 'lucide-react'
+import {
+  exportBurndownCSV,
+  exportExpensesCSV,
+  exportSavingsCSV,
+  exportScenariosCSV,
+  exportAllData,
+  exportSummaryJSON,
+} from '../utils/export'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
@@ -57,9 +65,10 @@ const NAV_ITEMS = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'properties', label: 'Properties', icon: MapPin },
   { id: 'jobs', label: 'Job History', icon: Briefcase },
+  { id: 'data', label: 'Data', icon: Download },
 ]
 
-export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {}, properties = [], onPropertiesChange }) {
+export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {}, properties = [], onPropertiesChange, exportData }) {
   const { user: authUser, logout, deleteAccount } = useAuth()
   const user = userProp || authUser
   const [activeSection, setActiveSection] = useState('profile')
@@ -398,71 +407,6 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   </p>
                 )}
               </div>
-
-              {/* Danger zone */}
-              <div className="mt-8 rounded-md border" style={{ borderColor: '#f87171' }}>
-                <div className="px-4 py-3 rounded-t-md" style={{ background: 'rgba(248,113,113,0.08)' }}>
-                  <h3 className="text-sm font-semibold text-red-600 dark:text-red-400">Danger zone</h3>
-                </div>
-                <div className="px-4 py-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">Delete account</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Permanently delete your account and all data</div>
-                    </div>
-                    {!showDeleteConfirm ? (
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="px-3 py-1.5 text-sm rounded-md border font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
-                        style={{ borderColor: '#fca5a5' }}
-                      >
-                        Delete account
-                      </button>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
-                          disabled={deleting}
-                          className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setDeleting(true)
-                            setDeleteError(null)
-                            const result = await deleteAccount()
-                            if (!result.ok) {
-                              setDeleteError(result.error)
-                              setDeleting(false)
-                            }
-                          }}
-                          disabled={deleting}
-                          className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
-                        >
-                          {deleting ? 'Deleting...' : 'Confirm delete'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {deleteError && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
-                  )}
-                  <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)' }}>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">Sign out</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Sign out of your account on this device</div>
-                    </div>
-                    <button
-                      onClick={logout}
-                      className="px-3 py-1.5 text-sm rounded-md border font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
-                      style={{ borderColor: '#fca5a5' }}
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              </div>
             </section>
 
             {/* ── Appearance ── */}
@@ -616,6 +560,86 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   allTransactions={allTransactions}
                   transactionOverrides={transactionOverrides}
                 />
+              </section>
+            )}
+
+            {/* ── Data ── */}
+            {exportData && (
+              <section id="section-data">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                  Data Management
+                </h2>
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Export your financial data in various formats for offline use or analysis.
+                  </p>
+                  {[
+                    { label: 'Burndown Timeline CSV', icon: Table, onClick: () => exportBurndownCSV(exportData.burndown), disabled: !exportData.burndown?.timeline?.length },
+                    { label: 'Expenses CSV', icon: Table, onClick: () => exportExpensesCSV(exportData.expenses), disabled: !exportData.expenses?.length },
+                    { label: 'Savings Accounts CSV', icon: Table, onClick: () => exportSavingsCSV(exportData.savingsAccounts), disabled: !exportData.savingsAccounts?.length },
+                    { label: 'Scenarios CSV', icon: Table, onClick: () => exportScenariosCSV(exportData.scenarios, exportData.scenarioResults), disabled: !exportData.scenarios?.length },
+                  ].map(({ label, icon: Icon, onClick, disabled }) => (
+                    <div key={label} className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <Icon className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                      </div>
+                      <button
+                        onClick={() => { try { onClick() } catch (e) { alert(`Export failed: ${e.message}`) } }}
+                        disabled={disabled}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Export
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <Package className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">Export All (CSV Bundle)</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Downloads all datasets as a ZIP archive</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { try { exportAllData(exportData) } catch (e) { alert(`Export failed: ${e.message}`) } }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
+                      style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">Summary JSON</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Full financial snapshot as structured JSON</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        try {
+                          exportSummaryJSON({
+                            ...exportData,
+                            monthlyExpenses: exportData.burndown?.current?.effectiveExpenses,
+                            monthlyIncome: exportData.burndown?.current?.monthlyBenefits,
+                            runwayMonths: exportData.burndown?.current?.totalRunwayMonths,
+                            runoutDate: exportData.burndown?.current?.runoutDate,
+                          })
+                        } catch (e) { alert(`Export failed: ${e.message}`) }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
+                      style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export
+                    </button>
+                  </div>
+                </div>
               </section>
             )}
 
