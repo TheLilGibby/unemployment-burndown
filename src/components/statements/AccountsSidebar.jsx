@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import usePersistedState from '../../hooks/usePersistedState'
 import { CreditCard, Landmark, Settings, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Plus } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
@@ -170,6 +170,70 @@ export default function AccountsSidebar({
       plaid.fetchAccounts()
     }
   }, [plaid])
+
+  // Map plaidAccountId → parent Plaid item info (for disconnect feature)
+  const plaidAccountToItem = useMemo(() => {
+    const map = new Map()
+    if (!plaid?.linkedItems) return map
+    for (const item of plaid.linkedItems) {
+      for (const acct of item.accounts || []) {
+        if (!acct.id) continue
+        map.set(acct.id, {
+          itemId: item.itemId,
+          institutionName: item.institutionName,
+          siblingAccounts: item.accounts,
+        })
+      }
+    }
+    return map
+  }, [plaid?.linkedItems])
+
+  // Handle disconnecting a Plaid institution with optional data removal
+  const handleDisconnectAccount = useCallback(async ({ itemId, removeData }) => {
+    // Capture affected plaidAccountIds before disconnect removes them from state
+    const targetItem = plaid?.linkedItems?.find(i => i.itemId === itemId)
+    const affectedPlaidIds = new Set(
+      (targetItem?.accounts || []).map(a => a.id).filter(Boolean)
+    )
+
+    await plaid.disconnect(itemId)
+
+    if (removeData) {
+      // Find local account IDs that map to affected plaid accounts
+      const affectedLocalIds = new Set()
+      for (const card of creditCards) {
+        if (card.plaidAccountId && affectedPlaidIds.has(card.plaidAccountId)) {
+          affectedLocalIds.add(card.id)
+        }
+      }
+      for (const sa of savingsAccounts) {
+        if (sa.plaidAccountId && affectedPlaidIds.has(sa.plaidAccountId)) {
+          affectedLocalIds.add(sa.id)
+        }
+      }
+
+      // Remove credit cards tied to this institution
+      if (onCreditCardsChange) {
+        onCreditCardsChange(prev => prev.filter(c => !affectedPlaidIds.has(c.plaidAccountId)))
+      }
+      // Remove savings accounts tied to this institution
+      if (onSavingsChange) {
+        onSavingsChange(prev => prev.filter(s => !affectedPlaidIds.has(s.plaidAccountId)))
+      }
+      // Clean up customizations for affected accounts
+      if (onAccountCustomizationsChange && affectedLocalIds.size > 0) {
+        const cleaned = { ...accountCustomizations }
+        for (const id of affectedLocalIds) {
+          delete cleaned[id]
+        }
+        onAccountCustomizationsChange(cleaned)
+      }
+      // Refresh statement index
+      if (onStatementsRefresh) {
+        onStatementsRefresh()
+      }
+    }
+  }, [plaid, creditCards, savingsAccounts, onCreditCardsChange, onSavingsChange, accountCustomizations, onAccountCustomizationsChange, onStatementsRefresh])
 
   // Map plaidAccountId → live balance from Plaid linkedItems
   const plaidBalanceMap = useMemo(() => {
@@ -641,6 +705,8 @@ export default function AccountsSidebar({
         customizations={accountCustomizations}
         onCustomizationsChange={onAccountCustomizationsChange}
         people={people}
+        plaidAccountToItem={plaidAccountToItem}
+        onDisconnectAccount={handleDisconnectAccount}
       />
     </>
   )
