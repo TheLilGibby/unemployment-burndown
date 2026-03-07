@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import usePersistedState from '../../hooks/usePersistedState'
 import dayjs from 'dayjs'
 import { formatCurrency } from '../../utils/formatters'
