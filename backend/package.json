@@ -5,7 +5,7 @@
   "private": true,
   "description": "Plaid integration backend for Financial Burndown Tracker",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.1004.0",
     "@aws-sdk/client-s3": "^3.1004.0",
     "@aws-sdk/lib-dynamodb": "^3.600.0",
     "@sendgrid/mail": "^8.1.0",
