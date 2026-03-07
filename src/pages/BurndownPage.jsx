@@ -133,7 +133,7 @@ export default function BurndownPage({
         {/* Left column */}
         <div className="space-y-5">
           <SectionCard id="sec-savings" title="Cash & Savings Accounts" className="scroll-mt-20">
-            <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} />
+            <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} plaidLinkedItems={plaid?.linkedItems || []} />
           </SectionCard>
 
           <SectionCard id="sec-unemployment" title="Unemployment Benefits" className="scroll-mt-20">

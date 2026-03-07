@@ -5,8 +5,8 @@ export const DEFAULTS = {
   ],
   // savingsAccounts replaces the single currentSavings number
   savingsAccounts: [
-    { id: 1, name: 'Checking Account', amount: 5000,  active: true, assignedTo: null, description: '' },
-    { id: 2, name: 'Savings Account',  amount: 10000, active: true, assignedTo: null, description: '' },
+    { id: 1, name: 'Checking Account', amount: 5000,  active: true, assignedTo: null, description: '', balanceDate: null },
+    { id: 2, name: 'Savings Account',  amount: 10000, active: true, assignedTo: null, description: '', balanceDate: null },
   ],
   furloughDate: '2026-02-21',
   unemployment: {
