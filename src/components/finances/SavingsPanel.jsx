@@ -79,15 +79,16 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                   <DragHandle />
                 </div>
                 <button
+                  type="button"
                   onClick={() => toggleAccount(account.id)}
                   title={isActive ? 'Exclude from total' : 'Include in total'}
-                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative overflow-hidden ${
+                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer p-0.5 ${
                     isActive ? 'bg-blue-500' : 'bg-gray-600'
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      isActive ? 'translate-x-3.5' : 'translate-x-0.5'
+                    className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      isActive ? 'translate-x-3' : 'translate-x-0'
                     }`}
                   />
                 </button>
