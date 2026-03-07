@@ -31,7 +31,7 @@ export async function handler(event) {
 
     const body = JSON.parse(event.body || '{}')
     const { itemId } = body
-    const userId = user.orgId
+    const userId = user.sub
 
     const client = getPlaidClient()
 

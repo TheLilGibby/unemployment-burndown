@@ -15,12 +15,12 @@ import { createRequestLogger } from '../lib/logger.mjs'
  */
 export async function handler(event) {
   try {
-    const { user, error: authErr } = requireOrg(event)
+    const { user, error: authErr} = requireOrg(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
 
     const body = JSON.parse(event.body || '{}')
     const { itemId } = body
-    const userId = user.orgId
+    const userId = user.sub
 
     if (!itemId) {
       return err(400, 'itemId is required')

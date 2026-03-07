@@ -21,7 +21,7 @@ export async function handler(event) {
 
     const body = JSON.parse(event.body || '{}')
     const { public_token, metadata = {} }  = body
-    const userId = user.orgId
+    const userId = user.sub
 
     if (!public_token) {
       return err(400, 'public_token is required')

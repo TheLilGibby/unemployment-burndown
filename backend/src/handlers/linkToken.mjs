@@ -8,8 +8,8 @@ import { createRequestLogger } from '../lib/logger.mjs'
  * POST /plaid/link-token
  *
  * Creates a short-lived link_token that the React frontend uses to open
- * Plaid Link. Uses the orgId as the Plaid client_user_id so all org
- * members share the same Plaid items.
+ * Plaid Link. Uses the user's sub as the Plaid client_user_id so each
+ * user has their own Plaid items.
  */
 export async function handler(event) {
   try {
@@ -19,7 +19,7 @@ export async function handler(event) {
     const client = getPlaidClient()
 
     const response = await client.linkTokenCreate({
-      user:           { client_user_id: user.orgId },
+      user:           { client_user_id: user.sub },
       client_name:    'Burndown Tracker',
       products:       [Products.Transactions],
       transactions:   { days_requested: 1461 },
