@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Eye, EyeOff, CreditCard, Landmark, Pencil, Check } from 'lucide-react'
+import { X, Eye, EyeOff, CreditCard, Landmark, Pencil, Check, Unplug } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 
 const COLOR_CLASSES = {
@@ -20,7 +20,7 @@ function getInitials(name) {
     .slice(0, 2) || '?'
 }
 
-function AccountCustomizeRow({ account, customization, onChange, people, isDepository }) {
+function AccountCustomizeRow({ account, customization, onChange, people, isDepository, plaidInfo, onDisconnect }) {
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(customization?.nickname || '')
   const hidden = customization?.hidden || false
@@ -148,6 +148,20 @@ function AccountCustomizeRow({ account, customization, onChange, people, isDepos
       >
         {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
       </button>
+
+      {/* Disconnect button (Plaid-linked accounts only) */}
+      {plaidInfo && onDisconnect && (
+        <button
+          onClick={() => onDisconnect(plaidInfo)}
+          className="p-1 rounded transition-colors shrink-0"
+          style={{ color: 'var(--text-faint)' }}
+          onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
+          title={`Disconnect from ${plaidInfo.institutionName}`}
+        >
+          <Unplug size={14} />
+        </button>
+      )}
     </div>
   )
 }
@@ -160,8 +174,13 @@ export default function AccountCustomizeModal({
   customizations = {},
   onCustomizationsChange,
   people = [],
+  plaidAccountToItem = new Map(),
+  onDisconnectAccount,
 }) {
   const [tab, setTab] = useState('accounts')
+  const [disconnecting, setDisconnecting] = useState(null) // { itemId, institutionName, affectedAccounts[] }
+  const [disconnectLoading, setDisconnectLoading] = useState(false)
+  const [disconnectError, setDisconnectError] = useState(null)
 
   if (!open) return null
 
@@ -170,6 +189,29 @@ export default function AccountCustomizeModal({
       ...customizations,
       [accountId]: { ...(customizations[accountId] || {}), ...patch },
     })
+  }
+
+  function handleInitiateDisconnect(plaidInfo) {
+    setDisconnectError(null)
+    setDisconnecting({
+      itemId: plaidInfo.itemId,
+      institutionName: plaidInfo.institutionName,
+      affectedAccounts: plaidInfo.siblingAccounts || [],
+    })
+  }
+
+  async function handleConfirmDisconnect(removeData) {
+    if (!disconnecting || !onDisconnectAccount) return
+    setDisconnectLoading(true)
+    setDisconnectError(null)
+    try {
+      await onDisconnectAccount({ itemId: disconnecting.itemId, removeData })
+      setDisconnecting(null)
+    } catch (e) {
+      setDisconnectError(e.message || 'Failed to disconnect account')
+    } finally {
+      setDisconnectLoading(false)
+    }
   }
 
   const hiddenCount = Object.values(customizations).filter(c => c.hidden).length
@@ -219,6 +261,105 @@ export default function AccountCustomizeModal({
         {/* Content */}
         <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 8rem)', scrollbarWidth: 'thin' }}>
           {tab === 'accounts' ? (
+            disconnecting ? (
+              /* ── Disconnect confirmation panel ── */
+              <div className="space-y-4">
+                <div className="text-center py-2">
+                  <div
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-3"
+                    style={{ background: 'rgba(248, 113, 113, 0.12)' }}
+                  >
+                    <Unplug size={20} style={{ color: '#f87171' }} />
+                  </div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                    Disconnect {disconnecting.institutionName}?
+                  </h3>
+                  {disconnecting.affectedAccounts.length > 1 && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      This will disconnect all accounts from this institution
+                    </p>
+                  )}
+                </div>
+
+                {/* List affected accounts */}
+                {disconnecting.affectedAccounts.length > 0 && (
+                  <div
+                    className="rounded-lg px-3 py-2 space-y-1"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      Affected accounts
+                    </span>
+                    {disconnecting.affectedAccounts.map(acct => (
+                      <div key={acct.id} className="flex items-center justify-between py-1">
+                        <span className="text-xs" style={{ color: 'var(--text-primary)' }}>
+                          {acct.officialName || acct.name}
+                          {acct.mask && <span style={{ color: 'var(--text-faint)' }}> ••{acct.mask}</span>}
+                        </span>
+                        <span className="text-[10px] capitalize" style={{ color: 'var(--text-muted)' }}>
+                          {acct.subtype || acct.type}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {disconnectError && (
+                  <div
+                    className="rounded-lg px-3 py-2 text-xs"
+                    style={{ background: 'rgba(248, 113, 113, 0.1)', border: '1px solid rgba(248, 113, 113, 0.3)', color: '#f87171' }}
+                  >
+                    {disconnectError}
+                  </div>
+                )}
+
+                {/* Data choice buttons */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleConfirmDisconnect(true)}
+                    disabled={disconnectLoading}
+                    className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg transition-colors"
+                    style={{
+                      background: disconnectLoading ? 'rgba(248, 113, 113, 0.4)' : '#f87171',
+                      color: '#fff',
+                      cursor: disconnectLoading ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {disconnectLoading ? 'Disconnecting...' : 'Disconnect & Remove All Data'}
+                  </button>
+                  <p className="text-[10px] text-center" style={{ color: 'var(--text-faint)' }}>
+                    Removes the connection and deletes all related accounts, balances, and customizations
+                  </p>
+
+                  <button
+                    onClick={() => handleConfirmDisconnect(false)}
+                    disabled={disconnectLoading}
+                    className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg border transition-colors"
+                    style={{
+                      background: 'transparent',
+                      borderColor: 'var(--border-default)',
+                      color: 'var(--text-primary)',
+                      cursor: disconnectLoading ? 'wait' : 'pointer',
+                      opacity: disconnectLoading ? 0.5 : 1,
+                    }}
+                  >
+                    {disconnectLoading ? 'Disconnecting...' : 'Disconnect & Keep Records'}
+                  </button>
+                  <p className="text-[10px] text-center" style={{ color: 'var(--text-faint)' }}>
+                    Removes the live connection but retains existing data for historical reference
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => { setDisconnecting(null); setDisconnectError(null) }}
+                  disabled={disconnectLoading}
+                  className="w-full py-2 text-xs transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
             <div className="space-y-4">
               {/* Credit Cards group */}
               {creditCards.length > 0 && (
@@ -238,6 +379,8 @@ export default function AccountCustomizeModal({
                         onChange={patch => handleChange(card.id, patch)}
                         people={people}
                         isDepository={false}
+                        plaidInfo={card.plaidAccountId ? plaidAccountToItem.get(card.plaidAccountId) : undefined}
+                        onDisconnect={handleInitiateDisconnect}
                       />
                     ))}
                   </div>
@@ -262,6 +405,8 @@ export default function AccountCustomizeModal({
                         onChange={patch => handleChange(acct.id, patch)}
                         people={people}
                         isDepository={true}
+                        plaidInfo={acct.plaidAccountId ? plaidAccountToItem.get(acct.plaidAccountId) : undefined}
+                        onDisconnect={handleInitiateDisconnect}
                       />
                     ))}
                   </div>
@@ -274,6 +419,7 @@ export default function AccountCustomizeModal({
                 </p>
               )}
             </div>
+            )
           ) : (
             <div className="space-y-3">
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
