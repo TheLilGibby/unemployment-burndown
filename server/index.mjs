@@ -1410,9 +1410,9 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
 
         // Map to data model
         if (acct.type === 'depository') {
-          mapToSavingsAccount(state, acct)
+          mapToSavingsAccount(state, acct, itemId, itemData.institutionName)
         } else if (acct.type === 'credit') {
-          mapToCreditCard(state, acct)
+          mapToCreditCard(state, acct, itemId, itemData.institutionName)
         }
       }
 
@@ -1702,7 +1702,7 @@ app.delete('/api/snaptrade/connections/:connectionId', orgMiddleware, (req, res)
 
 // ── Helpers: balance-mapping for dev server sync ──
 
-function mapToSavingsAccount(state, plaidAcct) {
+function mapToSavingsAccount(state, plaidAcct, plaidItemId, institutionName) {
   const plaidId = plaidAcct.account_id
   const balance = plaidAcct.balances.available ?? plaidAcct.balances.current ?? 0
 
@@ -1717,6 +1717,8 @@ function mapToSavingsAccount(state, plaidAcct) {
   if (existing) {
     existing.amount = Math.round(balance * 100) / 100
     existing.plaidAccountId = plaidId
+    existing.plaidItemId = plaidItemId
+    existing.plaidInstitutionName = institutionName
     existing.plaidLastSync = new Date().toISOString()
   } else {
     const displayName = plaidAcct.official_name || plaidAcct.name || 'Linked Account'
@@ -1730,12 +1732,14 @@ function mapToSavingsAccount(state, plaidAcct) {
       active: true,
       assignedTo: null,
       plaidAccountId: plaidId,
+      plaidItemId: plaidItemId,
+      plaidInstitutionName: institutionName,
       plaidLastSync: new Date().toISOString(),
     })
   }
 }
 
-function mapToCreditCard(state, plaidAcct) {
+function mapToCreditCard(state, plaidAcct, plaidItemId, institutionName) {
   const plaidId = plaidAcct.account_id
   const balance = Math.abs(plaidAcct.balances.current ?? 0)
   const limit = plaidAcct.balances.limit ?? 0
@@ -1752,6 +1756,8 @@ function mapToCreditCard(state, plaidAcct) {
     existing.balance = Math.round(balance * 100) / 100
     existing.creditLimit = Math.round(limit * 100) / 100
     existing.plaidAccountId = plaidId
+    existing.plaidItemId = plaidItemId
+    existing.plaidInstitutionName = institutionName
     existing.plaidLastSync = new Date().toISOString()
   } else {
     const displayName = plaidAcct.official_name || plaidAcct.name || 'Linked Card'
@@ -1765,6 +1771,8 @@ function mapToCreditCard(state, plaidAcct) {
       statementCloseDay: '',
       assignedTo: null,
       plaidAccountId: plaidId,
+      plaidItemId: plaidItemId,
+      plaidInstitutionName: institutionName,
       plaidLastSync: new Date().toISOString(),
     })
   }

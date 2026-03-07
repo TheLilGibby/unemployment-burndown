@@ -147,9 +147,9 @@ export async function handler(event) {
 
         // ── Map to existing data model ──
         if (acct.type === 'depository') {
-          mapToSavingsAccount(state, data.plaidMeta, acct)
+          mapToSavingsAccount(state, data.plaidMeta, acct, iid, item.institutionName)
         } else if (acct.type === 'credit') {
-          mapToCreditCard(state, data.plaidMeta, acct)
+          mapToCreditCard(state, data.plaidMeta, acct, iid, item.institutionName)
         }
       }
 
@@ -274,7 +274,7 @@ export async function handler(event) {
  * First tries to match by stored plaidAccountId, then by similar name.
  * Creates a new entry if no match found.
  */
-function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
+function mapToSavingsAccount(state, plaidMeta, plaidAcct, plaidItemId, institutionName) {
   const plaidId = plaidAcct.account_id
   const balance = plaidAcct.balances.available ?? plaidAcct.balances.current ?? 0
 
@@ -292,6 +292,8 @@ function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
   if (existing) {
     existing.amount = Math.round(balance * 100) / 100
     existing.plaidAccountId = plaidId
+    existing.plaidItemId = plaidItemId
+    existing.plaidInstitutionName = institutionName
     existing.plaidLastSync  = new Date().toISOString()
     if (plaidAcct.subtype) existing.plaidSubtype = plaidAcct.subtype
   } else {
@@ -308,6 +310,8 @@ function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
       active:          true,
       assignedTo:      null,
       plaidAccountId:  plaidId,
+      plaidItemId:     plaidItemId,
+      plaidInstitutionName: institutionName,
       plaidLastSync:   new Date().toISOString(),
       plaidSubtype:    plaidAcct.subtype || null,
     })
@@ -318,7 +322,7 @@ function mapToSavingsAccount(state, plaidMeta, plaidAcct) {
  * Map a Plaid credit account to a creditCards[] entry.
  * Same matching logic: plaidAccountId first, then name, then create.
  */
-function mapToCreditCard(state, plaidMeta, plaidAcct) {
+function mapToCreditCard(state, plaidMeta, plaidAcct, plaidItemId, institutionName) {
   const plaidId = plaidAcct.account_id
   const balance = Math.abs(plaidAcct.balances.current ?? 0)
   const limit   = plaidAcct.balances.limit ?? 0
@@ -338,6 +342,8 @@ function mapToCreditCard(state, plaidMeta, plaidAcct) {
     existing.balance     = Math.round(balance * 100) / 100
     existing.creditLimit = Math.round(limit * 100) / 100
     existing.plaidAccountId = plaidId
+    existing.plaidItemId = plaidItemId
+    existing.plaidInstitutionName = institutionName
     existing.plaidLastSync  = new Date().toISOString()
   } else {
     const displayName = plaidAcct.official_name || plaidAcct.name || 'Linked Card'
@@ -351,6 +357,8 @@ function mapToCreditCard(state, plaidMeta, plaidAcct) {
       statementCloseDay: '',
       assignedTo:      null,
       plaidAccountId:  plaidId,
+      plaidItemId:     plaidItemId,
+      plaidInstitutionName: institutionName,
       plaidLastSync:   new Date().toISOString(),
     })
   }

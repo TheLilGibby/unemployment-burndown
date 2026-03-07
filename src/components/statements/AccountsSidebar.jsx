@@ -174,19 +174,41 @@ export default function AccountsSidebar({
   // Map plaidAccountId → parent Plaid item info (for disconnect feature)
   const plaidAccountToItem = useMemo(() => {
     const map = new Map()
-    if (!plaid?.linkedItems) return map
-    for (const item of plaid.linkedItems) {
-      for (const acct of item.accounts || []) {
-        if (!acct.id) continue
-        map.set(acct.id, {
-          itemId: item.itemId,
-          institutionName: item.institutionName,
-          siblingAccounts: item.accounts,
+    // Primary source: live Plaid linkedItems
+    if (plaid?.linkedItems) {
+      for (const item of plaid.linkedItems) {
+        for (const acct of item.accounts || []) {
+          if (!acct.id) continue
+          map.set(acct.id, {
+            itemId: item.itemId,
+            institutionName: item.institutionName,
+            siblingAccounts: item.accounts,
+          })
+        }
+      }
+    }
+    // Fallback: accounts that have stored plaidItemId from sync
+    // (handles cases where /plaid/accounts fails or hasn't loaded yet)
+    for (const card of creditCards) {
+      if (card.plaidAccountId && card.plaidItemId && !map.has(card.plaidAccountId)) {
+        map.set(card.plaidAccountId, {
+          itemId: card.plaidItemId,
+          institutionName: card.plaidInstitutionName || card.name,
+          siblingAccounts: [],
+        })
+      }
+    }
+    for (const acct of savingsAccounts) {
+      if (acct.plaidAccountId && acct.plaidItemId && !map.has(acct.plaidAccountId)) {
+        map.set(acct.plaidAccountId, {
+          itemId: acct.plaidItemId,
+          institutionName: acct.plaidInstitutionName || acct.name,
+          siblingAccounts: [],
         })
       }
     }
     return map
-  }, [plaid?.linkedItems])
+  }, [plaid?.linkedItems, creditCards, savingsAccounts])
 
   // Handle disconnecting a Plaid institution with optional data removal
   const handleDisconnectAccount = useCallback(async ({ itemId, removeData }) => {
