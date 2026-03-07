@@ -22,6 +22,7 @@ export async function handler(event) {
       user:           { client_user_id: user.orgId },
       client_name:    'Burndown Tracker',
       products:       [Products.Transactions],
+      transactions:   { days_requested: 1461 },
       country_codes:  [CountryCode.Us],
       language:       'en',
     })
