@@ -94,6 +94,10 @@ Parameters:
     Type: String
     Description: Enable SMS OTP via AWS SNS (set to 'true' in production)
     Default: 'false'
+  SuperAdmins:
+    Type: String
+    Description: Comma-separated list of superadmin email addresses
+    Default: ''
 
 Globals:
   Function:
@@ -130,6 +134,7 @@ Globals:
         SNAPTRADE_SYNC_COOLDOWN_SECONDS: !Ref SnapTradeSyncCooldownSeconds
         INVITES_TABLE: !Ref HouseholdInvitesTable
         SMS_ENABLED: !Ref SmsEnabled
+        SUPER_ADMINS: !Ref SuperAdmins
 
   Api:
     Cors:
