@@ -967,15 +967,6 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               onPresent={() => setPresentationMode(true)}
               onSignOut={logout}
               onHousehold={() => setOrgOpen(true)}
-              exportData={{
-                burndown: current,
-                expenses,
-                savingsAccounts,
-                scenarios: jobScenarios,
-                scenarioResults: jobScenarioResults,
-                totalSavings,
-                unemployment,
-              }}
             />
           </div>
         }
@@ -1193,6 +1184,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             transactionOverrides={transactionOverrides}
             properties={properties}
             onPropertiesChange={onPropertiesChange}
+            exportData={{
+              burndown: current,
+              expenses,
+              savingsAccounts,
+              scenarios: jobScenarios,
+              scenarioResults: jobScenarioResults,
+              totalSavings,
+              unemployment,
+            }}
           />
         } />
         <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
