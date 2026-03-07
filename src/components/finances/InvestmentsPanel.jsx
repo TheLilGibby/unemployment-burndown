@@ -150,15 +150,16 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                   <span className="text-gray-600 text-xs ml-1 shrink-0">/mo</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => update(inv.id, 'active', !inv.active)}
                   title={inv.active ? 'Pause this investment' : 'Resume this investment'}
-                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 relative overflow-hidden ${
+                  className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer p-0.5 ${
                     inv.active ? 'bg-teal-500' : 'bg-gray-600'
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      inv.active ? 'translate-x-3.5' : 'translate-x-0.5'
+                    className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      inv.active ? 'translate-x-3' : 'translate-x-0'
                     }`}
                   />
                 </button>
