@@ -91,7 +91,8 @@ export default function CreditCardHubPage({
           ...(override || {}),
         }
         // Auto-tag CC payment transactions unless user manually set a category
-        if (!override?.category && isCCPayment(merged)) {
+        const userSetCategory = override?.category || txn.userModifiedFields?.includes('category')
+        if (!userSetCategory && isCCPayment(merged)) {
           merged.category = 'ccPayment'
         }
         txns.push(merged)
@@ -107,6 +108,7 @@ export default function CreditCardHubPage({
       const full = statements[stmtMeta.id]
       if (!full?.transactions) continue
       for (const txn of full.transactions) {
+        const override = transactionOverrides[txn.id]
         const merged = {
           ...txn,
           cardId: full.cardId,
@@ -114,15 +116,17 @@ export default function CreditCardHubPage({
           accountType: full.accountType || null,
           accountSubtype: full.accountSubtype || null,
           accountName: accountCustomizations[full.cardId]?.nickname || full.accountName || null,
+          ...(override || {}),
         }
-        if (isCCPayment(merged)) {
+        const userSetCategory = override?.category || txn.userModifiedFields?.includes('category')
+        if (!userSetCategory && isCCPayment(merged)) {
           merged.category = 'ccPayment'
         }
         txns.push(merged)
       }
     }
     return txns
-  }, [index, statements, accountCustomizations])
+  }, [index, statements, accountCustomizations, transactionOverrides])
 
   // Propagate allTransactions to parent for overview usage
   useEffect(() => {
