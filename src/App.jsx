@@ -425,7 +425,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   // Plaid integration — auto-updates savings & credit card balances from bank data
   const handlePlaidSync = (updatedFullState) => {
     if (updatedFullState) {
-      applyFullState(updatedFullState)
+      applySyncState(updatedFullState)
       addEntry('sync', 'Plaid sync: balances updated from bank')
     }
   }
@@ -434,7 +434,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   // SnapTrade integration — auto-updates investment holdings from brokerage data
   const handleSnapTradeSync = (updatedFullState) => {
     if (updatedFullState) {
-      applyFullState(updatedFullState)
+      applySyncState(updatedFullState)
       addEntry('sync', 'SnapTrade sync: investment balances updated from brokerage')
     }
   }
@@ -544,6 +544,17 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         categoryAlerts: np.categoryAlerts || DEFAULTS.notificationPreferences.categoryAlerts,
       })
     }
+  }
+
+  // Apply only the fields that a Plaid/SnapTrade sync actually modifies (balances).
+  // Using applyFullState here would overwrite transactionOverrides, transactionLinks,
+  // and other user-edited state with stale data read from data.json at sync start.
+  function applySyncState(data) {
+    if (!data?.state) return
+    const s = data.state
+    if (s.savingsAccounts) setSavingsAccounts(s.savingsAccounts)
+    if (s.creditCards) setCreditCards(s.creditCards)
+    if (s.investments) setInvestments(s.investments)
   }
 
   // When S3 storage loads data on mount, apply it.
