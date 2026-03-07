@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { PROFILE_COLORS } from './ProfileBubble'
-import {
-  exportBurndownCSV,
-  exportExpensesCSV,
-  exportSavingsCSV,
-  exportScenariosCSV,
-  exportAllData,
-  exportSummaryJSON,
-} from '../../utils/export'
 
 export default function ProfileMenu({
   user,
@@ -17,10 +9,8 @@ export default function ProfileMenu({
   onPresent,
   onSignOut,
   onHousehold,
-  exportData,
 }) {
   const [open, setOpen] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -31,46 +21,9 @@ export default function ProfileMenu({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  useEffect(() => {
-    if (!open) setExportOpen(false)
-  }, [open])
-
   const initials = user?.email ? user.email[0].toUpperCase() : '?'
   const ringColor = PROFILE_COLORS[user?.profileColor] || PROFILE_COLORS.blue
   const avatar = user?.avatarDataUrl
-
-  const handleExport = (exportFn, ...args) => {
-    try {
-      exportFn(...args)
-      setOpen(false)
-    } catch (error) {
-      alert(`Export failed: ${error.message}`)
-    }
-  }
-
-  const handleExportAll = () => {
-    try {
-      exportAllData(exportData)
-      setOpen(false)
-    } catch (error) {
-      alert(`Export failed: ${error.message}`)
-    }
-  }
-
-  const handleExportJSON = () => {
-    try {
-      exportSummaryJSON({
-        ...exportData,
-        monthlyExpenses: exportData.burndown?.current?.effectiveExpenses,
-        monthlyIncome: exportData.burndown?.current?.monthlyBenefits,
-        runwayMonths: exportData.burndown?.current?.totalRunwayMonths,
-        runoutDate: exportData.burndown?.current?.runoutDate,
-      })
-      setOpen(false)
-    } catch (error) {
-      alert(`Export failed: ${error.message}`)
-    }
-  }
 
   const menuItemClass = "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
   const menuItemStyle = { color: 'var(--text-secondary)' }
@@ -167,92 +120,6 @@ export default function ProfileMenu({
               </span>
             )}
           </button>
-
-          {/* Export submenu */}
-          <button
-            onClick={() => setExportOpen(o => !o)}
-            className={menuItemClass}
-            style={menuItemStyle}
-            onMouseEnter={hoverOn}
-            onMouseLeave={hoverOff}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span className="flex-1 text-left">Export</span>
-            <svg
-              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              style={{ transform: exportOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {exportOpen && (
-            <div className="py-0.5" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-              <button
-                onClick={() => handleExport(exportBurndownCSV, exportData.burndown)}
-                disabled={!exportData.burndown?.timeline?.length}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Burndown CSV
-              </button>
-              <button
-                onClick={() => handleExport(exportExpensesCSV, exportData.expenses)}
-                disabled={!exportData.expenses?.length}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Expenses CSV
-              </button>
-              <button
-                onClick={() => handleExport(exportSavingsCSV, exportData.savingsAccounts)}
-                disabled={!exportData.savingsAccounts?.length}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Savings CSV
-              </button>
-              <button
-                onClick={() => handleExport(exportScenariosCSV, exportData.scenarios, exportData.scenarioResults)}
-                disabled={!exportData.scenarios?.length}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Scenarios CSV
-              </button>
-              <div className="my-0.5 mx-3" style={{ borderTop: '1px solid var(--border-subtle)' }} />
-              <button
-                onClick={handleExportAll}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                All Data (CSV Bundle)
-              </button>
-              <button
-                onClick={handleExportJSON}
-                className="w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-[12px] transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                Summary JSON
-              </button>
-            </div>
-          )}
 
           {/* Present */}
           <button
