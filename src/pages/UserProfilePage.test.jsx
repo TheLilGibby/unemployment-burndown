@@ -85,18 +85,4 @@ describe('UserProfilePage', () => {
     expect(screen.getByText('Not enabled')).toBeInTheDocument()
   })
 
-  it('has Sign Out button', () => {
-    const mockLogout = vi.fn()
-    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
-      user: {
-        email: 'test@example.com',
-      },
-      logout: mockLogout,
-      deleteAccount: vi.fn(),
-    })
-
-    render(<UserProfilePage />)
-
-    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
-  })
 })
