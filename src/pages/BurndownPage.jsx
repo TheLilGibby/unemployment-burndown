@@ -128,85 +128,77 @@ export default function BurndownPage({
         onHistoricalDateSelect={onHistoricalDateSelect}
       />
 
-      {/* Two-column inputs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Left column */}
-        <div className="space-y-5">
-          <SectionCard id="sec-savings" title="Cash & Savings Accounts" className="scroll-mt-20">
-            <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} plaidLinkedItems={plaid?.linkedItems || []} />
-          </SectionCard>
+      {/* Vertically stacked sections */}
+      <SectionCard id="sec-savings" title="Cash & Savings Accounts" className="scroll-mt-20">
+        <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} plaidLinkedItems={plaid?.linkedItems || []} />
+      </SectionCard>
 
-          <SectionCard id="sec-unemployment" title="Unemployment Benefits" className="scroll-mt-20">
-            <UnemploymentPanel value={unemployment} onChange={onUnemploymentChange} furloughDate={furloughDate} onFurloughDateChange={onFurloughChange} people={people} derivedStartDate={derivedStartDate} />
-          </SectionCard>
+      <SectionCard id="sec-unemployment" title="Unemployment Benefits" className="scroll-mt-20">
+        <UnemploymentPanel value={unemployment} onChange={onUnemploymentChange} furloughDate={furloughDate} onFurloughDateChange={onFurloughChange} people={people} derivedStartDate={derivedStartDate} />
+      </SectionCard>
+
+      {viewSettings.sections.whatif && (
+        <SectionCard id="sec-whatif" title="What-If Scenarios" className="scroll-mt-20">
+          <WhatIfPanel
+            value={whatIf}
+            onChange={onWhatIfChange}
+            onReset={onWhatIfReset}
+            baseRunwayMonths={base.totalRunwayMonths}
+            altRunwayMonths={current.totalRunwayMonths}
+            assetProceeds={assetProceeds}
+            unemployment={unemployment}
+            expenses={expenses}
+            subscriptions={subscriptions}
+            creditCards={creditCards}
+            templates={templates}
+            currentResult={current}
+            templateResults={templateResults}
+            jobScenarios={jobScenarios}
+            onJobScenariosChange={onJobScenariosChange}
+            jobScenarioResults={jobScenarioResults}
+          />
+        </SectionCard>
+      )}
+
+      {/* Mini stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="theme-card rounded-xl border p-4">
+          <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Monthly Expenses</p>
+          <p className="text-xl font-bold text-primary">
+            ${Math.round(current.effectiveExpenses).toLocaleString()}
+          </p>
+          <p className="text-xs text-faint mt-0.5">after any reductions</p>
         </div>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          {viewSettings.sections.whatif && (
-            <SectionCard id="sec-whatif" title="What-If Scenarios" className="scroll-mt-20">
-              <WhatIfPanel
-                value={whatIf}
-                onChange={onWhatIfChange}
-                onReset={onWhatIfReset}
-                baseRunwayMonths={base.totalRunwayMonths}
-                altRunwayMonths={current.totalRunwayMonths}
-                assetProceeds={assetProceeds}
-                unemployment={unemployment}
-                expenses={expenses}
-                subscriptions={subscriptions}
-                creditCards={creditCards}
-                templates={templates}
-                currentResult={current}
-                templateResults={templateResults}
-                jobScenarios={jobScenarios}
-                onJobScenariosChange={onJobScenariosChange}
-                jobScenarioResults={jobScenarioResults}
-              />
-            </SectionCard>
-          )}
-
-          {/* Mini stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="theme-card rounded-xl border p-4">
-              <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Monthly Expenses</p>
-              <p className="text-xl font-bold text-primary">
-                ${Math.round(current.effectiveExpenses).toLocaleString()}
-              </p>
-              <p className="text-xs text-faint mt-0.5">after any reductions</p>
-            </div>
-            <div className="theme-card rounded-xl border p-4">
-              <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">UI Income / Mo</p>
-              <p className="text-xl font-bold" style={{ color: 'var(--accent-emerald)' }}>
-                ${Math.round(current.monthlyBenefits).toLocaleString()}
-              </p>
-              <p className="text-xs text-faint mt-0.5">
-                until {(() => {
-                  const d = current.benefitEnd
-                  return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'
-                })()}
-              </p>
-            </div>
-            {current.monthlyInvestments > 0 && (
-              <div className="theme-card rounded-xl border p-4 col-span-2">
-                <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Active Investments / Mo</p>
-                <p className="text-xl font-bold" style={{ color: 'var(--accent-teal)' }}>
-                  -${Math.round(current.monthlyInvestments).toLocaleString()}
-                </p>
-                <p className="text-xs text-faint mt-0.5">added to monthly burn</p>
-              </div>
-            )}
-            {current.totalMonthlyIncome > 0 && (
-              <div className="theme-card rounded-xl border p-4 col-span-2">
-                <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Monthly Income / Mo</p>
-                <p className="text-xl font-bold" style={{ color: 'var(--accent-emerald)' }}>
-                  +${Math.round(current.totalMonthlyIncome).toLocaleString()}
-                </p>
-                <p className="text-xs text-faint mt-0.5">reduces monthly burn</p>
-              </div>
-            )}
+        <div className="theme-card rounded-xl border p-4">
+          <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">UI Income / Mo</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--accent-emerald)' }}>
+            ${Math.round(current.monthlyBenefits).toLocaleString()}
+          </p>
+          <p className="text-xs text-faint mt-0.5">
+            until {(() => {
+              const d = current.benefitEnd
+              return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'
+            })()}
+          </p>
+        </div>
+        {current.monthlyInvestments > 0 && (
+          <div className="theme-card rounded-xl border p-4 col-span-2">
+            <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Active Investments / Mo</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--accent-teal)' }}>
+              -${Math.round(current.monthlyInvestments).toLocaleString()}
+            </p>
+            <p className="text-xs text-faint mt-0.5">added to monthly burn</p>
           </div>
-        </div>
+        )}
+        {current.totalMonthlyIncome > 0 && (
+          <div className="theme-card rounded-xl border p-4 col-span-2">
+            <p className="text-xs text-muted uppercase tracking-wider font-semibold mb-1">Monthly Income / Mo</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--accent-emerald)' }}>
+              +${Math.round(current.totalMonthlyIncome).toLocaleString()}
+            </p>
+            <p className="text-xs text-faint mt-0.5">reduces monthly burn</p>
+          </div>
+        )}
       </div>
 
       {/* Subscriptions — full width */}

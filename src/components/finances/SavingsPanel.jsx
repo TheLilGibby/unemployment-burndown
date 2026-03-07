@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
 import { useDragReorder } from '../../hooks/useDragReorder'
@@ -46,8 +47,18 @@ function lookupInstitution(plaidLinkedItems, plaidAccountId) {
 
 export default function SavingsPanel({ accounts, onChange, people = [], filterPersonId = null, plaidLinkedItems = [] }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(accounts, onChange)
+  const [expandedIds, setExpandedIds] = useState(new Set())
 
   const hasAnyPlaid = accounts.some(a => a.plaidAccountId)
+
+  function toggleExpanded(id) {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   function updateAccount(id, field, val) {
     onChange(accounts.map(a => a.id === id ? { ...a, [field]: val } : a))
@@ -157,6 +168,23 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                       {institution?.name || 'Synced'}
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(account.id)}
+                    className="flex-shrink-0 p-0.5 transition-colors"
+                    style={{ color: account.description ? 'var(--accent-blue, #3b82f6)' : 'var(--text-faint, #6b7280)' }}
+                    title={expandedIds.has(account.id) ? 'Hide notes' : 'Show notes'}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-4 h-4 transition-transform"
+                      style={{ transform: expandedIds.has(account.id) ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    >
+                      <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
               </div>
               {/* Subrow 2: amount · date · assignee · comment · trash */}
@@ -214,23 +242,25 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                   <TrashIcon />
                 </button>
               </div>
-              {/* Description / notes + connected-by info */}
-              <div className="sm:col-span-8">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={account.description || ''}
-                    onChange={e => updateAccount(account.id, 'description', e.target.value)}
-                    className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                    placeholder="Add a note..."
-                  />
-                  {isPlaid && institution?.connectedBy && (
-                    <span className="text-[10px] whitespace-nowrap flex-shrink-0" style={{ color: 'var(--text-faint, #6b7280)' }}>
-                      connected by {institution.connectedBy}
-                    </span>
-                  )}
+              {/* Description / notes + connected-by info (shown when expanded) */}
+              {expandedIds.has(account.id) && (
+                <div className="sm:col-span-8">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={account.description || ''}
+                      onChange={e => updateAccount(account.id, 'description', e.target.value)}
+                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                      placeholder="Add a note..."
+                    />
+                    {isPlaid && institution?.connectedBy && (
+                      <span className="text-[10px] whitespace-nowrap flex-shrink-0" style={{ color: 'var(--text-faint, #6b7280)' }}>
+                        connected by {institution.connectedBy}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )
         })}
