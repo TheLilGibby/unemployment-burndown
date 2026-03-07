@@ -74,6 +74,16 @@ export default function ConnectedAccountsPanel({
     )
   }
 
+  // Filter out depository accounts — those are shown in the unified Cash & Savings section
+  const filteredItems = linkedItems.map(item => ({
+    ...item,
+    accounts: (item.accounts || []).filter(a => a.type !== 'depository'),
+    hasDepositoryAccounts: (item.accounts || []).some(a => a.type === 'depository'),
+  }))
+  // Only show institutions that still have non-depository accounts
+  const visibleItems = filteredItems.filter(item => item.accounts.length > 0)
+  const allDepositoryOnly = linkedItems.length > 0 && visibleItems.length === 0
+
   if (linkedItems.length === 0) {
     return (
       <div className="text-center py-6">
@@ -82,6 +92,19 @@ export default function ConnectedAccountsPanel({
         </p>
         <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>
           Plaid securely connects to your bank. Your credentials are never stored by this app.
+        </p>
+      </div>
+    )
+  }
+
+  if (allDepositoryOnly) {
+    return (
+      <div className="text-center py-6">
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Your connected bank accounts are shown in the <strong>Cash & Savings</strong> section above.
+        </p>
+        <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>
+          Credit cards, investment, and loan accounts from connected banks will appear here.
         </p>
       </div>
     )
@@ -119,7 +142,7 @@ export default function ConnectedAccountsPanel({
         </div>
       )}
 
-      {linkedItems.map(item => (
+      {visibleItems.map(item => (
         <div
           key={item.itemId}
           className="rounded-xl border"
@@ -238,7 +261,7 @@ export default function ConnectedAccountsPanel({
       ))}
 
       {/* Sync all button */}
-      {linkedItems.length > 1 && (
+      {visibleItems.length > 1 && (
         <button
           onClick={() => syncAll()}
           disabled={syncing}
