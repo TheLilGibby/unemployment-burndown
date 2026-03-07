@@ -89,6 +89,30 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
   const [profileError, setProfileError] = useState(null)
   const [profileSuccess, setProfileSuccess] = useState(false)
   const fileInputRef = useRef(null)
+  const isScrollingProgrammatically = useRef(false)
+  const scrollTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    function handleScroll() {
+      if (isScrollingProgrammatically.current) return
+      const ids = NAV_ITEMS
+        .filter(item => (item.id !== 'jobs' || onJobsChange) && (item.id !== 'properties' || onPropertiesChange))
+        .map(item => item.id)
+      let active = ids[0]
+      for (const id of ids) {
+        const el = document.getElementById(`section-${id}`)
+        if (!el) continue
+        const { top } = el.getBoundingClientRect()
+        if (top <= 120) active = id
+      }
+      setActiveSection(active)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      clearTimeout(scrollTimeoutRef.current)
+    }
+  }, [onJobsChange, onPropertiesChange])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -158,7 +182,12 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                       <button
                         onClick={() => {
                           setActiveSection(item.id)
+                          isScrollingProgrammatically.current = true
                           document.getElementById(`section-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          clearTimeout(scrollTimeoutRef.current)
+                          scrollTimeoutRef.current = setTimeout(() => {
+                            isScrollingProgrammatically.current = false
+                          }, 1000)
                         }}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                           isActive
