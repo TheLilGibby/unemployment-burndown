@@ -6,7 +6,7 @@ const TABLE = process.env.TOKENS_TABLE || 'PlaidTokens'
 // ── Budget configuration (env-var defaults, overridable via DynamoDB) ──
 const DEFAULT_MONTHLY_BUDGET = parseFloat(process.env.PLAID_MONTHLY_BUDGET || '10')
 const DEFAULT_EST_COST_PER_CALL = parseFloat(process.env.PLAID_EST_COST_PER_CALL || '0.10')
-const DEFAULT_MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '10', 10)
+const DEFAULT_MAX_SYNC_PAGES = parseInt(process.env.PLAID_MAX_SYNC_PAGES || '20', 10)
 const DEFAULT_SYNC_COOLDOWN_SECONDS = parseInt(process.env.PLAID_SYNC_COOLDOWN_SECONDS || '300', 10)
 
 // Exported mutable values – updated by getLimits()
