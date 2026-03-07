@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '../test/test-utils'
 import UserProfilePage from './UserProfilePage'
 import * as useAuthModule from '../hooks/useAuth'
@@ -36,7 +36,20 @@ vi.mock('../context/NotificationsContext', () => ({
   }),
 }))
 
+// Mock heavy child components to simplify the rendered DOM
+vi.mock('../components/notifications/AlertSettings', () => ({
+  default: () => null,
+}))
+
+vi.mock('../components/auth/MfaSetup', () => ({
+  default: () => null,
+}))
+
 describe('UserProfilePage', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('shows loading state when user is null', () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       user: null,
@@ -97,6 +110,6 @@ describe('UserProfilePage', () => {
 
     render(<UserProfilePage />)
 
-    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
+    expect(screen.getByText('Sign out', { selector: 'button' })).toBeInTheDocument()
   })
 })
