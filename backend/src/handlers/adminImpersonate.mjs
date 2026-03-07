@@ -27,11 +27,12 @@ export async function handler(event) {
     )
 
     const impersonationToken = signToken(targetUser.userId, {
-      mfaVerified: true,
+      mfaVerified: false,
       orgId: targetUser.orgId || null,
       orgRole: targetUser.orgRole || null,
       isSuperAdmin: false,
       impersonatedBy: adminUser.sub,
+      expiresIn: '1h',
     })
 
     return ok({

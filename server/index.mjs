@@ -73,10 +73,10 @@ const users = new Map()  // userId -> { userId, email, passwordHash, mfaEnabled,
 const orgs = new Map()   // orgId -> { orgId, name, joinCode, ownerId, createdAt }
 const orgMembers = new Map() // orgId -> [{ userId, role, joinedAt }]
 
-function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null } = {}) {
+function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null, expiresIn = '24h' } = {}) {
   const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
   if (impersonatedBy) payload.impersonatedBy = impersonatedBy
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' })
+  return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
 
 function isSuperAdminEmail(email) {
@@ -666,11 +666,12 @@ app.post('/api/admin/impersonate', superAdminMiddleware, (req, res) => {
   req.log.warn({ adminUserId: req.user.sub, targetUserId }, 'superadmin started impersonation')
 
   const impersonationToken = signJwt(targetUser.userId, {
-    mfaVerified: true,
+    mfaVerified: false,
     orgId: targetUser.orgId || null,
     orgRole: targetUser.orgRole || null,
     isSuperAdmin: false,
     impersonatedBy: req.user.sub,
+    expiresIn: '1h',
   })
 
   res.json({
