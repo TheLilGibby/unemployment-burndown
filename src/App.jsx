@@ -51,6 +51,8 @@ import { ToastProvider } from './context/ToastContext'
 import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
+import { Search } from 'lucide-react'
+import CommandPalette from './components/layout/CommandPalette'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import AppLoadingSkeleton from './components/common/AppLoadingSkeleton'
 import BurndownPageSkeleton from './components/common/BurndownPageSkeleton'
@@ -399,6 +401,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
   const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
+  const [cmdkOpen, setCmdkOpen] = useState(false)
 
   const {
     templates,
@@ -416,6 +419,18 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
+
+  // Cmd+K / Ctrl+K to open command palette
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdkOpen(prev => !prev)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   const s3Storage = useS3Storage()
   const snapshots = useSnapshots()
@@ -991,10 +1006,33 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         <OrgSettings user={user} onClose={() => setOrgOpen(false)} />
       )}
 
+      <CommandPalette
+        open={cmdkOpen}
+        onOpenChange={setCmdkOpen}
+        goals={goals}
+        jobScenarios={jobScenarios}
+        templates={templates}
+        savingsAccounts={savingsAccounts}
+        creditCards={creditCards}
+        people={people}
+        expenses={expenses}
+        subscriptions={subscriptions}
+        investments={investments}
+        isSuperAdmin={user?.isSuperAdmin}
+      />
+
       <Header
         isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
           <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setCmdkOpen(true)}
+              className="p-1.5 rounded-md transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Search (Ctrl+K)"
+            >
+              <Search size={18} strokeWidth={1.75} />
+            </button>
             <CloudSaveStatus storage={s3Storage} />
             <NotificationBell />
             <TemplateManager
