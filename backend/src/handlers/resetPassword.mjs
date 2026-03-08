@@ -1,22 +1,23 @@
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { getUserByEmail, updatePassword, clearResetToken } from '../lib/users.mjs'
+import { getUserByResetTokenHash, updatePassword, clearResetToken } from '../lib/users.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/auth/reset-password
- * Body: { email, token, password }
+ * Body: { token, password }
  *
  * Validates the reset token and updates the password.
+ * Looks up user by token hash — no email required.
  */
 export async function handler(event) {
   try {
     const body = JSON.parse(event.body || '{}')
-    const { email, token, password } = body
+    const { token, password } = body
 
-    if (!email || !token || !password) {
-      return err(400, 'Email, token, and new password are required')
+    if (!token || !password) {
+      return err(400, 'Token and new password are required')
     }
 
     if (password.length < 8) {
@@ -24,17 +25,11 @@ export async function handler(event) {
     }
 
     const audit = createAuditLogger('reset-password', event)
-    const user = await getUserByEmail(email)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await getUserByResetTokenHash(tokenHash)
 
     if (!user) {
-      audit.warn({ email, result: 'invalid_token' }, 'reset attempt for unknown email')
-      return err(400, 'Invalid or expired reset token')
-    }
-
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
-
-    if (!user.resetTokenHash || user.resetTokenHash !== tokenHash) {
-      audit.warn({ userId: user.userId, result: 'invalid_token' }, 'reset attempt with wrong token')
+      audit.warn({ result: 'invalid_token' }, 'reset attempt with unknown token')
       return err(400, 'Invalid or expired reset token')
     }
 
