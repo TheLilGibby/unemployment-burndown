@@ -5,7 +5,7 @@ import { useToast } from './ToastContext'
 
 const NotificationsContext = createContext(null)
 
-export function NotificationsProvider({ children, burndown, preferences, onPreferencesChange, initialBalance }) {
+export function NotificationsProvider({ children, burndown, preferences, onPreferencesChange, initialBalance, budgetVariance }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const { addToast } = useToast()
 
@@ -16,7 +16,7 @@ export function NotificationsProvider({ children, burndown, preferences, onPrefe
     highestSeverity,
     dismiss,
     dismissAll,
-  } = useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange })
+  } = useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange, budgetVariance })
 
   // ── Push notification integration ──
   const { evaluateAlerts } = useAlertService(preferences, onPreferencesChange)

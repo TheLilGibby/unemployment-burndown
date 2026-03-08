@@ -24,7 +24,9 @@ import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
 import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
+import BudgetPage from './pages/BudgetPage'
 import AccountsSidebar from './components/statements/AccountsSidebar'
+import { useBudget } from './hooks/useBudget'
 import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
 import { useSnapshots } from './hooks/useSnapshots'
@@ -399,6 +401,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [transactionLinks, setTransactionLinks] = useState(DEFAULTS.transactionLinks)
   const [transactionOverrides, setTransactionOverrides] = useState(DEFAULTS.transactionOverrides)
   const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
+  const [categoryBudgets, setCategoryBudgets] = useState(DEFAULTS.categoryBudgets || {})
   const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
   const [cmdkOpen, setCmdkOpen] = useState(false)
@@ -495,7 +498,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const effectiveTransactions = appAllTransactions.length > 0 ? appAllTransactions : allTransactionsCache
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
   }
 
   function applySnapshot(snapshot) {
@@ -527,6 +530,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (snapshot.transactionLinks) setTransactionLinks(snapshot.transactionLinks)
     if (snapshot.transactionOverrides) setTransactionOverrides(snapshot.transactionOverrides)
     if (snapshot.accountCustomizations) setAccountCustomizations(snapshot.accountCustomizations)
+    if (snapshot.categoryBudgets) setCategoryBudgets(snapshot.categoryBudgets)
   }
 
   // Full state = live snapshot + saved templates (written to / read from file)
@@ -710,6 +714,12 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const summarizeGoals       = (v) => `${v.length} goal${v.length !== 1 ? 's' : ''}`
   const onGoalsChange        = track(() => goals,           setGoals,           'Goals',              summarizeGoals,        diffArray)
   const onAdvertisingRevenueChange = track(() => advertisingRevenue, setAdvertisingRevenue, 'Advertising revenue', summarizeAdvertisingRevenue, diffObject)
+
+  function onCategoryBudgetsChange(updater) {
+    const next = typeof updater === 'function' ? updater(categoryBudgets) : updater
+    setCategoryBudgets(next)
+    dirtySections.current.add('Category budgets')
+  }
 
   // Transaction linking handlers
   const txnToOverviewMap = useMemo(() => {
@@ -951,6 +961,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     (whatIf.freelanceRamp || []).some(t => (Number(t.monthlyAmount) || 0) > 0) ||
     ((Number(whatIf.partnerIncomeMonthly) || 0) > 0 && !!whatIf.partnerStartDate)
 
+  // Budget variance for notifications
+  const { variance: budgetVarianceData } = useBudget(categoryBudgets, effectiveTransactions, transactionOverrides)
+
   return (
     <>
     {impersonating && <ImpersonationBanner user={user} onStop={stopImpersonating} />}
@@ -960,6 +973,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       preferences={notificationPreferences}
       onPreferencesChange={setNotificationPreferences}
       initialBalance={totalSavings}
+      budgetVariance={budgetVarianceData}
     >
     <CommentsProvider
       comments={comments}
@@ -1272,6 +1286,15 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               monthlyBenefits={current.monthlyBenefits}
             />
           </ErrorBoundary>
+        } />
+
+        <Route path="/budget" element={
+          <BudgetPage
+            categoryBudgets={categoryBudgets}
+            onCategoryBudgetsChange={onCategoryBudgetsChange}
+            allTransactions={effectiveTransactions}
+            transactionOverrides={transactionOverrides}
+          />
         } />
 
         <Route path="/settings" element={

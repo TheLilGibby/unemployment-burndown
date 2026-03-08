@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Briefcase, CreditCard, PiggyBank, Target, ShieldCheck, BarChart3 } from 'lucide-react'
+import { Home, Briefcase, CreditCard, PiggyBank, Target, ShieldCheck, BarChart3, ClipboardList } from 'lucide-react'
 import goragLogo from '../../assets/gorag-logo.svg'
 
 const BASE_TABS = [
@@ -10,6 +10,7 @@ const BASE_TABS = [
   { path: '/retirement',    label: 'Retirement',    shortLabel: 'Retire', icon: PiggyBank },
   { path: '/goals',         label: 'Goals',         shortLabel: 'Goals',  icon: Target },
   { path: '/analysis',      label: 'Analysis',      shortLabel: 'Stats',  icon: BarChart3 },
+  { path: '/budget',        label: 'Budget',        shortLabel: 'Budget', icon: ClipboardList },
 ]
 
 const ADMIN_TAB = { path: '/admin', label: 'Admin', shortLabel: 'Admin', icon: ShieldCheck }
