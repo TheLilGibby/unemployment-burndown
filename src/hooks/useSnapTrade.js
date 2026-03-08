@@ -110,6 +110,57 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Reconnect an existing brokerage (re-authenticate) ──
+
+  const reconnect = useCallback(async (connectionId) => {
+    setError(null)
+    setLoading(true)
+    try {
+      const data = await apiCall('/snaptrade/reconnect', {
+        method: 'POST',
+        body: JSON.stringify({ connectionId }),
+      })
+
+      const portalUrl = data.portalUrl
+      if (!portalUrl) throw new Error('No portal URL returned')
+
+      const popup = window.open(portalUrl, 'snaptrade-reconnect', 'width=500,height=700')
+
+      return new Promise((resolve, reject) => {
+        let resolved = false
+
+        const handleMessage = (event) => {
+          if (event.data?.status === 'SUCCESS') {
+            resolved = true
+            window.removeEventListener('message', handleMessage)
+            clearInterval(pollInterval)
+            fetchAccounts()
+            setLoading(false)
+            resolve({ reconnected: true })
+          }
+        }
+
+        window.addEventListener('message', handleMessage)
+
+        const pollInterval = setInterval(() => {
+          if (popup && popup.closed) {
+            clearInterval(pollInterval)
+            if (!resolved) {
+              window.removeEventListener('message', handleMessage)
+              setLoading(false)
+              fetchAccounts()
+              resolve(null)
+            }
+          }
+        }, 500)
+      })
+    } catch (e) {
+      setError(e.message)
+      setLoading(false)
+      throw e
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Fetch connected brokerage accounts ──
 
   const fetchAccounts = useCallback(async () => {
@@ -185,6 +236,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     hasFetched: fetchedRef.current,
 
     connect,
+    reconnect,
     fetchAccounts,
     syncAll,
     disconnect,

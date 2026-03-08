@@ -97,6 +97,10 @@ Parameters:
     Type: String
     Description: Number of days to retain daily snapshots (older snapshots are pruned)
     Default: '90'
+  PlaidWebhookUrl:
+    Type: String
+    Description: Public URL for receiving Plaid webhooks (e.g. https://<api-id>.execute-api.<region>.amazonaws.com/Prod/plaid/webhook)
+    Default: ''
 
 Globals:
   Function:
@@ -159,6 +163,13 @@ Resources:
           KeyType: HASH
         - AttributeName: itemId
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: itemId-index
+          KeySchema:
+            - AttributeName: itemId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   UsersTable:
     Type: AWS::DynamoDB::Table
@@ -645,6 +656,21 @@ Resources:
             Path: /api/auth/enable-mfa
             Method: post
 
+  RefreshTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/refreshToken.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/refresh
+            Method: post
+
   MeFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -760,6 +786,21 @@ Resources:
             Path: /plaid/link-token
             Method: post
 
+  PlaidLinkTokenUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/linkTokenUpdate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /plaid/link-token/update
+            Method: post
+
   PlaidExchangeFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -848,6 +889,26 @@ Resources:
             Path: /plaid/budget
             Method: get
 
+  PlaidWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/plaidWebhook.handler
+      CodeUri: .
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /plaid/webhook
+            Method: post
+
   # ---------- SnapTrade Lambda Functions ----------
   SnapTradeConnectFunction:
     Type: AWS::Serverless::Function
@@ -925,6 +986,21 @@ Resources:
           Type: Api
           Properties:
             Path: /snaptrade/disconnect
+            Method: post
+
+  SnapTradeReconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeReconnect.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/reconnect
             Method: post
 
   # ---------- Data API (secured S3 proxy) ----------
@@ -1221,6 +1297,9 @@ Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  PlaidWebhookUrl:
+    Description: Plaid webhook endpoint URL (set this as PlaidWebhookUrl parameter to enable)
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/plaid/webhook"
   PlaidTokensTableName:
     Description: DynamoDB table for Plaid tokens
     Value: !Ref PlaidTokensTable

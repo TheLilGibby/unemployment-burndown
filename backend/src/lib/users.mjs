@@ -84,6 +84,16 @@ export async function getUserByEmail(email) {
   return getUser(email.toLowerCase())
 }
 
+export async function getUserByResetTokenHash(tokenHash) {
+  const res = await doc().send(new ScanCommand({
+    TableName: TABLE,
+    FilterExpression: 'resetTokenHash = :h',
+    ExpressionAttributeValues: { ':h': tokenHash },
+    Limit: 1,
+  }))
+  return res.Items?.[0] || null
+}
+
 export async function setPendingMfaSecret(userId, pendingMfaSecret) {
   await doc().send(new UpdateCommand({
     TableName: TABLE,

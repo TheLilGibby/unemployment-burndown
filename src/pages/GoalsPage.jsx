@@ -3,6 +3,7 @@ import { formatCurrency } from '../utils/formatters'
 import { computeGoalProgress } from '../utils/goalProgress'
 import GoalCard from '../components/goals/GoalCard'
 import GoalFormModal from '../components/goals/GoalFormModal'
+import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal'
 
 const SUGGESTIONS = [
   { icon: 'home',       name: 'Home Down Payment',    category: 'savings' },
@@ -18,6 +19,7 @@ const SUGGESTIONS = [
 export default function GoalsPage({ goals, onGoalsChange, savingsAccounts = [], investments = [], creditCards = [], people = [] }) {
   const [editingGoal, setEditingGoal] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
 
   const appState = { savingsAccounts, investments, creditCards }
 
@@ -58,7 +60,12 @@ export default function GoalsPage({ goals, onGoalsChange, savingsAccounts = [], 
   }
 
   function handleDelete(id) {
-    onGoalsChange(goals.filter(g => g.id !== id))
+    setPendingDeleteId(id)
+  }
+
+  function confirmDelete() {
+    onGoalsChange(goals.filter(g => g.id !== pendingDeleteId))
+    setPendingDeleteId(null)
   }
 
   function handlePin(id) {
@@ -236,6 +243,14 @@ export default function GoalsPage({ goals, onGoalsChange, savingsAccounts = [], 
           investments={investments}
           creditCards={creditCards}
           people={people}
+        />
+      )}
+
+      {pendingDeleteId != null && (
+        <ConfirmDeleteModal
+          itemName={goals.find(g => g.id === pendingDeleteId)?.name || 'this goal'}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDeleteId(null)}
         />
       )}
     </main>

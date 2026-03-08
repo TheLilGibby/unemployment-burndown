@@ -228,6 +228,7 @@ export default function BurndownPage({
             syncAll={plaid.syncAll}
             disconnect={plaid.disconnect}
             hasFetched={plaid.hasFetched}
+            createUpdateLinkToken={plaid.createUpdateLinkToken}
           />
         </SectionCard>
       )}
@@ -245,6 +246,7 @@ export default function BurndownPage({
             syncAll={snapTrade.syncAll}
             disconnect={snapTrade.disconnect}
             hasFetched={snapTrade.hasFetched}
+            reconnect={snapTrade.reconnect}
           />
         </SectionCard>
       )}

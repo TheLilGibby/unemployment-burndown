@@ -1,6 +1,11 @@
 export function formatCurrency(n) {
   if (n == null || isNaN(n)) return '$0'
-  return '$' + Math.round(n).toLocaleString('en-US')
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n)
 }
 
 export function formatDate(d) {

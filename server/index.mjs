@@ -337,6 +337,26 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   })
 })
 
+// POST /api/auth/refresh — issue a fresh JWT using current valid token
+app.post('/api/auth/refresh', authMiddleware, (req, res) => {
+  const user = users.get(req.user.sub)
+  if (!user) return res.status(401).json({ error: 'Account no longer exists' })
+  if (user.accountLockedUntil && new Date(user.accountLockedUntil) > new Date()) {
+    return res.status(423).json({ error: 'Account is temporarily locked' })
+  }
+  if (!req.user.mfaVerified) {
+    return res.status(403).json({ error: 'MFA verification required' })
+  }
+  const token = signJwt(req.user.sub, {
+    mfaVerified: true,
+    orgId: user.orgId || null,
+    orgRole: user.orgRole || null,
+    isSuperAdmin: isSuperAdminEmail(user.email),
+    impersonatedBy: req.user.impersonatedBy || null,
+  })
+  res.json({ token })
+})
+
 // POST /api/auth/forgot-password
 app.post('/api/auth/forgot-password', async (req, res) => {
   const GENERIC_MSG = 'If an account with that email exists, a password reset link has been sent.'

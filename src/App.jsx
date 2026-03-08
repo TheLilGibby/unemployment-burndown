@@ -23,6 +23,7 @@ import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
+import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
 import AccountsSidebar from './components/statements/AccountsSidebar'
 import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
@@ -31,6 +32,7 @@ import { usePlaid } from './hooks/usePlaid'
 import { useSnapTrade } from './hooks/useSnapTrade'
 import { useOrgMembers } from './hooks/useOrgMembers'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
+import { validateSyncState } from './utils/validateSyncState'
 import { getEffectivePayment } from './utils/ccPayment'
 import { isCCPayment } from './utils/ccPaymentDetector'
 import { CommentsProvider } from './context/CommentsContext'
@@ -50,6 +52,8 @@ import { ToastProvider } from './context/ToastContext'
 import NotificationBell from './components/notifications/NotificationBell'
 import NotificationPanel from './components/notifications/NotificationPanel'
 import ToastContainer from './components/notifications/ToastContainer'
+import { Search } from 'lucide-react'
+import CommandPalette from './components/layout/CommandPalette'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import AppLoadingSkeleton from './components/common/AppLoadingSkeleton'
 import BurndownPageSkeleton from './components/common/BurndownPageSkeleton'
@@ -398,6 +402,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [accountCustomizations, setAccountCustomizations] = useState(DEFAULTS.accountCustomizations || {})
   const [globalSelectedCardId, setGlobalSelectedCardId] = useState(null)
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false)
+  const [cmdkOpen, setCmdkOpen] = useState(false)
 
   const {
     templates,
@@ -415,6 +420,18 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
+
+  // Cmd+K / Ctrl+K to open command palette
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdkOpen(prev => !prev)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   const s3Storage = useS3Storage()
   const snapshots = useSnapshots()
@@ -551,10 +568,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   // and other user-edited state with stale data read from data.json at sync start.
   function applySyncState(data) {
     if (!data?.state) return
-    const s = data.state
-    if (s.savingsAccounts) setSavingsAccounts(s.savingsAccounts)
-    if (s.creditCards) setCreditCards(s.creditCards)
-    if (s.investments) setInvestments(s.investments)
+    const validated = validateSyncState(data.state)
+    if (!validated) {
+      console.warn('applySyncState: sync data failed validation, skipping update')
+      return
+    }
+    if (validated.savingsAccounts) setSavingsAccounts(validated.savingsAccounts)
+    if (validated.creditCards) setCreditCards(validated.creditCards)
+    if (validated.investments) setInvestments(validated.investments)
   }
 
   // When S3 storage loads data on mount, apply it.
@@ -990,10 +1011,33 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         <OrgSettings user={user} onClose={() => setOrgOpen(false)} />
       )}
 
+      <CommandPalette
+        open={cmdkOpen}
+        onOpenChange={setCmdkOpen}
+        goals={goals}
+        jobScenarios={jobScenarios}
+        templates={templates}
+        savingsAccounts={savingsAccounts}
+        creditCards={creditCards}
+        people={people}
+        expenses={expenses}
+        subscriptions={subscriptions}
+        investments={investments}
+        isSuperAdmin={user?.isSuperAdmin}
+      />
+
       <Header
         isSuperAdmin={user?.isSuperAdmin}
         rightSlot={
           <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setCmdkOpen(true)}
+              className="p-1.5 rounded-md transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Search (Ctrl+K)"
+            >
+              <Search size={18} strokeWidth={1.75} />
+            </button>
             <CloudSaveStatus storage={s3Storage} />
             <NotificationBell />
             <TemplateManager
@@ -1218,6 +1262,21 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             creditCards={creditCards}
             people={people}
           />
+        } />
+
+        <Route path="/analysis" element={
+          <ErrorBoundary level="section">
+            <ComparativeAnalysisPage
+              dataPoints={current.dataPoints}
+              baseDataPoints={base?.dataPoints}
+              jobScenarios={jobScenarios}
+              jobScenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              effectiveExpenses={current.effectiveExpenses}
+              currentNetBurn={current.currentNetBurn}
+              monthlyBenefits={current.monthlyBenefits}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/settings" element={
