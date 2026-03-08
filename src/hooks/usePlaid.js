@@ -66,6 +66,22 @@ export function usePlaid({ onSyncComplete } = {}) {
     }
   }, [])
 
+  // ── Create update link token (for reconnecting an existing item) ──
+
+  const createUpdateLinkToken = useCallback(async (itemId) => {
+    setError(null)
+    try {
+      const data = await apiCall('/plaid/link-token/update', {
+        method: 'POST',
+        body: JSON.stringify({ itemId }),
+      })
+      return data.link_token
+    } catch (e) {
+      setError(e.message)
+      throw e
+    }
+  }, [])
+
   // ── Exchange public token ──
 
   const exchangeToken = useCallback(async (publicToken, metadata = {}) => {
@@ -180,6 +196,7 @@ export function usePlaid({ onSyncComplete } = {}) {
 
     // Actions
     createLinkToken,
+    createUpdateLinkToken,
     exchangeToken,
     fetchAccounts,
     syncAll,

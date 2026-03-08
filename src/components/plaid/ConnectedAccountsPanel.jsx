@@ -1,6 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { usePlaidLink } from 'react-plaid-link'
 import { formatCurrency } from '../../utils/formatters'
 import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
+import { classifyConnectionError } from '../../utils/connectionErrors'
 
 /**
  * Displays connected Plaid institutions and their accounts.
@@ -26,6 +28,7 @@ export default function ConnectedAccountsPanel({
   syncAll,
   disconnect,
   hasFetched,
+  createUpdateLinkToken,
 }) {
   // Auto-fetch on mount
   useEffect(() => {
@@ -253,9 +256,13 @@ export default function ConnectedAccountsPanel({
           )}
 
           {item.error && (
-            <div className="px-3 py-2 text-xs" style={{ color: '#fb923c', borderTop: '1px solid var(--border-subtle)' }}>
-              ⚠ {item.error}
-            </div>
+            <ItemErrorBar
+              error={item.error}
+              itemId={item.itemId}
+              createUpdateLinkToken={createUpdateLinkToken}
+              fetchAccounts={fetchAccounts}
+              syncAll={syncAll}
+            />
           )}
         </div>
       ))}
@@ -282,4 +289,101 @@ export default function ConnectedAccountsPanel({
       </p>
     </div>
   )
+}
+
+/**
+ * Per-item error bar with severity classification and reconnect button.
+ */
+function ItemErrorBar({ error, itemId, createUpdateLinkToken, fetchAccounts, syncAll }) {
+  const [reconnecting, setReconnecting] = useState(false)
+  const [updateToken, setUpdateToken] = useState(null)
+
+  const classified = classifyConnectionError(error)
+  const severity = classified?.severity
+  const canReconnect = classified?.canReconnect && createUpdateLinkToken
+
+  const handleReconnect = useCallback(async () => {
+    setReconnecting(true)
+    try {
+      const token = await createUpdateLinkToken(itemId)
+      setUpdateToken(token)
+    } catch {
+      // Error surfaced via usePlaid error state
+    }
+    setReconnecting(false)
+  }, [createUpdateLinkToken, itemId])
+
+  const handleReconnectSuccess = useCallback(async () => {
+    setUpdateToken(null)
+    if (fetchAccounts) await fetchAccounts()
+    if (syncAll) await syncAll(itemId)
+  }, [fetchAccounts, syncAll, itemId])
+
+  const handleReconnectExit = useCallback(() => {
+    setUpdateToken(null)
+  }, [])
+
+  // Color based on severity
+  const color = severity === 'institution_down' || severity === 'rate_limited'
+    ? '#fbbf24' // amber for "wait" errors
+    : '#fb923c' // orange for actionable errors
+
+  return (
+    <>
+      <div
+        className="px-3 py-2 flex items-center justify-between gap-2"
+        style={{ color, borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <span className="text-xs">
+          {severity === 'credentials_expired' && '🔑 '}
+          {severity === 'institution_down' && '🏦 '}
+          {severity === 'rate_limited' && '⏳ '}
+          {classified?.userMessage || error}
+        </span>
+        {canReconnect && (
+          <button
+            onClick={handleReconnect}
+            disabled={reconnecting}
+            className="text-xs px-2 py-1 rounded-md border transition-colors flex-shrink-0"
+            style={{
+              borderColor: 'var(--accent-blue)',
+              color: 'var(--accent-blue)',
+              background: 'rgba(59, 130, 246, 0.1)',
+              cursor: reconnecting ? 'wait' : 'pointer',
+              opacity: reconnecting ? 0.6 : 1,
+            }}
+          >
+            {reconnecting ? 'Preparing...' : 'Reconnect'}
+          </button>
+        )}
+      </div>
+      {updateToken && (
+        <PlaidReconnectHandler
+          token={updateToken}
+          onSuccess={handleReconnectSuccess}
+          onExit={handleReconnectExit}
+        />
+      )}
+    </>
+  )
+}
+
+/**
+ * Invisible component that opens Plaid Link in update mode when given a token.
+ * Must be its own component because usePlaidLink is a hook.
+ */
+function PlaidReconnectHandler({ token, onSuccess, onExit }) {
+  const { open, ready } = usePlaidLink({
+    token,
+    onSuccess: () => onSuccess(),
+    onExit: () => onExit(),
+  })
+
+  useEffect(() => {
+    if (token && ready) {
+      open()
+    }
+  }, [token, ready, open])
+
+  return null
 }
