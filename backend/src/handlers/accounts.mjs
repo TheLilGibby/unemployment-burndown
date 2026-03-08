@@ -90,19 +90,25 @@ export async function handler(event) {
           institutionId:   item.institutionId,
           connectedBy:     item.connectedBy || null,
           accounts:        [],
-          error:           acctErr.response?.data?.error_message || acctErr.message,
+          error:           'Failed to fetch accounts. Try disconnecting and reconnecting this bank.',
           lastSync:        item.updatedAt || item.createdAt,
         })
       }
     }
 
-    // Persist so subsequent calls are free
-    await writeAccountsCache(userId, result)
+    // Only cache if all items succeeded — error items would be served
+    // indefinitely from cache even after the underlying issue is resolved.
+    const hasErrors = result.some(item => item.error)
+    if (!hasErrors) {
+      await writeAccountsCache(userId, result)
+    } else {
+      log.info({ errorCount: result.filter(i => i.error).length }, 'skipping cache write — some items have errors')
+    }
 
     return ok({ items: result, fromCache: false })
   } catch (error) {
     const log = createRequestLogger('accounts', event)
     log.error({ err: error, plaidError: error.response?.data }, 'accounts fetch failed')
-    return err(500, error.response?.data?.error_message || error.message)
+    return err(500, 'An internal error occurred')
   }
 }
