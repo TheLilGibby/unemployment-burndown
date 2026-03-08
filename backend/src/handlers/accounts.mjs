@@ -22,7 +22,7 @@ export async function handler(event) {
     const { user, error: authErr } = requireOrg(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
 
-    const userId = user.orgId
+    const userId = user.sub
     const force  = event.queryStringParameters?.force === 'true'
 
     // ── Try S3 cache first (unless caller forces a refresh) ──
