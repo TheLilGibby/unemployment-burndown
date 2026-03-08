@@ -31,6 +31,7 @@ import { usePlaid } from './hooks/usePlaid'
 import { useSnapTrade } from './hooks/useSnapTrade'
 import { useOrgMembers } from './hooks/useOrgMembers'
 import { diffArray, diffObject, diffPrimitive } from './utils/diffSection'
+import { validateSyncState } from './utils/validateSyncState'
 import { getEffectivePayment } from './utils/ccPayment'
 import { isCCPayment } from './utils/ccPaymentDetector'
 import { CommentsProvider } from './context/CommentsContext'
@@ -551,10 +552,14 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   // and other user-edited state with stale data read from data.json at sync start.
   function applySyncState(data) {
     if (!data?.state) return
-    const s = data.state
-    if (s.savingsAccounts) setSavingsAccounts(s.savingsAccounts)
-    if (s.creditCards) setCreditCards(s.creditCards)
-    if (s.investments) setInvestments(s.investments)
+    const validated = validateSyncState(data.state)
+    if (!validated) {
+      console.warn('applySyncState: sync data failed validation, skipping update')
+      return
+    }
+    if (validated.savingsAccounts) setSavingsAccounts(validated.savingsAccounts)
+    if (validated.creditCards) setCreditCards(validated.creditCards)
+    if (validated.investments) setInvestments(validated.investments)
   }
 
   // When S3 storage loads data on mount, apply it.
