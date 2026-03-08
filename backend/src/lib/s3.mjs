@@ -45,6 +45,29 @@ async function s3Get(key) {
   }
 }
 
+async function s3GetWithETag(key) {
+  try {
+    const res = await getS3().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }))
+    const body = await res.Body.transformToString('utf-8')
+    return { data: JSON.parse(body), etag: res.ETag }
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return { data: null, etag: null }
+    }
+    throw err
+  }
+}
+
+async function s3PutIfMatch(key, data, etag) {
+  await getS3().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: JSON.stringify(data, null, 2),
+    ContentType: 'application/json',
+    ...(etag ? { IfMatch: etag } : {}),
+  }))
+}
+
 /**
  * Read and parse data.json from S3, scoped to org.
  * Returns null if the file doesn't exist.
@@ -94,6 +117,23 @@ export async function writeStatement(orgId, statementId, data) {
     Body: JSON.stringify(data, null, 2),
     ContentType: 'application/json',
   }))
+}
+
+/**
+ * Read a statement from S3 with its ETag for optimistic locking.
+ * Returns { data, etag } where data is null if not found.
+ */
+export async function readStatementWithETag(orgId, statementId) {
+  const key = statementId ? statementKey(orgId, statementId) : statementsIndexKey(orgId)
+  return s3GetWithETag(key)
+}
+
+/**
+ * Write a statement to S3 only if the ETag matches (optimistic lock).
+ * Throws a PreconditionFailed error (412) if another write happened since the read.
+ */
+export async function writeStatementIfMatch(orgId, statementId, data, etag) {
+  await s3PutIfMatch(statementKey(orgId, statementId), data, etag)
 }
 
 /**
