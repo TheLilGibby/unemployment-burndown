@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight, Download, ChevronLeft } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { ArrowUpDown, ArrowUp, ArrowDown, Link2, CreditCard, ArrowLeftRight, Briefcase, Tag, Filter, X, ChevronRight, Download } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { STATEMENT_CATEGORIES, findCategory, resolveCategory, getParentCategoryKey } from '../../constants/categories'
 import { useToast } from '../../context/ToastContext'
@@ -106,8 +107,6 @@ export default function TransactionTable({
       return val
     })
   }, [])
-  const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(50)
   const [payrollDropdownTxnId, setPayrollDropdownTxnId] = useState(null)
   const payrollDropdownRef = useRef(null)
   const [categoryDropdownTxnId, setCategoryDropdownTxnId] = useState(null)
@@ -248,11 +247,19 @@ export default function TransactionTable({
     })
   }, [transactions, sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
 
-  // Reset to first page when filters/sort change
-  useEffect(() => { setPage(0) }, [sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
+  const tableContainerRef = useRef(null)
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
-  const paginatedRows = sorted.slice(page * pageSize, (page + 1) * pageSize)
+  const rowVirtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 44,
+    overscan: 10,
+  })
+
+  // Scroll to top when filters/sort change
+  useEffect(() => {
+    tableContainerRef.current?.scrollTo({ top: 0 })
+  }, [sortField, sortDir, filterCategories, filterAccount, searchTerm, minAmount, maxAmount])
 
   function toggleSort(field) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -570,13 +577,18 @@ export default function TransactionTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid var(--border-subtle)' }}>
-        <table className="w-full text-sm">
-          <thead>
+      <div className="rounded-lg" style={{ border: '1px solid var(--border-subtle)' }}>
+        <div
+          ref={tableContainerRef}
+          className="overflow-auto"
+          style={{ maxHeight: 600 }}
+        >
+        <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr style={{ background: 'var(--bg-subtle, var(--bg-card))', borderBottom: '1px solid var(--border-subtle)' }}>
               <th
                 className="text-left px-3 py-2 cursor-pointer select-none"
-                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}
                 onClick={() => toggleSort('date')}
               >
                 Date <SortIcon field="date" />
@@ -590,19 +602,19 @@ export default function TransactionTable({
               </th>
               <th
                 className="text-left px-3 py-2"
-                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '14%' }}
               >
                 Category
               </th>
               <th
                 className="text-left px-3 py-2"
-                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '12%' }}
               >
                 Payment
               </th>
               <th
                 className="text-right px-3 py-2 cursor-pointer select-none"
-                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}
                 onClick={() => toggleSort('amount')}
               >
                 Amount <SortIcon field="amount" />
@@ -626,13 +638,22 @@ export default function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {paginatedRows.map((txn, i) => {
+            {rowVirtualizer.getVirtualItems().length > 0 && (
+              <tr>
+                <td style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} colSpan={999} />
+              </tr>
+            )}
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const i = virtualRow.index
+              const txn = sorted[i]
               const cat = findCategory(txn.category)
               const linkedKey = hasLinking && txnToOverviewMap ? txnToOverviewMap[txn.id] : null
               const payMethod = getPaymentMethod(txn)
               return (
                 <tr
                   key={txn.id || i}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
                   style={{
                     borderBottom: '1px solid var(--border-subtle)',
                     background: i % 2 === 0 ? 'transparent' : 'var(--bg-subtle, rgba(255,255,255,0.02))',
@@ -928,8 +949,20 @@ export default function TransactionTable({
                 </tr>
               )
             })}
+            {rowVirtualizer.getVirtualItems().length > 0 && (
+              <tr>
+                <td
+                  style={{
+                    height: rowVirtualizer.getTotalSize() - (rowVirtualizer.getVirtualItems().at(-1)?.end ?? 0),
+                    padding: 0,
+                  }}
+                  colSpan={999}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
+        </div>
         {sorted.length === 0 && transactions.length > 0 && (
           <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
             No transactions match your filters
@@ -941,39 +974,8 @@ export default function TransactionTable({
             style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}
           >
             <span>
-              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, sorted.length)} of {sorted.length}
+              {sorted.length} transaction{sorted.length !== 1 ? 's' : ''}
             </span>
-            <div className="flex items-center gap-2">
-              <select
-                value={pageSize}
-                onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }}
-                className="text-xs rounded border px-1.5 py-0.5 outline-none"
-                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
-              >
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-                <option value={100}>100 / page</option>
-              </select>
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="p-1 rounded transition-colors disabled:opacity-30"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {page + 1} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="p-1 rounded transition-colors disabled:opacity-30"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
           </div>
         )}
       </div>
