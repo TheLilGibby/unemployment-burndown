@@ -61,6 +61,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('snaptradeConnect', event)
     log.error({ err: error }, 'SnapTrade connect failed')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

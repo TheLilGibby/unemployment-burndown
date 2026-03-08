@@ -72,6 +72,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('patchTransaction', event)
     log.error({ err: error }, 'failed to patch transaction')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

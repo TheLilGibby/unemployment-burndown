@@ -95,7 +95,7 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('sendAlerts', event)
     log.error({ err: error }, 'alert evaluation failed')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }
 

@@ -52,6 +52,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('postSnapshot', event)
     log.error({ err: error }, 'failed to save snapshot')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

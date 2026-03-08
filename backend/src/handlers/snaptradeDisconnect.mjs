@@ -40,6 +40,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('snaptradeDisconnect', event)
     log.error({ err: error }, 'SnapTrade disconnect failed')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

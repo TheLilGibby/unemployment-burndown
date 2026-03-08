@@ -38,6 +38,6 @@ export async function handler(event) {
     return ok({ deleted: toRemove.length })
   } catch (error) {
     log.error({ err: error }, 'failed to delete statements by account')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }
