@@ -21,8 +21,7 @@ Parameters:
       - production
   AllowedOrigin:
     Type: String
-    Description: CORS allowed origin (your Amplify domain or * for dev)
-    Default: '*'
+    Description: CORS allowed origin (e.g. https://your-app.amplifyapp.com)
   S3Bucket:
     Type: String
     Description: S3 bucket storing data.json
@@ -140,7 +139,7 @@ Globals:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization'"
-      AllowOrigin: "'*'"
+      AllowOrigin: !Sub "'${AllowedOrigin}'"
 
 Resources:
   # ---------- DynamoDB ----------

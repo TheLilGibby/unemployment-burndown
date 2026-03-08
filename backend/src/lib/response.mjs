@@ -1,4 +1,7 @@
-const ORIGIN = process.env.ALLOWED_ORIGIN || '*'
+if (!process.env.ALLOWED_ORIGIN) {
+  throw new Error('ALLOWED_ORIGIN environment variable is required')
+}
+const ORIGIN = process.env.ALLOWED_ORIGIN
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  ORIGIN,
