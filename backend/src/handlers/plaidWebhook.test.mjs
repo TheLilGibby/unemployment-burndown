@@ -53,20 +53,20 @@ const { handler } = await import('./plaidWebhook.mjs')
 
 // ── Helpers ──
 
-// Generate an EC key pair for webhook signature testing
+// Generate a valid EC key pair and sign a webhook JWT for testing
 const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
   namedCurve: 'prime256v1',
 })
 
 const testKid = 'test-key-id-001'
 
-function signWebhookJwt(body, { expired = false } = {}) {
+function signWebhookJwt(body, overrides = {}) {
   const header = Buffer.from(JSON.stringify({ alg: 'ES256', kid: testKid, typ: 'JWT' })).toString('base64url')
   const bodyHash = crypto.createHash('sha256').update(body).digest('hex')
-  const iat = expired ? Math.floor(Date.now() / 1000) - 600 : Math.floor(Date.now() / 1000)
   const payload = Buffer.from(JSON.stringify({
-    iat,
+    iat: Math.floor(Date.now() / 1000),
     request_body_sha256: bodyHash,
+    ...overrides,
   })).toString('base64url')
 
   const signingInput = `${header}.${payload}`
@@ -104,6 +104,9 @@ const testItem = {
   itemId: 'item-abc-123',
   accessToken: 'access-sandbox-abc123',
   institutionName: 'Test Bank',
+  institutionId: 'ins_123',
+  cursor: null,
+  connectedBy: 'user-1',
 }
 
 beforeEach(() => {
@@ -111,7 +114,7 @@ beforeEach(() => {
 
   getPlaidClient.mockReturnValue(mockPlaidClient)
 
-  // Return the test JWK for signature verification
+  // Default: return the test JWK for signature verification
   mockPlaidClient.webhookVerificationKeyGet.mockResolvedValue({
     data: {
       key: publicKey.export({ type: 'spki', format: 'jwk' }),
@@ -156,6 +159,7 @@ describe('plaidWebhook handler', () => {
 
     it('returns 401 when body hash does not match', async () => {
       const body = makeWebhookBody()
+      // Sign a JWT with the correct body, then change the body
       const jwt = signWebhookJwt(body)
       const res = await handler({
         body: makeWebhookBody({ item_id: 'different-item' }),
@@ -166,7 +170,7 @@ describe('plaidWebhook handler', () => {
 
     it('returns 401 when JWT is too old', async () => {
       const body = makeWebhookBody()
-      const jwt = signWebhookJwt(body, { expired: true })
+      const jwt = signWebhookJwt(body, { iat: Math.floor(Date.now() / 1000) - 600 })
       const res = await handler({
         body,
         headers: { 'Plaid-Verification': jwt },
@@ -186,6 +190,7 @@ describe('plaidWebhook handler', () => {
       const res = await handler(makeEvent(body))
       expect(res.statusCode).toBe(200)
       expect(JSON.parse(res.body).received).toBe(true)
+      expect(getPlaidItemByItemId).not.toHaveBeenCalled()
       expect(syncHandler).not.toHaveBeenCalled()
     })
 
@@ -193,6 +198,7 @@ describe('plaidWebhook handler', () => {
       const body = makeWebhookBody({ webhook_code: 'SOME_FUTURE_CODE' })
       const res = await handler(makeEvent(body))
       expect(res.statusCode).toBe(200)
+      expect(getPlaidItemByItemId).not.toHaveBeenCalled()
       expect(syncHandler).not.toHaveBeenCalled()
     })
 
