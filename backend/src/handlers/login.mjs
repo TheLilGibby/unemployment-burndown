@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs'
 import { getUserByEmail, incrementLoginAttempts, clearLoginAttempts } from '../lib/users.mjs'
 import { signToken, isEnvSuperAdmin } from '../lib/auth.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -18,6 +19,11 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
  */
 export async function handler(event) {
   try {
+    // Rate limit: 20 login attempts per minute per IP (per-user lockout handles individual accounts)
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'login', key: ip, maxRequests: 20, windowMs: 60_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
+
     const body = JSON.parse(event.body || '{}')
     const { email, password } = body
 
@@ -42,7 +48,7 @@ export async function handler(event) {
         audit.warn({ userId: user.userId, result: 'account_locked', lockedUntil: user.accountLockedUntil }, 'login attempt on locked account')
         return err(423, `Account is temporarily locked. Try again in ${retryAfterSeconds} seconds.`)
       }
-      // Lockout expired — clear it so the user starts fresh
+      // Lockout expired ï¿½ clear it so the user starts fresh
       await clearLoginAttempts(user.userId)
     }
 
@@ -63,7 +69,7 @@ export async function handler(event) {
       return err(401, 'Invalid email or password')
     }
 
-    // Successful login — clear any failed attempt counter
+    // Successful login ï¿½ clear any failed attempt counter
     if (user.failedLoginAttempts > 0) {
       await clearLoginAttempts(user.userId)
     }
@@ -81,7 +87,7 @@ export async function handler(event) {
       })
     }
 
-    // No MFA — return full access token
+    // No MFA ï¿½ return full access token
     const token = signToken(user.userId, { mfaVerified: true, ...orgOpts })
     audit.info({ userId: user.userId, result: 'success', mfaEnabled: false }, 'user logged in')
     return ok({

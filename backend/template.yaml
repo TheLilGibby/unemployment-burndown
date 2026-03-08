@@ -134,6 +134,7 @@ Globals:
         INVITES_TABLE: !Ref HouseholdInvitesTable
         SMS_ENABLED: !Ref SmsEnabled
         SNAPSHOT_RETENTION_DAYS: !Ref SnapshotRetentionDays
+        RATE_LIMIT_TABLE: !Ref RateLimitTable
 
   Api:
     Cors:
@@ -251,6 +252,21 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: RateLimits
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
 
   JobsTable:
     Type: AWS::DynamoDB::Table
@@ -446,6 +462,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
         - Statement:
             - Effect: Allow
               Action: sns:Publish
@@ -465,6 +483,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
         - DynamoDBCrudPolicy:
             TableName: !Ref HouseholdInvitesTable
         - DynamoDBCrudPolicy:
@@ -552,6 +572,8 @@ Resources:
             TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref HouseholdInvitesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       Events:
         Api:
           Type: Api
@@ -567,6 +589,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       Events:
         Api:
           Type: Api
@@ -582,6 +606,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       Events:
         Api:
           Type: Api
@@ -657,6 +683,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       Events:
         Api:
           Type: Api
@@ -672,6 +700,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       Events:
         Api:
           Type: Api

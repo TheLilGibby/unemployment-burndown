@@ -1,8 +1,9 @@
 import { requireAuth } from '../lib/auth.mjs'
 import { getUser, setPhoneOtp } from '../lib/users.mjs'
 import { generateOtp, hashOtp, sendSmsOtp } from '../lib/sms.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000 // 10 minutes
 const E164_REGEX = /^\+[1-9]\d{6,14}$/
@@ -18,6 +19,11 @@ export async function handler(event) {
   try {
     const { user: tokenUser, error: authErr } = requireAuth(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
+
+    // Rate limit: 5 OTP sends per minute per IP
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'send-otp', key: ip, maxRequests: 5, windowMs: 60_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
 
     const body = JSON.parse(event.body || '{}')
     const { phoneNumber } = body

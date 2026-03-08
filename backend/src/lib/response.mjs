@@ -25,6 +25,18 @@ export function err(statusCode, message) {
   }
 }
 
+export function rateLimited(retryAfter) {
+  return {
+    statusCode: 429,
+    headers: {
+      'Content-Type': 'application/json',
+      'Retry-After': String(retryAfter),
+      ...CORS_HEADERS,
+    },
+    body: JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+  }
+}
+
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 

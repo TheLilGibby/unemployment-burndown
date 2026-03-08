@@ -1,8 +1,9 @@
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { getUserByEmail, updatePassword, clearResetToken } from '../lib/users.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 /**
  * POST /api/auth/reset-password
@@ -12,6 +13,11 @@ import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
  */
 export async function handler(event) {
   try {
+    // Rate limit: 5 reset attempts per hour per IP
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'reset-password', key: ip, maxRequests: 5, windowMs: 3_600_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
+
     const body = JSON.parse(event.body || '{}')
     const { email, token, password } = body
 
