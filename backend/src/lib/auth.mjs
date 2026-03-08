@@ -18,10 +18,10 @@ export function isEnvSuperAdmin(email) {
 /**
  * Create a signed JWT for a user.
  */
-export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null } = {}) {
+export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null, expiresIn = JWT_EXPIRES_IN } = {}) {
   const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
   if (impersonatedBy) payload.impersonatedBy = impersonatedBy
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
 
 /**

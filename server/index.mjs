@@ -76,10 +76,10 @@ const users = new Map()  // userId -> { userId, email, passwordHash, mfaEnabled,
 const orgs = new Map()   // orgId -> { orgId, name, joinCode, ownerId, createdAt }
 const orgMembers = new Map() // orgId -> [{ userId, role, joinedAt }]
 
-function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null } = {}) {
+function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null, expiresIn = '24h' } = {}) {
   const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
   if (impersonatedBy) payload.impersonatedBy = impersonatedBy
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' })
+  return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
 
 function isSuperAdminEmail(email) {
@@ -671,11 +671,12 @@ app.post('/api/admin/impersonate', superAdminMiddleware, (req, res) => {
   req.log.warn({ adminUserId: req.user.sub, targetUserId }, 'superadmin started impersonation')
 
   const impersonationToken = signJwt(targetUser.userId, {
-    mfaVerified: true,
+    mfaVerified: false,
     orgId: targetUser.orgId || null,
     orgRole: targetUser.orgRole || null,
     isSuperAdmin: false,
     impersonatedBy: req.user.sub,
+    expiresIn: '1h',
   })
 
   res.json({
@@ -1104,7 +1105,6 @@ const handleExchangeToken = async (req, res) => {
     })
 
     res.json({
-      access_token,
       item_id,
       institution_name: institutionName,
       // Also return fields the usePlaid hook expects from /plaid/exchange
@@ -1138,98 +1138,6 @@ const handleExchangeToken = async (req, res) => {
 app.post('/api/plaid/exchange-token', orgMiddleware, handleExchangeToken)
 app.post('/api/plaid/exchange', orgMiddleware, handleExchangeToken)
 
-// Fetch current balances for a linked institution
-app.post('/api/plaid/balances', orgMiddleware, async (req, res) => {
-  try {
-    const { access_token } = req.body
-    const response = await plaidClient.accountsBalanceGet({ access_token })
-    res.json({
-      accounts: response.data.accounts.map(a => ({
-        account_id: a.account_id,
-        balances: {
-          current: a.balances.current,
-          available: a.balances.available,
-          limit: a.balances.limit,
-        },
-      })),
-    })
-  } catch (err) {
-    req.log.error({ err, plaidError: err.response?.data }, 'balances fetch failed')
-    res.status(500).json({ error: err.response?.data || err.message })
-  }
-})
-
-// Fetch transactions using /transactions/sync for incremental sync
-app.post('/api/plaid/transactions', orgMiddleware, async (req, res) => {
-  try {
-    // Budget check
-    const budget = checkDevBudget()
-    if (!budget.allowed) {
-      return res.status(429).json({ error: `Monthly API budget exhausted (${budget.used}/${budget.limit} calls).` })
-    }
-
-    const { access_token, cursor } = req.body
-
-    let allAdded = []
-    let allModified = []
-    let allRemoved = []
-    let nextCursor = cursor || ''
-    let hasMore = true
-    let pageCount = 0
-
-    while (hasMore && pageCount < MAX_SYNC_PAGES) {
-      pageCount++
-      recordDevCall()
-      const response = await plaidClient.transactionsSync({
-        access_token,
-        cursor: nextCursor || undefined,
-      })
-      const data = response.data
-
-      allAdded = allAdded.concat(data.added)
-      allModified = allModified.concat(data.modified)
-      allRemoved = allRemoved.concat(data.removed)
-      nextCursor = data.next_cursor
-      hasMore = data.has_more
-    }
-
-    if (hasMore) {
-      req.log.warn({ pageLimit: MAX_SYNC_PAGES }, 'transactions sync hit page limit, remaining data will sync on next call')
-    }
-
-    res.json({
-      added: allAdded.map(t => ({
-        transaction_id: t.transaction_id,
-        account_id: t.account_id,
-        date: t.date,
-        name: t.name,
-        merchant_name: t.merchant_name,
-        amount: t.amount,
-        category: t.personal_finance_category
-          ? [t.personal_finance_category.primary, t.personal_finance_category.detailed]
-          : t.category || [],
-        pending: t.pending,
-      })),
-      modified: allModified.map(t => ({
-        transaction_id: t.transaction_id,
-        account_id: t.account_id,
-        date: t.date,
-        name: t.name,
-        merchant_name: t.merchant_name,
-        amount: t.amount,
-        category: t.personal_finance_category
-          ? [t.personal_finance_category.primary, t.personal_finance_category.detailed]
-          : t.category || [],
-        pending: t.pending,
-      })),
-      removed: allRemoved.map(t => ({ transaction_id: t.transaction_id })),
-      next_cursor: nextCursor,
-    })
-  } catch (err) {
-    req.log.error({ err, plaidError: err.response?.data }, 'transactions sync failed')
-    res.status(500).json({ error: err.response?.data || err.message })
-  }
-})
 
 // Budget status endpoint (dev server)
 app.get('/api/plaid/budget', authMiddleware, (req, res) => {
