@@ -1,6 +1,6 @@
 import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
-import { getUser, enableMfa } from '../lib/users.mjs'
+import { getUser, setPendingMfaSecret, enableMfa } from '../lib/users.mjs'
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
@@ -26,6 +26,9 @@ export async function setupHandler(event) {
     const secret = authenticator.generateSecret()
     const otpauth = authenticator.keyuri(user.email, APP_NAME, secret)
 
+    // Persist secret server-side so enableHandler reads it from DB, not client
+    await setPendingMfaSecret(tokenUser.sub, secret)
+
     // Generate QR code as data URL
     const qrDataUrl = await QRCode.toDataURL(otpauth)
 
@@ -44,9 +47,10 @@ export async function setupHandler(event) {
 /**
  * POST /api/auth/enable-mfa
  * Headers: Authorization: Bearer <token>
- * Body: { secret, code }
+ * Body: { code }
  *
- * Verifies the TOTP code against the provided secret, then enables MFA.
+ * Reads the pending TOTP secret from the database (set during setup),
+ * verifies the code, then enables MFA.
  */
 export async function enableHandler(event) {
   try {
@@ -54,20 +58,33 @@ export async function enableHandler(event) {
     if (authErr) return err(authErr.statusCode, authErr.message)
 
     const body = JSON.parse(event.body || '{}')
-    const { secret, code } = body
+    const { code } = body
 
-    if (!secret || !code) {
-      return err(400, 'Secret and code are required')
+    if (!code) {
+      return err(400, 'Code is required')
     }
 
-    // Verify the code against the provided secret
-    const isValid = authenticator.verify({ token: code, secret })
+    // Read the pending secret from the database — never trust client-supplied secrets
+    const user = await getUser(tokenUser.sub)
+    if (!user) return err(404, 'User not found')
+
+    const { pendingMfaSecret, pendingMfaExpiry } = user
+    if (!pendingMfaSecret) {
+      return err(400, 'No pending MFA setup. Please call setup-mfa first.')
+    }
+
+    if (Date.now() > pendingMfaExpiry) {
+      return err(400, 'MFA setup has expired. Please call setup-mfa again.')
+    }
+
+    // Verify the code against the server-stored secret
+    const isValid = authenticator.verify({ token: code, secret: pendingMfaSecret })
     if (!isValid) {
       return err(400, 'Invalid code. Please try again.')
     }
 
     // Enable MFA for the user
-    await enableMfa(tokenUser.sub, secret)
+    await enableMfa(tokenUser.sub, pendingMfaSecret)
 
     const audit = createAuditLogger('enableMfa', event)
     audit.info({ userId: tokenUser.sub }, 'MFA enabled for user')

@@ -47,14 +47,29 @@ export async function getUserByEmail(email) {
   return getUser(email.toLowerCase())
 }
 
+export async function setPendingMfaSecret(userId, pendingMfaSecret) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET pendingMfaSecret = :s, pendingMfaExpiry = :e, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':s': pendingMfaSecret,
+      ':e': Date.now() + 10 * 60 * 1000, // 10 minute expiry
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
 export async function enableMfa(userId, mfaSecret) {
   await doc().send(new UpdateCommand({
     TableName: TABLE,
     Key: { userId },
-    UpdateExpression: 'SET mfaEnabled = :t, mfaSecret = :s, updatedAt = :u',
+    UpdateExpression: 'SET mfaEnabled = :t, mfaSecret = :s, pendingMfaSecret = :n, pendingMfaExpiry = :n2, updatedAt = :u',
     ExpressionAttributeValues: {
       ':t': true,
       ':s': mfaSecret,
+      ':n': null,
+      ':n2': null,
       ':u': new Date().toISOString(),
     },
   }))
