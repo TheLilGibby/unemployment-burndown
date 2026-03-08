@@ -94,6 +94,10 @@ Parameters:
     Type: String
     Description: Enable SMS OTP via AWS SNS (set to 'true' in production)
     Default: 'false'
+  SnapshotRetentionDays:
+    Type: String
+    Description: Number of days to retain daily snapshots (older snapshots are pruned)
+    Default: '90'
 
 Globals:
   Function:
@@ -130,6 +134,7 @@ Globals:
         SNAPTRADE_SYNC_COOLDOWN_SECONDS: !Ref SnapTradeSyncCooldownSeconds
         INVITES_TABLE: !Ref HouseholdInvitesTable
         SMS_ENABLED: !Ref SmsEnabled
+        SNAPSHOT_RETENTION_DAYS: !Ref SnapshotRetentionDays
 
   Api:
     Cors:

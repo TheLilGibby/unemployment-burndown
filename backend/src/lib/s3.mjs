@@ -145,6 +145,13 @@ export async function writeSnapshot(orgId, date, snapshot) {
   await s3Put(snapshotKey(orgId, date), snapshot)
 }
 
+export async function deleteSnapshot(orgId, date) {
+  await getS3().send(new DeleteObjectCommand({
+    Bucket: BUCKET,
+    Key: snapshotKey(orgId, date),
+  }))
+}
+
 // ── Plaid accounts cache ──
 // Stores the last-known accounts response so /plaid/accounts never needs to
 // call Plaid directly. Written by sync and exchange handlers; read by accounts handler.
