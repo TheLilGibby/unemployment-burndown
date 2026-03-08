@@ -59,14 +59,18 @@ export async function getInviteByToken(inviteToken) {
   return (res.Items && res.Items[0]) || null
 }
 
-export async function getInvitesByOrg(orgId) {
-  const res = await doc().send(new QueryCommand({
+export async function getInvitesByOrg(orgId, { limit, exclusiveStartKey } = {}) {
+  const params = {
     TableName: TABLE,
     IndexName: 'orgId-index',
     KeyConditionExpression: 'orgId = :oid',
     ExpressionAttributeValues: { ':oid': orgId },
-  }))
-  return res.Items || []
+  }
+  if (limit) params.Limit = limit
+  if (exclusiveStartKey) params.ExclusiveStartKey = exclusiveStartKey
+
+  const res = await doc().send(new QueryCommand(params))
+  return { items: res.Items || [], lastEvaluatedKey: res.LastEvaluatedKey }
 }
 
 export async function getInvitesByEmail(email) {

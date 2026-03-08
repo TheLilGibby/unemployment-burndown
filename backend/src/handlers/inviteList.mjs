@@ -1,13 +1,14 @@
 import { requireOrg } from '../lib/auth.mjs'
 import { getInvitesByOrg } from '../lib/invites.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, parsePagination, encodeCursor } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * GET /api/org/invites
  * Headers: Authorization: Bearer <token>
  *
- * Lists all invites for the current org. Only owners can view.
+ * Lists invites for the current org with cursor-based pagination.
+ * Only owners can view.
  */
 export async function handler(event) {
   try {
@@ -18,7 +19,8 @@ export async function handler(event) {
       return err(403, 'Only household owners can view invites')
     }
 
-    const invites = await getInvitesByOrg(tokenUser.orgId)
+    const { limit, exclusiveStartKey } = parsePagination(event)
+    const { items: invites, lastEvaluatedKey } = await getInvitesByOrg(tokenUser.orgId, { limit, exclusiveStartKey })
 
     // Filter out sensitive fields and sort by creation date
     const filtered = invites
@@ -32,7 +34,7 @@ export async function handler(event) {
       }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-    return ok({ invites: filtered })
+    return ok({ invites: filtered, nextCursor: encodeCursor(lastEvaluatedKey) })
   } catch (error) {
     const log = createRequestLogger('inviteList', event)
     log.error({ err: error }, 'invite list failed')

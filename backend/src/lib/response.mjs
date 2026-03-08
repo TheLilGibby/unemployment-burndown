@@ -21,3 +21,29 @@ export function err(statusCode, message) {
     body: JSON.stringify({ error: message }),
   }
 }
+
+const DEFAULT_LIMIT = 50
+const MAX_LIMIT = 200
+
+export function parsePagination(event) {
+  const qs = event.queryStringParameters || {}
+  let limit = parseInt(qs.limit, 10)
+  if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_LIMIT
+  if (limit > MAX_LIMIT) limit = MAX_LIMIT
+
+  let exclusiveStartKey = undefined
+  if (qs.cursor) {
+    try {
+      exclusiveStartKey = JSON.parse(Buffer.from(qs.cursor, 'base64url').toString())
+    } catch {
+      // invalid cursor — ignore, start from beginning
+    }
+  }
+
+  return { limit, exclusiveStartKey }
+}
+
+export function encodeCursor(lastEvaluatedKey) {
+  if (!lastEvaluatedKey) return undefined
+  return Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64url')
+}

@@ -32,6 +32,18 @@ import { encrypt, decrypt, isEncryptionConfigured } from '../backend/src/lib/enc
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+// ── Pagination helper for in-memory dev arrays ──
+function paginateArray(arr, query = {}) {
+  let limit = parseInt(query.limit, 10)
+  if (!Number.isFinite(limit) || limit < 1) limit = 50
+  if (limit > 200) limit = 200
+  const offset = parseInt(query.cursor, 10) || 0
+  const items = arr.slice(offset, offset + limit)
+  const nextOffset = offset + limit
+  const nextCursor = nextOffset < arr.length ? String(nextOffset) : undefined
+  return { items, nextCursor }
+}
+
 // Load .env from project root (or parent repo root if in a worktree)
 dotenv.config({ path: resolve(__dirname, '..', '.env') })
 if (!process.env.PLAID_CLIENT_ID) {
@@ -605,7 +617,7 @@ app.post('/api/org/regenerate-code', orgMiddleware, (req, res) => {
 // SUPERADMIN ROUTES
 // ═══════════════════════════════════════════════════════════════
 
-// GET /api/admin/orgs — list all organizations with member counts
+// GET /api/admin/orgs — list all organizations with member counts (paginated)
 app.get('/api/admin/orgs', superAdminMiddleware, (req, res) => {
   const allOrgs = Array.from(orgs.values()).map(org => {
     const members = orgMembers.get(org.orgId) || []
@@ -617,7 +629,8 @@ app.get('/api/admin/orgs', superAdminMiddleware, (req, res) => {
       createdAt: org.createdAt,
     }
   })
-  res.json({ orgs: allOrgs })
+  const { items, nextCursor } = paginateArray(allOrgs, req.query)
+  res.json({ orgs: items, nextCursor })
 })
 
 // GET /api/admin/orgs/:orgId — org detail with member list
@@ -647,7 +660,7 @@ app.get('/api/admin/orgs/:orgId', superAdminMiddleware, (req, res) => {
   })
 })
 
-// GET /api/admin/users — list all users
+// GET /api/admin/users — list all users (paginated)
 app.get('/api/admin/users', superAdminMiddleware, (req, res) => {
   const allUsers = Array.from(users.values()).map(u => ({
     userId: u.userId,
@@ -657,7 +670,8 @@ app.get('/api/admin/users', superAdminMiddleware, (req, res) => {
     mfaEnabled: u.mfaEnabled || false,
     createdAt: u.createdAt,
   }))
-  res.json({ users: allUsers })
+  const { items, nextCursor } = paginateArray(allUsers, req.query)
+  res.json({ users: items, nextCursor })
 })
 
 // POST /api/admin/impersonate — generate impersonation token
@@ -879,12 +893,13 @@ function generateJobId() {
   return `job_${Date.now().toString(36)}_${jobCounter}`
 }
 
-// GET /api/jobs — list all jobs for the org
+// GET /api/jobs — list all jobs for the org (paginated)
 app.get('/api/jobs', orgMiddleware, (req, res) => {
   try {
     const orgJobs = jobsStore.get(req.user.orgId)
-    const jobs = orgJobs ? Array.from(orgJobs.values()) : []
-    res.json({ jobs })
+    const allJobs = orgJobs ? Array.from(orgJobs.values()) : []
+    const { items, nextCursor } = paginateArray(allJobs, req.query)
+    res.json({ jobs: items, nextCursor })
   } catch (err) {
     req.log.error({ err }, 'list jobs failed')
     res.status(500).json({ error: 'Failed to list jobs' })

@@ -225,10 +225,14 @@ export async function deleteUser(userId) {
   }))
 }
 
-export async function listAllUsers() {
-  const res = await doc().send(new ScanCommand({
+export async function listAllUsers({ limit, exclusiveStartKey } = {}) {
+  const params = {
     TableName: TABLE,
     ProjectionExpression: 'userId, email, orgId, orgRole, mfaEnabled, createdAt, updatedAt',
-  }))
-  return res.Items || []
+  }
+  if (limit) params.Limit = limit
+  if (exclusiveStartKey) params.ExclusiveStartKey = exclusiveStartKey
+
+  const res = await doc().send(new ScanCommand(params))
+  return { items: res.Items || [], lastEvaluatedKey: res.LastEvaluatedKey }
 }

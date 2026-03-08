@@ -47,13 +47,17 @@ export async function getJob(orgId, jobId) {
   return res.Item || null
 }
 
-export async function getJobsByOrg(orgId) {
-  const res = await doc().send(new QueryCommand({
+export async function getJobsByOrg(orgId, { limit, exclusiveStartKey } = {}) {
+  const params = {
     TableName: TABLE,
     KeyConditionExpression: 'orgId = :oid',
     ExpressionAttributeValues: { ':oid': orgId },
-  }))
-  return res.Items || []
+  }
+  if (limit) params.Limit = limit
+  if (exclusiveStartKey) params.ExclusiveStartKey = exclusiveStartKey
+
+  const res = await doc().send(new QueryCommand(params))
+  return { items: res.Items || [], lastEvaluatedKey: res.LastEvaluatedKey }
 }
 
 export async function updateJob(orgId, jobId, updates) {
