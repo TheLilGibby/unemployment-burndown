@@ -264,6 +264,29 @@ Resources:
         - AttributeName: jobId
           KeyType: RANGE
 
+  # ---------- Health Check ----------
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/health.handler
+      CodeUri: .
+      Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:DescribeTable
+              Resource: !GetAtt UsersTable.Arn
+        - Statement:
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${S3Bucket}
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/health
+            Method: get
+
   # ---------- Org Lambda Functions ----------
   OrgCreateFunction:
     Type: AWS::Serverless::Function
