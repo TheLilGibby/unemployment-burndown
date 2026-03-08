@@ -1,7 +1,7 @@
 import { requireOrg } from '../lib/auth.mjs'
 import { getOrg } from '../lib/orgs.mjs'
 import { getMembersByOrg } from '../lib/orgMembers.mjs'
-import { getUser } from '../lib/users.mjs'
+import { getUsers } from '../lib/users.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
 
@@ -21,9 +21,12 @@ export async function handler(event) {
 
     const members = await getMembersByOrg(tokenUser.orgId)
 
-    // Enrich members with email and profile info (without exposing sensitive data)
-    const memberList = await Promise.all(members.map(async (m) => {
-      const u = await getUser(m.userId)
+    // Batch-fetch all member user records in one call (up to 100 per batch)
+    const userRecords = await getUsers(members.map(m => m.userId))
+    const userMap = new Map(userRecords.map(u => [u.userId, u]))
+
+    const memberList = members.map((m) => {
+      const u = userMap.get(m.userId)
       return {
         userId: m.userId,
         email: u?.email || m.userId,
@@ -32,7 +35,7 @@ export async function handler(event) {
         profileColor: u?.profileColor || 'blue',
         avatarDataUrl: u?.avatarDataUrl || null,
       }
-    }))
+    })
 
     const response = {
       orgId: org.orgId,

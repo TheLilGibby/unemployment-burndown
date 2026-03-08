@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import {
-  DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand, ScanCommand,
+  DynamoDBDocumentClient, PutCommand, GetCommand, BatchGetCommand, UpdateCommand, DeleteCommand, ScanCommand,
 } from '@aws-sdk/lib-dynamodb'
 
 const TABLE = process.env.USERS_TABLE || 'BurndownUsers'
@@ -40,6 +40,43 @@ export async function getUser(userId) {
     Key: { userId },
   }))
   return res.Item || null
+}
+
+export async function getUsers(userIds) {
+  if (!userIds || userIds.length === 0) return []
+
+  const unique = [...new Set(userIds)]
+  const results = []
+
+  // BatchGetItem supports up to 100 keys per call
+  for (let i = 0; i < unique.length; i += 100) {
+    const batch = unique.slice(i, i + 100)
+    const res = await doc().send(new BatchGetCommand({
+      RequestItems: {
+        [TABLE]: {
+          Keys: batch.map(userId => ({ userId })),
+        },
+      },
+    }))
+
+    if (res.Responses?.[TABLE]) {
+      results.push(...res.Responses[TABLE])
+    }
+
+    // Handle unprocessed keys (DynamoDB throughput limits)
+    let unprocessed = res.UnprocessedKeys?.[TABLE]
+    while (unprocessed?.Keys?.length) {
+      const retry = await doc().send(new BatchGetCommand({
+        RequestItems: { [TABLE]: unprocessed },
+      }))
+      if (retry.Responses?.[TABLE]) {
+        results.push(...retry.Responses[TABLE])
+      }
+      unprocessed = retry.UnprocessedKeys?.[TABLE]
+    }
+  }
+
+  return results
 }
 
 export async function getUserByEmail(email) {
