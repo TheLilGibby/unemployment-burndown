@@ -20,6 +20,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('getData', event)
     log.error({ err: error }, 'failed to read data')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

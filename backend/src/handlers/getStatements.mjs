@@ -29,6 +29,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('getStatements', event)
     log.error({ err: error }, 'failed to get statements')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }

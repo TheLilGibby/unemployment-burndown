@@ -1,6 +1,8 @@
 import { requireAuth } from '../lib/auth.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { sendPushNotification } from '../lib/ntfy.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
+import { createRequestLogger } from '../lib/logger.mjs'
 
 /**
  * POST /api/alerts/test
@@ -28,6 +30,8 @@ export async function handler(event) {
 
     return ok({ tested: true, ...res })
   } catch (error) {
-    return err(500, error.message)
+    const log = createRequestLogger('testAlert', event)
+    log.error({ err: error }, 'test alert failed')
+    return err(500, 'An internal error occurred')
   }
 }
