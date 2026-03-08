@@ -37,6 +37,16 @@ export async function getMembersByOrg(orgId) {
   return res.Items || []
 }
 
+export async function countMembersByOrg(orgId) {
+  const res = await doc().send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: 'orgId = :oid',
+    ExpressionAttributeValues: { ':oid': orgId },
+    Select: 'COUNT',
+  }))
+  return res.Count || 0
+}
+
 export async function getOrgForUser(userId) {
   const res = await doc().send(new QueryCommand({
     TableName: TABLE,

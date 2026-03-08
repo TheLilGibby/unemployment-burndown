@@ -61,7 +61,11 @@ export async function regenerateJoinCode(orgId) {
   return newCode
 }
 
-export async function listAllOrgs() {
-  const res = await doc().send(new ScanCommand({ TableName: TABLE }))
-  return res.Items || []
+export async function listAllOrgs({ limit, exclusiveStartKey } = {}) {
+  const params = { TableName: TABLE }
+  if (limit) params.Limit = limit
+  if (exclusiveStartKey) params.ExclusiveStartKey = exclusiveStartKey
+
+  const res = await doc().send(new ScanCommand(params))
+  return { items: res.Items || [], lastEvaluatedKey: res.LastEvaluatedKey }
 }
