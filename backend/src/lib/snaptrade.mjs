@@ -4,6 +4,13 @@ import { checkBudget, incrementCallCount, SnapTradeBudgetExceededError } from '.
 let _client = null
 
 /**
+ * Returns true if the SnapTrade environment variables are configured.
+ */
+export function isSnapTradeConfigured() {
+  return !!(process.env.SNAPTRADE_CLIENT_ID && process.env.SNAPTRADE_API_SECRET)
+}
+
+/**
  * Returns a budget-guarded SnapTrade client.
  *
  * The SnapTrade SDK uses namespaced methods (e.g. client.authentication.registerSnapTradeUser).
