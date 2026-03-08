@@ -6,6 +6,7 @@ import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 
 const E164_REGEX = /^\+[1-9]\d{6,14}$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
  * POST /api/auth/register
@@ -21,6 +22,10 @@ export async function handler(event) {
 
     if (!email || !password) {
       return err(400, 'Email and password are required')
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return err(400, 'Invalid email format')
     }
 
     if (password.length < 8) {
