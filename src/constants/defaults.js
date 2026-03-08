@@ -85,6 +85,7 @@ export const DEFAULTS = {
   transactionOverrides: {},
   accountCustomizations: {},
   plaidMeta: {},
+  categoryBudgets: {},
   jobScenarios: [],
   retirement: {
     currentAge: 30,

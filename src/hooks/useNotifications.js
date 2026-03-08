@@ -3,7 +3,7 @@ import { formatDate, formatMonths, formatCurrency } from '../utils/formatters'
 
 const DEBOUNCE_MS = 3000
 
-function evaluate(burndown, preferences, initialBalance) {
+function evaluate(burndown, preferences, initialBalance, budgetVariance) {
   if (!preferences.enabled) return []
   if (preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()) return []
 
@@ -73,10 +73,25 @@ function evaluate(burndown, preferences, initialBalance) {
     }
   }
 
+  // Budget over-limit alerts
+  if (Array.isArray(budgetVariance)) {
+    for (const v of budgetVariance) {
+      if (v.overBudget) {
+        notifications.push({
+          id: `notif_budget_over_${v.categoryKey}`,
+          type: 'budget_over',
+          severity: v.pct >= 150 ? 'critical' : 'warning',
+          title: `${v.categoryLabel} Over Budget`,
+          message: `Spent ${formatCurrency(v.actual)} of ${formatCurrency(v.monthlyLimit)} budget (${Math.round(v.pct)}%).`,
+        })
+      }
+    }
+  }
+
   return notifications
 }
 
-export function useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange } = {}) {
+export function useNotifications(burndown, preferences, initialBalance, { addToast, onPreferencesChange, budgetVariance } = {}) {
   const dismissedIds = preferences?.dismissedIds || []
   const prevStateRef = useRef(null)
   const debounceRef = useRef(null)
@@ -103,7 +118,7 @@ export function useNotifications(burndown, preferences, initialBalance, { addToa
 
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      const raw = evaluate(burndown, preferences, initialBalance)
+      const raw = evaluate(burndown, preferences, initialBalance, budgetVariance)
       const active = raw.map(n => ({
         ...n,
         dismissed: dismissedIds.includes(n.id),
@@ -123,7 +138,7 @@ export function useNotifications(burndown, preferences, initialBalance, { addToa
     }, DEBOUNCE_MS)
 
     return () => clearTimeout(debounceRef.current)
-  }, [burndown, preferences, initialBalance, dismissedIds, addToast])
+  }, [burndown, preferences, initialBalance, dismissedIds, addToast, budgetVariance])
 
   const visible = notifications.filter(n => !n.dismissed)
   const unreadCount = visible.length
