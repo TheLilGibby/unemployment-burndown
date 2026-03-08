@@ -631,6 +631,21 @@ Resources:
             Path: /api/auth/enable-mfa
             Method: post
 
+  RefreshTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/refreshToken.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/refresh
+            Method: post
+
   MeFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -740,6 +755,21 @@ Resources:
           Type: Api
           Properties:
             Path: /plaid/link-token
+            Method: post
+
+  PlaidLinkTokenUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/linkTokenUpdate.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /plaid/link-token/update
             Method: post
 
   PlaidExchangeFunction:
@@ -927,6 +957,21 @@ Resources:
           Type: Api
           Properties:
             Path: /snaptrade/disconnect
+            Method: post
+
+  SnapTradeReconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/snapTradeReconnect.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /snaptrade/reconnect
             Method: post
 
   # ---------- Data API (secured S3 proxy) ----------

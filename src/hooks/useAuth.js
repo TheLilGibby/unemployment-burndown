@@ -1,8 +1,80 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 const TOKEN_KEY = 'burndown_token'
 const ADMIN_TOKEN_KEY = 'burndown_admin_token'
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+
+// Refresh tokens 5 minutes before they expire
+const REFRESH_BUFFER_MS = 5 * 60 * 1000
+
+/**
+ * Decode JWT payload without verification (for reading expiry on the client).
+ * Returns null if the token is malformed.
+ */
+function decodeTokenPayload(token) {
+  try {
+    const base64 = token.split('.')[1]
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+// ── Singleton refresh state (shared across all hook instances) ──
+let _refreshPromise = null
+let _refreshTimer = null
+
+async function _doRefresh() {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  if (!token) return null
+
+  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return null
+
+  const data = await res.json()
+  if (data.token) {
+    sessionStorage.setItem(TOKEN_KEY, data.token)
+  }
+  return data.token || null
+}
+
+/**
+ * Attempt to refresh the token. Deduplicates concurrent calls so only
+ * one network request is in-flight at a time.
+ */
+function refreshTokenSingleton() {
+  if (!_refreshPromise) {
+    _refreshPromise = _doRefresh().finally(() => { _refreshPromise = null })
+  }
+  return _refreshPromise
+}
+
+/**
+ * Authenticated fetch wrapper with automatic 401 retry.
+ * On 401, attempts a token refresh and retries the request once.
+ * Other hooks/components can import this for transparent token handling.
+ */
+export async function authFetch(url, options = {}) {
+  const token = sessionStorage.getItem(TOKEN_KEY)
+  const headers = { ...options.headers }
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const res = await fetch(url, { ...options, headers })
+
+  if (res.status === 401 && token) {
+    const newToken = await refreshTokenSingleton()
+    if (newToken) {
+      headers.Authorization = `Bearer ${newToken}`
+      return fetch(url, { ...options, headers })
+    }
+  }
+
+  return res
+}
 
 async function parseResponse(res) {
   const text = await res.text()
@@ -29,6 +101,41 @@ export function useAuth() {
   const [tempToken, setTempToken] = useState(null)
   const [impersonating, setImpersonating] = useState(false)
 
+  const logoutRef = useRef(null)
+
+  // Schedule proactive token refresh before expiry
+  const scheduleRefresh = useCallback((token) => {
+    if (_refreshTimer) {
+      clearTimeout(_refreshTimer)
+      _refreshTimer = null
+    }
+    const payload = decodeTokenPayload(token)
+    if (!payload || !payload.exp) return
+
+    const expiresAt = payload.exp * 1000
+    const delay = expiresAt - Date.now() - REFRESH_BUFFER_MS
+    if (delay <= 0) {
+      // Token is already near expiry — refresh immediately
+      refreshTokenSingleton().then(newToken => {
+        if (newToken) {
+          scheduleRefresh(newToken)
+        } else if (logoutRef.current) {
+          logoutRef.current()
+        }
+      })
+      return
+    }
+
+    _refreshTimer = setTimeout(async () => {
+      const newToken = await refreshTokenSingleton()
+      if (newToken) {
+        scheduleRefresh(newToken)
+      } else if (logoutRef.current) {
+        logoutRef.current()
+      }
+    }, delay)
+  }, [])
+
   // Check for existing token on mount
   useEffect(() => {
     const token = sessionStorage.getItem(TOKEN_KEY)
@@ -52,6 +159,7 @@ export function useAuth() {
         setUser(userData)
         setAuthed(true)
         setLoading(false)
+        scheduleRefresh(token)
       })
       .catch(() => {
         sessionStorage.removeItem(TOKEN_KEY)
@@ -59,7 +167,14 @@ export function useAuth() {
         setImpersonating(false)
         setLoading(false)
       })
-  }, [])
+
+    return () => {
+      if (_refreshTimer) {
+        clearTimeout(_refreshTimer)
+        _refreshTimer = null
+      }
+    }
+  }, [scheduleRefresh])
 
   const login = useCallback(async (email, password) => {
     setError(null)
@@ -86,6 +201,7 @@ export function useAuth() {
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       setAuthed(true)
+      scheduleRefresh(data.token)
       return true
     } catch (e) {
       const msg = e.message || ''
@@ -96,7 +212,7 @@ export function useAuth() {
       }
       return false
     }
-  }, [])
+  }, [scheduleRefresh])
 
   const verifyMfa = useCallback(async (code) => {
     setError(null)
@@ -123,12 +239,13 @@ export function useAuth() {
       setAuthed(true)
       setMfaPending(false)
       setTempToken(null)
+      scheduleRefresh(data.token)
       return true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
       return false
     }
-  }, [tempToken])
+  }, [tempToken, scheduleRefresh])
 
   const register = useCallback(async (email, password, { inviteToken, phoneNumber } = {}) => {
     setError(null)
@@ -173,6 +290,8 @@ export function useAuth() {
         // Don't block registration if consent recording fails
       }
 
+      scheduleRefresh(data.token)
+
       if (data.phoneVerificationRequired) {
         return { phoneVerificationRequired: true, token: data.token }
       }
@@ -182,7 +301,7 @@ export function useAuth() {
       setError(e.message || 'Network error. Please try again.')
       return false
     }
-  }, [])
+  }, [scheduleRefresh])
 
   const sendPhoneOtp = useCallback(async (phoneNumber) => {
     setError(null)
@@ -227,14 +346,19 @@ export function useAuth() {
       }
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
+      scheduleRefresh(data.token)
       return true
     } catch (e) {
       setError(e.message || 'Network error. Please try again.')
       return false
     }
-  }, [])
+  }, [scheduleRefresh])
 
   const logout = useCallback(() => {
+    if (_refreshTimer) {
+      clearTimeout(_refreshTimer)
+      _refreshTimer = null
+    }
     sessionStorage.removeItem(TOKEN_KEY)
     sessionStorage.removeItem(ADMIN_TOKEN_KEY)
     setAuthed(false)
@@ -243,6 +367,9 @@ export function useAuth() {
     setTempToken(null)
     setImpersonating(false)
   }, [])
+
+  // Keep logoutRef in sync so the proactive timer can trigger logout
+  useEffect(() => { logoutRef.current = logout }, [logout])
 
   const cancelMfa = useCallback(() => {
     setMfaPending(false)
@@ -291,12 +418,13 @@ export function useAuth() {
       sessionStorage.setItem(TOKEN_KEY, data.token)
       setUser(data.user)
       setAuthed(true)
+      scheduleRefresh(data.token)
       return true
     } catch (e) {
       setError(e.message || 'Dev login failed')
       return false
     }
-  }, [])
+  }, [scheduleRefresh])
 
   const deleteAccount = useCallback(async () => {
     const token = sessionStorage.getItem(TOKEN_KEY)
@@ -451,6 +579,33 @@ export function useAuth() {
     }
   }, [])
 
+  /**
+   * Wrapper around fetch that automatically:
+   *  - Injects the Bearer token
+   *  - On 401, attempts a token refresh then retries the original request once
+   *  - If refresh fails, logs the user out
+   */
+  const authFetch = useCallback(async (url, options = {}) => {
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    const headers = { ...options.headers }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const res = await fetch(url, { ...options, headers })
+
+    if (res.status === 401) {
+      const newToken = await refreshTokenSingleton()
+      if (newToken) {
+        scheduleRefresh(newToken)
+        headers.Authorization = `Bearer ${newToken}`
+        return fetch(url, { ...options, headers })
+      }
+      // Refresh failed — log out
+      logout()
+    }
+
+    return res
+  }, [logout, scheduleRefresh])
+
   return {
     authed,
     user,
@@ -465,6 +620,7 @@ export function useAuth() {
     logout,
     cancelMfa,
     getToken,
+    authFetch,
     createOrg,
     joinOrg,
     updateProfile,
