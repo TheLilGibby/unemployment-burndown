@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
+import { classifyConnectionError } from '../../utils/connectionErrors'
 
 /**
  * Displays connected SnapTrade brokerages, accounts, and holdings.
@@ -26,6 +27,7 @@ export default function ConnectedBrokeragesPanel({
   syncAll,
   disconnect,
   hasFetched,
+  reconnect,
 }) {
   useEffect(() => {
     if (!hasFetched && fetchAccounts) {
@@ -102,6 +104,8 @@ export default function ConnectedBrokeragesPanel({
           syncing={syncing}
           syncAll={syncAll}
           disconnect={disconnect}
+          reconnect={reconnect}
+          fetchAccounts={fetchAccounts}
           formatTime={formatTime}
         />
       ))}
@@ -128,8 +132,20 @@ export default function ConnectedBrokeragesPanel({
   )
 }
 
-function BrokerageCard({ conn, lastSync, syncing, syncAll, disconnect, formatTime }) {
+function BrokerageCard({ conn, lastSync, syncing, syncAll, disconnect, reconnect, fetchAccounts, formatTime }) {
   const [expanded, setExpanded] = useState(null) // accountId or null
+  const [reconnecting, setReconnecting] = useState(false)
+
+  const handleReconnect = useCallback(async () => {
+    if (!reconnect) return
+    setReconnecting(true)
+    try {
+      await reconnect(conn.connectionId)
+    } catch {
+      // Error surfaced via useSnapTrade error state
+    }
+    setReconnecting(false)
+  }, [reconnect, conn.connectionId])
 
   return (
     <div
@@ -216,11 +232,42 @@ function BrokerageCard({ conn, lastSync, syncing, syncAll, disconnect, formatTim
         </div>
       )}
 
-      {conn.error && (
-        <div className="px-3 py-2 text-xs" style={{ color: '#fb923c', borderTop: '1px solid var(--border-subtle)' }}>
-          {conn.error}
-        </div>
-      )}
+      {conn.error && (() => {
+        const classified = classifyConnectionError(conn.error)
+        const canReconnect = classified?.canReconnect && reconnect
+        const color = classified?.severity === 'institution_down' || classified?.severity === 'rate_limited'
+          ? '#fbbf24'
+          : '#fb923c'
+        return (
+          <div
+            className="px-3 py-2 flex items-center justify-between gap-2"
+            style={{ color, borderTop: '1px solid var(--border-subtle)' }}
+          >
+            <span className="text-xs">
+              {classified?.severity === 'credentials_expired' && '🔑 '}
+              {classified?.severity === 'institution_down' && '🏦 '}
+              {classified?.severity === 'rate_limited' && '⏳ '}
+              {classified?.userMessage || conn.error}
+            </span>
+            {canReconnect && (
+              <button
+                onClick={handleReconnect}
+                disabled={reconnecting}
+                className="text-xs px-2 py-1 rounded-md border transition-colors flex-shrink-0"
+                style={{
+                  borderColor: 'var(--accent-teal, #14b8a6)',
+                  color: 'var(--accent-teal, #14b8a6)',
+                  background: 'rgba(20, 184, 166, 0.1)',
+                  cursor: reconnecting ? 'wait' : 'pointer',
+                  opacity: reconnecting ? 0.6 : 1,
+                }}
+              >
+                {reconnecting ? 'Reconnecting...' : 'Reconnect'}
+              </button>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
