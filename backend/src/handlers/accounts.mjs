@@ -96,8 +96,14 @@ export async function handler(event) {
       }
     }
 
-    // Persist so subsequent calls are free
-    await writeAccountsCache(userId, result)
+    // Only cache if all items succeeded — error items would be served
+    // indefinitely from cache even after the underlying issue is resolved.
+    const hasErrors = result.some(item => item.error)
+    if (!hasErrors) {
+      await writeAccountsCache(userId, result)
+    } else {
+      log.info({ errorCount: result.filter(i => i.error).length }, 'skipping cache write — some items have errors')
+    }
 
     return ok({ items: result, fromCache: false })
   } catch (error) {
