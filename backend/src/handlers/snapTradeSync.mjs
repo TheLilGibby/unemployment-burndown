@@ -120,7 +120,7 @@ export async function handler(event) {
     return ok({ updated: true, accountsUpdated, data })
   } catch (error) {
     log.error({ err: error }, 'SnapTrade sync failed')
-    return err(500, error.message)
+    return err(500, 'An internal error occurred')
   }
 }
 
