@@ -17,5 +17,12 @@
     "plaid": "^41.4.0",
     "qrcode": "^1.5.4",
     "snaptrade-typescript-sdk": "^9.0.172"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }
