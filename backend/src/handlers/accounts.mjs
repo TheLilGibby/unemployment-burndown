@@ -90,7 +90,7 @@ export async function handler(event) {
           institutionId:   item.institutionId,
           connectedBy:     item.connectedBy || null,
           accounts:        [],
-          error:           'Failed to fetch accounts. Try disconnecting and reconnecting this bank.',
+          error:           'Failed to fetch accounts for this connection. Try disconnecting and reconnecting.',
           lastSync:        item.updatedAt || item.createdAt,
         })
       }
