@@ -1328,10 +1328,11 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             }}
           />
         } />
-        <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
-
         {user?.isSuperAdmin && (
-          <Route path="/admin" element={<SuperAdminPage />} />
+          <>
+            <Route path="/admin" element={<SuperAdminPage />} />
+            <Route path="/admin/tools" element={<SuperAdminToolsPage />} />
+          </>
         )}
 
         <Route path="*" element={<Navigate to="/" replace />} />
