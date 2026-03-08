@@ -101,10 +101,22 @@ describe('sendPasswordResetEmail()', () => {
     sgMail.send.mockClear()
   })
 
-  it('escapes the reset URL in HTML href', async () => {
+  it('does not include email in the reset URL', async () => {
     await sendPasswordResetEmail('user@test.com', 'abc123')
     const call = sgMail.send.mock.calls[0][0]
-    // The href value should be HTML-escaped (& becomes &amp; in the URL)
-    expect(call.html).toContain('&amp;email=')
+    expect(call.html).not.toContain('email=')
+    expect(call.text).not.toContain('email=')
+  })
+
+  it('includes only the token in the reset URL', async () => {
+    await sendPasswordResetEmail('user@test.com', 'abc123')
+    const call = sgMail.send.mock.calls[0][0]
+    expect(call.html).toContain('token=abc123')
+  })
+
+  it('HTML-escapes the reset URL in href', async () => {
+    await sendPasswordResetEmail('user@test.com', 'tok&en')
+    const call = sgMail.send.mock.calls[0][0]
+    expect(call.html).toContain('tok&amp;en')
   })
 })

@@ -6,9 +6,7 @@ const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const tokenFromUrl = searchParams.get('token') || ''
-  const emailFromUrl = searchParams.get('email') || ''
 
-  const [email, setEmail] = useState(emailFromUrl)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -34,7 +32,7 @@ export default function ResetPasswordPage() {
       const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, token: tokenFromUrl, password }),
+        body: JSON.stringify({ token: tokenFromUrl, password }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -112,30 +110,6 @@ export default function ResetPasswordPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="resetEmail"
-              className="block text-xs font-medium mb-1.5 uppercase tracking-wide"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Email
-            </label>
-            <input
-              id="resetEmail"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
-              style={{
-                background: 'var(--bg-input)',
-                borderColor: 'var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
-
           <div>
             <label
               htmlFor="newPassword"
