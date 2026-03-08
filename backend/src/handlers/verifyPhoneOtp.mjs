@@ -6,8 +6,9 @@ import { getOrg } from '../lib/orgs.mjs'
 import { addMember, getMember } from '../lib/orgMembers.mjs'
 import { updateUserOrg } from '../lib/users.mjs'
 import { readDataJson, writeDataJson } from '../lib/s3.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 const MAX_ATTEMPTS = 5
 
@@ -23,6 +24,11 @@ export async function handler(event) {
   try {
     const { user: tokenUser, error: authErr } = requireAuth(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
+
+    // Rate limit: 10 verify attempts per minute per IP
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'verify-otp', key: ip, maxRequests: 10, windowMs: 60_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
 
     const body = JSON.parse(event.body || '{}')
     const { code } = body

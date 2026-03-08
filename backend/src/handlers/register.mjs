@@ -2,8 +2,9 @@ import bcrypt from 'bcryptjs'
 import { createUser, getUserByEmail } from '../lib/users.mjs'
 import { signToken } from '../lib/auth.mjs'
 import { getInviteByToken } from '../lib/invites.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 const E164_REGEX = /^\+[1-9]\d{6,14}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -17,6 +18,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  */
 export async function handler(event) {
   try {
+    // Rate limit: 5 registrations per minute per IP
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'register', key: ip, maxRequests: 5, windowMs: 60_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
+
     const body = JSON.parse(event.body || '{}')
     const { email, password, inviteToken, phoneNumber } = body
 

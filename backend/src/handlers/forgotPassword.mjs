@@ -1,8 +1,9 @@
 import crypto from 'node:crypto'
 import { getUserByEmail, setResetToken } from '../lib/users.mjs'
-import { ok } from '../lib/response.mjs'
+import { ok, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 import { sendPasswordResetEmail } from '../lib/email.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000 // 1 hour
 const GENERIC_MSG = 'If an account with that email exists, a password reset link has been sent.'
@@ -15,12 +16,21 @@ const GENERIC_MSG = 'If an account with that email exists, a password reset link
  */
 export async function handler(event) {
   try {
+    // Rate limit: 10 requests per hour per IP
+    const ip = getClientIp(event)
+    const ipRl = await checkRateLimit({ scope: 'forgot-password-ip', key: ip, maxRequests: 10, windowMs: 3_600_000, event })
+    if (!ipRl.allowed) return rateLimited(ipRl.retryAfter)
+
     const body = JSON.parse(event.body || '{}')
     const { email } = body
 
     if (!email) {
       return ok({ message: GENERIC_MSG })
     }
+
+    // Rate limit: 3 resets per hour per email
+    const emailRl = await checkRateLimit({ scope: 'forgot-password-email', key: email.toLowerCase(), maxRequests: 3, windowMs: 3_600_000, event })
+    if (!emailRl.allowed) return rateLimited(emailRl.retryAfter)
 
     const audit = createAuditLogger('forgot-password', event)
     const user = await getUserByEmail(email)

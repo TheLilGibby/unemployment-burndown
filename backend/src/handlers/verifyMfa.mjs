@@ -1,8 +1,9 @@
 import { authenticator } from 'otplib'
 import { getUser } from '../lib/users.mjs'
 import { requireAuth, signToken, isEnvSuperAdmin } from '../lib/auth.mjs'
-import { ok, err } from '../lib/response.mjs'
+import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
+import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
 
 /**
  * POST /api/auth/verify-mfa
@@ -16,6 +17,11 @@ export async function handler(event) {
     // tempToken is a JWT with mfaVerified=false
     const { user: tokenUser, error: authErr } = requireAuth(event)
     if (authErr) return err(authErr.statusCode, authErr.message)
+
+    // Rate limit: 10 MFA verify attempts per minute per IP
+    const ip = getClientIp(event)
+    const rl = await checkRateLimit({ scope: 'verify-mfa', key: ip, maxRequests: 10, windowMs: 60_000, event })
+    if (!rl.allowed) return rateLimited(rl.retryAfter)
 
     const body = JSON.parse(event.body || '{}')
     const { code } = body
