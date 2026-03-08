@@ -162,15 +162,16 @@ export async function updateUserPhone(userId, phoneNumber, phoneVerified) {
   }))
 }
 
-export async function setPhoneOtp(userId, otpHash, otpExpiry) {
+export async function setPhoneOtp(userId, otpHash, otpExpiry, pendingPhone) {
   await doc().send(new UpdateCommand({
     TableName: TABLE,
     Key: { userId },
-    UpdateExpression: 'SET phoneOtpHash = :h, phoneOtpExpiry = :e, phoneOtpAttempts = :a, updatedAt = :u',
+    UpdateExpression: 'SET phoneOtpHash = :h, phoneOtpExpiry = :e, phoneOtpAttempts = :a, pendingPhone = :pp, updatedAt = :u',
     ExpressionAttributeValues: {
       ':h': otpHash,
       ':e': otpExpiry,
       ':a': 0,
+      ':pp': pendingPhone,
       ':u': new Date().toISOString(),
     },
   }))
@@ -180,11 +181,12 @@ export async function clearPhoneOtp(userId) {
   await doc().send(new UpdateCommand({
     TableName: TABLE,
     Key: { userId },
-    UpdateExpression: 'SET phoneOtpHash = :n, phoneOtpExpiry = :n2, phoneOtpAttempts = :n3, updatedAt = :u',
+    UpdateExpression: 'SET phoneOtpHash = :n, phoneOtpExpiry = :n2, phoneOtpAttempts = :n3, pendingPhone = :n4, updatedAt = :u',
     ExpressionAttributeValues: {
       ':n': null,
       ':n2': null,
       ':n3': null,
+      ':n4': null,
       ':u': new Date().toISOString(),
     },
   }))
@@ -202,19 +204,37 @@ export async function incrementOtpAttempts(userId) {
   }))
 }
 
-export async function setPhoneVerified(userId) {
+export async function setPhoneVerified(userId, pendingPhone) {
+  const updates = [
+    'phoneVerified = :t',
+    'mfaEnabled = :t',
+    'mfaMethod = :m',
+    'phoneOtpHash = :n',
+    'phoneOtpExpiry = :n2',
+    'phoneOtpAttempts = :n3',
+    'pendingPhone = :n4',
+    'updatedAt = :u',
+  ]
+  const values = {
+    ':t': true,
+    ':m': 'sms',
+    ':n': null,
+    ':n2': null,
+    ':n3': null,
+    ':n4': null,
+    ':u': new Date().toISOString(),
+  }
+
+  if (pendingPhone) {
+    updates.push('phoneNumber = :pn')
+    values[':pn'] = pendingPhone
+  }
+
   await doc().send(new UpdateCommand({
     TableName: TABLE,
     Key: { userId },
-    UpdateExpression: 'SET phoneVerified = :t, mfaEnabled = :t, mfaMethod = :m, phoneOtpHash = :n, phoneOtpExpiry = :n2, phoneOtpAttempts = :n3, updatedAt = :u',
-    ExpressionAttributeValues: {
-      ':t': true,
-      ':m': 'sms',
-      ':n': null,
-      ':n2': null,
-      ':n3': null,
-      ':u': new Date().toISOString(),
-    },
+    UpdateExpression: `SET ${updates.join(', ')}`,
+    ExpressionAttributeValues: values,
   }))
 }
 

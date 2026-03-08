@@ -1,5 +1,5 @@
 import { requireAuth } from '../lib/auth.mjs'
-import { getUser, setPhoneOtp, updateUserPhone } from '../lib/users.mjs'
+import { getUser, setPhoneOtp } from '../lib/users.mjs'
 import { generateOtp, hashOtp, sendSmsOtp } from '../lib/sms.mjs'
 import { ok, err } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
@@ -46,9 +46,8 @@ export async function handler(event) {
     const otpHash = hashOtp(otp)
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS).toISOString()
 
-    // Update phone number on user record
-    await updateUserPhone(tokenUser.sub, phoneNumber, false)
-    await setPhoneOtp(tokenUser.sub, otpHash, otpExpiry)
+    // Store phone as pending — only promoted to phoneNumber after OTP verification
+    await setPhoneOtp(tokenUser.sub, otpHash, otpExpiry, phoneNumber)
 
     // Send SMS
     await sendSmsOtp(phoneNumber, otp)
