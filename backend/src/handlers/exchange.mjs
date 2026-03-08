@@ -139,6 +139,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('exchange', event)
     log.error({ err: error, plaidError: error.response?.data }, 'token exchange failed')
-    return err(500, error.response?.data?.error_message || error.message)
+    return err(500, 'An internal error occurred')
   }
 }

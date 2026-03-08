@@ -261,7 +261,7 @@ export async function handler(event) {
       return err(429, error.message)
     }
     log.error({ err: error, plaidError: error.response?.data }, 'sync failed')
-    return err(500, error.response?.data?.error_message || error.message)
+    return err(500, 'An internal error occurred')
   }
 }
 

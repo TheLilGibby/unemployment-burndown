@@ -90,7 +90,7 @@ export async function handler(event) {
           institutionId:   item.institutionId,
           connectedBy:     item.connectedBy || null,
           accounts:        [],
-          error:           acctErr.response?.data?.error_message || acctErr.message,
+          error:           'Failed to fetch accounts for this connection. Try disconnecting and reconnecting.',
           lastSync:        item.updatedAt || item.createdAt,
         })
       }
@@ -103,6 +103,6 @@ export async function handler(event) {
   } catch (error) {
     const log = createRequestLogger('accounts', event)
     log.error({ err: error, plaidError: error.response?.data }, 'accounts fetch failed')
-    return err(500, error.response?.data?.error_message || error.message)
+    return err(500, 'An internal error occurred')
   }
 }
