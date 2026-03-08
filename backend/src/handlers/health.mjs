@@ -51,6 +51,7 @@ export async function handler(event) {
   const body = {
     status: healthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '0.0.1',
     checks,
   }
 

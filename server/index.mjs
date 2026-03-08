@@ -170,6 +170,51 @@ async function s3Put(key, data) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// HEALTH CHECK
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/api/health', async (_req, res) => {
+  const checks = {}
+  let healthy = true
+
+  if (USE_LOCAL_DATA) {
+    checks.dynamodb = 'ok'
+  } else {
+    try {
+      const { DynamoDBClient: DDBClient, DescribeTableCommand } = await import('@aws-sdk/client-dynamodb')
+      const ddb = new DDBClient({})
+      await ddb.send(new DescribeTableCommand({ TableName: process.env.USERS_TABLE || 'BurndownUsers' }))
+      checks.dynamodb = 'ok'
+    } catch {
+      checks.dynamodb = 'error'
+      healthy = false
+    }
+  }
+
+  if (USE_LOCAL_DATA) {
+    checks.s3 = 'ok'
+  } else {
+    try {
+      const { HeadBucketCommand } = await import('@aws-sdk/client-s3')
+      await s3.send(new HeadBucketCommand({ Bucket: S3_BUCKET }))
+      checks.s3 = 'ok'
+    } catch {
+      checks.s3 = 'error'
+      healthy = false
+    }
+  }
+
+  const body = {
+    status: healthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '0.0.1',
+    checks,
+  }
+
+  res.status(healthy ? 200 : 503).json(body)
+})
+
+// ═══════════════════════════════════════════════════════════════
 // AUTH ROUTES
 // ═══════════════════════════════════════════════════════════════
 
