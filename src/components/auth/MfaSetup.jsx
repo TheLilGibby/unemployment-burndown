@@ -60,7 +60,7 @@ export default function MfaSetup({ mfaEnabled, onMfaChange }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ secret, code }),
+        body: JSON.stringify({ code }),
       })
       const data = await safeJson(res)
       if (!res.ok) throw new Error(data.error || data.message)
