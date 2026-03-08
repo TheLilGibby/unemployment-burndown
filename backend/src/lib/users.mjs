@@ -204,6 +204,46 @@ export async function incrementOtpAttempts(userId) {
   }))
 }
 
+export async function incrementLoginAttempts(userId, lockoutUntil) {
+  const updates = [
+    'failedLoginAttempts = if_not_exists(failedLoginAttempts, :zero) + :one',
+    'lastFailedLoginAt = :now',
+    'updatedAt = :u',
+  ]
+  const values = {
+    ':zero': 0,
+    ':one': 1,
+    ':now': new Date().toISOString(),
+    ':u': new Date().toISOString(),
+  }
+
+  if (lockoutUntil) {
+    updates.push('accountLockedUntil = :lock')
+    values[':lock'] = lockoutUntil
+  }
+
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: `SET ${updates.join(', ')}`,
+    ExpressionAttributeValues: values,
+  }))
+}
+
+export async function clearLoginAttempts(userId) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET failedLoginAttempts = :zero, accountLockedUntil = :n, lastFailedLoginAt = :n2, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':zero': 0,
+      ':n': null,
+      ':n2': null,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
 export async function setPhoneVerified(userId, pendingPhone) {
   const updates = [
     'phoneVerified = :t',
