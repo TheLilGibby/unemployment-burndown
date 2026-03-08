@@ -39,10 +39,10 @@ export async function sendPasswordResetEmail(toEmail, resetToken) {
   })
 }
 
-export async function sendInviteEmail(toEmail, inviterEmail, orgName, inviteUrl, joinCode) {
+export async function sendInviteEmail(toEmail, inviterEmail, orgName, inviteUrl) {
   if (!SENDGRID_API_KEY) {
     logger.info(
-      { email: toEmail, inviterEmail, orgName, inviteUrl, joinCode },
+      { email: toEmail, inviterEmail, orgName, inviteUrl },
       'DEV MODE: Household invite link (not sent via email)',
     )
     return
@@ -57,14 +57,11 @@ export async function sendInviteEmail(toEmail, inviterEmail, orgName, inviteUrl,
       '',
       `Click here to accept the invite: ${inviteUrl}`,
       '',
-      `Your household join code is: ${joinCode}`,
-      '',
       'This invite expires in 7 days. You will need to set up two-factor authentication (SMS) during signup.',
     ].join('\n'),
     html: [
       `<p><strong>${inviterEmail}</strong> has invited you to join the <strong>"${orgName}"</strong> household on Financial Burndown.</p>`,
       `<p><a href="${inviteUrl}" style="display:inline-block;padding:12px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Accept Invite</a></p>`,
-      `<p style="color:#666;font-size:14px;">Your household join code is: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-weight:bold;">${joinCode}</code></p>`,
       '<p style="color:#999;font-size:12px;">This invite expires in 7 days. You will need to set up two-factor authentication (SMS) during signup.</p>',
     ].join(''),
   })
