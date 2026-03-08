@@ -631,6 +631,21 @@ Resources:
             Path: /api/auth/enable-mfa
             Method: post
 
+  RefreshTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/refreshToken.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/auth/refresh
+            Method: post
+
   MeFunction:
     Type: AWS::Serverless::Function
     Properties:
