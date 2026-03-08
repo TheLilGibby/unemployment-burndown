@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'
+const WEAK_DEFAULTS = ['change-me-in-production', 'dev-secret-change-in-prod']
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET || WEAK_DEFAULTS.includes(JWT_SECRET)) {
+  throw new Error('FATAL: JWT_SECRET environment variable must be set to a strong, unique value')
+}
 const JWT_EXPIRES_IN = '24h'
 
 /**

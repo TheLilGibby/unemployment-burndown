@@ -68,7 +68,10 @@ if (!USE_LOCAL_DATA) {
 }
 
 // ── Auth (in-memory stores for local dev) ──
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod'
+if (!process.env.JWT_SECRET) {
+  log.warn('JWT_SECRET is not set — using insecure dev-only default. Do NOT use in production.')
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-DO-NOT-USE-IN-PROD'
 const users = new Map()  // userId -> { userId, email, passwordHash, mfaEnabled, mfaSecret, orgId, orgRole }
 const orgs = new Map()   // orgId -> { orgId, name, joinCode, ownerId, createdAt }
 const orgMembers = new Map() // orgId -> [{ userId, role, joinedAt }]
