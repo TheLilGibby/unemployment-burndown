@@ -97,6 +97,10 @@ Parameters:
     Type: String
     Description: Number of days to retain daily snapshots (older snapshots are pruned)
     Default: '90'
+  PlaidWebhookUrl:
+    Type: String
+    Description: Public URL for receiving Plaid webhooks (e.g. https://<api-id>.execute-api.<region>.amazonaws.com/Prod/plaid/webhook)
+    Default: ''
 
 Globals:
   Function:
@@ -134,6 +138,7 @@ Globals:
         INVITES_TABLE: !Ref HouseholdInvitesTable
         SMS_ENABLED: !Ref SmsEnabled
         SNAPSHOT_RETENTION_DAYS: !Ref SnapshotRetentionDays
+        PLAID_WEBHOOK_URL: !Ref PlaidWebhookUrl
 
   Api:
     Cors:
@@ -158,6 +163,13 @@ Resources:
           KeyType: HASH
         - AttributeName: itemId
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: itemId-index
+          KeySchema:
+            - AttributeName: itemId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   UsersTable:
     Type: AWS::DynamoDB::Table
@@ -818,6 +830,26 @@ Resources:
             Path: /plaid/budget
             Method: get
 
+  PlaidWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/plaidWebhook.handler
+      CodeUri: .
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlaidTokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrgMembersTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /plaid/webhook
+            Method: post
+
   # ---------- SnapTrade Lambda Functions ----------
   SnapTradeConnectFunction:
     Type: AWS::Serverless::Function
@@ -1191,6 +1223,9 @@ Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  PlaidWebhookUrl:
+    Description: Plaid webhook endpoint URL (set this as PlaidWebhookUrl parameter to enable)
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/plaid/webhook"
   PlaidTokensTableName:
     Description: DynamoDB table for Plaid tokens
     Value: !Ref PlaidTokensTable
