@@ -115,6 +115,22 @@ export function isValidAccessToken(token) {
 }
 
 /**
+ * Look up a Plaid item by itemId alone (uses the itemId-index GSI).
+ * Returns the first matching item with decrypted token, or null.
+ * Used by webhook handlers where only item_id is known.
+ */
+export async function getPlaidItemByItemId(itemId) {
+  const res = await getDocClient().send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'itemId-index',
+    KeyConditionExpression: 'itemId = :iid',
+    ExpressionAttributeValues: { ':iid': itemId },
+    Limit: 1,
+  }))
+  return decryptItem(res.Items?.[0]) || null
+}
+
+/**
  * Delete a Plaid item.
  */
 export async function deletePlaidItem(userId, itemId) {

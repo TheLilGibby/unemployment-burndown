@@ -18,14 +18,21 @@ export async function handler(event) {
 
     const client = getPlaidClient()
 
-    const response = await client.linkTokenCreate({
+    const params = {
       user:           { client_user_id: user.sub },
       client_name:    'Burndown Tracker',
       products:       [Products.Transactions],
       transactions:   { days_requested: 1461 },
       country_codes:  [CountryCode.Us],
       language:       'en',
-    })
+    }
+
+    // Register webhook URL so Plaid pushes real-time transaction updates
+    if (process.env.PLAID_WEBHOOK_URL) {
+      params.webhook = process.env.PLAID_WEBHOOK_URL
+    }
+
+    const response = await client.linkTokenCreate(params)
 
     return ok({ link_token: response.data.link_token })
   } catch (error) {
