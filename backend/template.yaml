@@ -98,6 +98,10 @@ Parameters:
     Type: String
     Description: Number of days to retain daily snapshots (older snapshots are pruned)
     Default: '90'
+  SuperAdmins:
+    Type: String
+    Description: Comma-separated list of superadmin email addresses
+    Default: ''
 
 Globals:
   Function:
@@ -135,6 +139,7 @@ Globals:
         INVITES_TABLE: !Ref HouseholdInvitesTable
         SMS_ENABLED: !Ref SmsEnabled
         SNAPSHOT_RETENTION_DAYS: !Ref SnapshotRetentionDays
+        SUPER_ADMINS: !Ref SuperAdmins
 
   Api:
     Cors:
