@@ -66,7 +66,7 @@ export async function handler(event) {
     const APP_URL = process.env.APP_URL || 'http://localhost:5173'
     const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
 
-    await sendInviteEmail(emailLower, inviter?.email || tokenUser.sub, org.name, inviteUrl, org.joinCode)
+    await sendInviteEmail(emailLower, inviter?.email || tokenUser.sub, org.name, inviteUrl)
 
     const audit = createAuditLogger('inviteCreate', event)
     audit.info({ inviteId, orgId: tokenUser.orgId, invitedEmail: emailLower }, 'invite created')
