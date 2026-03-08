@@ -23,6 +23,7 @@ import JobScenariosPage from './components/scenarios/JobScenariosPage'
 import UserProfilePage from './pages/UserProfilePage'
 import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
+import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
 import AccountsSidebar from './components/statements/AccountsSidebar'
 import { useStatementStorage } from './hooks/useStatementStorage'
 import { useS3Storage } from './hooks/useS3Storage'
@@ -1218,6 +1219,21 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             creditCards={creditCards}
             people={people}
           />
+        } />
+
+        <Route path="/analysis" element={
+          <ErrorBoundary level="section">
+            <ComparativeAnalysisPage
+              dataPoints={current.dataPoints}
+              baseDataPoints={base?.dataPoints}
+              jobScenarios={jobScenarios}
+              jobScenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              effectiveExpenses={current.effectiveExpenses}
+              currentNetBurn={current.currentNetBurn}
+              monthlyBenefits={current.monthlyBenefits}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/settings" element={
