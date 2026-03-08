@@ -1,22 +1,32 @@
 import { useState, useRef, useEffect } from 'react'
-import { Download, FileText, Table, Package } from 'lucide-react'
+import { Download, FileText, Table, Package, CreditCard, TrendingUp, DollarSign, Database } from 'lucide-react'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
   exportSavingsCSV,
   exportScenariosCSV,
+  exportTransactionsCSV,
+  exportIncomeCSV,
+  exportCreditCardsCSV,
+  exportInvestmentsCSV,
   exportAllData,
   exportSummaryJSON,
+  exportFullBackupJSON,
 } from '../../utils/export'
 
-export default function ExportMenu({ 
-  burndown, 
-  expenses, 
-  savingsAccounts, 
-  scenarios, 
+export default function ExportMenu({
+  burndown,
+  expenses,
+  savingsAccounts,
+  scenarios,
   scenarioResults,
   totalSavings,
-  unemployment 
+  unemployment,
+  creditCards,
+  monthlyIncome,
+  investments,
+  transactions,
+  fullState,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef(null)
@@ -53,6 +63,8 @@ export default function ExportMenu({
         scenarioResults,
         totalSavings,
         unemployment,
+        creditCards,
+        investments,
       })
       setIsOpen(false)
     } catch (error) {
@@ -81,6 +93,32 @@ export default function ExportMenu({
     }
   }
 
+  const MenuItem = ({ icon: Icon, label, onClick, disabled }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ color: 'var(--text-default)' }}
+      onMouseEnter={(e) => {
+        if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--bg-hover)'
+      }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    >
+      <Icon className="w-4 h-4" />
+      <span>{label}</span>
+    </button>
+  )
+
+  const SectionLabel = ({ children }) => (
+    <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+      {children}
+    </div>
+  )
+
+  const Divider = () => (
+    <div className="my-2 border-t" style={{ borderColor: 'var(--border-subtle)' }} />
+  )
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -99,138 +137,31 @@ export default function ExportMenu({
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 w-64 rounded-xl shadow-xl border z-50"
+          className="absolute right-0 top-full mt-2 w-64 rounded-xl shadow-xl border z-50 max-h-96 overflow-y-auto"
           style={{
             background: 'var(--bg-elevated)',
             borderColor: 'var(--border-subtle)',
           }}
         >
           <div className="p-2">
-            <div
-              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Export Data
-            </div>
+            <SectionLabel>CSV Exports</SectionLabel>
+            <MenuItem icon={Table} label="Burndown Timeline" onClick={() => handleExport(exportBurndownCSV, burndown)} disabled={!burndown?.timeline?.length} />
+            <MenuItem icon={Table} label="Expenses" onClick={() => handleExport(exportExpensesCSV, expenses)} disabled={!expenses?.length} />
+            <MenuItem icon={Table} label="Savings Accounts" onClick={() => handleExport(exportSavingsCSV, savingsAccounts)} disabled={!savingsAccounts?.length} />
+            <MenuItem icon={Table} label="Scenarios" onClick={() => handleExport(exportScenariosCSV, scenarios, scenarioResults)} disabled={!scenarios?.length} />
+            <MenuItem icon={CreditCard} label="Credit Cards" onClick={() => handleExport(exportCreditCardsCSV, creditCards)} disabled={!creditCards?.length} />
+            <MenuItem icon={DollarSign} label="Income Sources" onClick={() => handleExport(exportIncomeCSV, monthlyIncome)} disabled={!monthlyIncome?.length} />
+            <MenuItem icon={TrendingUp} label="Investments" onClick={() => handleExport(exportInvestmentsCSV, investments)} disabled={!investments?.length} />
+            <MenuItem icon={Table} label="Transactions" onClick={() => handleExport(exportTransactionsCSV, transactions)} disabled={!transactions?.length} />
 
-            <button
-              onClick={() => handleExport(exportBurndownCSV, burndown)}
-              disabled={!burndown?.timeline || burndown.timeline.length === 0}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <Table className="w-4 h-4" />
-              <span>Burndown Timeline CSV</span>
-            </button>
+            <Divider />
+            <SectionLabel>Bundles</SectionLabel>
+            <MenuItem icon={Package} label="Export All (CSV Bundle)" onClick={handleExportAll} />
+            <MenuItem icon={FileText} label="Summary JSON" onClick={handleExportJSON} />
 
-            <button
-              onClick={() => handleExport(exportExpensesCSV, expenses)}
-              disabled={!expenses || expenses.length === 0}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <Table className="w-4 h-4" />
-              <span>Expenses CSV</span>
-            </button>
-
-            <button
-              onClick={() => handleExport(exportSavingsCSV, savingsAccounts)}
-              disabled={!savingsAccounts || savingsAccounts.length === 0}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <Table className="w-4 h-4" />
-              <span>Savings Accounts CSV</span>
-            </button>
-
-            <button
-              onClick={() => handleExport(exportScenariosCSV, scenarios, scenarioResults)}
-              disabled={!scenarios || scenarios.length === 0}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <Table className="w-4 h-4" />
-              <span>Scenarios CSV</span>
-            </button>
-
-            <div
-              className="my-2 border-t"
-              style={{ borderColor: 'var(--border-subtle)' }}
-            />
-
-            <button
-              onClick={handleExportAll}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <Package className="w-4 h-4" />
-              <span>Export All (CSV Bundle)</span>
-            </button>
-
-            <button
-              onClick={handleExportJSON}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
-              style={{
-                color: 'var(--text-default)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Summary JSON</span>
-            </button>
+            <Divider />
+            <SectionLabel>Backup</SectionLabel>
+            <MenuItem icon={Database} label="Full Data Backup" onClick={() => handleExport(exportFullBackupJSON, fullState || { burndown, expenses, savingsAccounts, scenarios, scenarioResults, totalSavings, unemployment, creditCards, monthlyIncome, investments, transactions })} />
           </div>
         </div>
       )}
