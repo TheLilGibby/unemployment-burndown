@@ -53,8 +53,8 @@ export async function handler(event) {
       return err(401, 'Invalid verification code')
     }
 
-    // Mark phone as verified and enable SMS MFA
-    await setPhoneVerified(tokenUser.sub)
+    // Promote pendingPhone to phoneNumber and enable SMS MFA
+    await setPhoneVerified(tokenUser.sub, user.pendingPhone)
 
     const audit = createAuditLogger('verifyPhoneOtp', event)
     audit.info({ userId: tokenUser.sub }, 'phone verified, SMS 2FA enabled')
@@ -116,7 +116,7 @@ export async function handler(event) {
         email: user.email,
         mfaEnabled: true,
         mfaMethod: 'sms',
-        phoneNumber: user.phoneNumber,
+        phoneNumber: user.pendingPhone || user.phoneNumber,
         phoneVerified: true,
         orgId,
         orgRole,
