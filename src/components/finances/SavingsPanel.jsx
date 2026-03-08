@@ -6,6 +6,7 @@ import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
+import ConfirmDeleteModal from '../common/ConfirmDeleteModal'
 
 function TrashIcon() {
   return (
@@ -48,6 +49,7 @@ function lookupInstitution(plaidLinkedItems, plaidAccountId) {
 export default function SavingsPanel({ accounts, onChange, people = [], filterPersonId = null, plaidLinkedItems = [] }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(accounts, onChange)
   const [expandedIds, setExpandedIds] = useState(new Set())
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
 
   const hasAnyPlaid = accounts.some(a => a.plaidAccountId)
 
@@ -235,7 +237,7 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                 />
                 <CommentButton itemId={`account_${account.id}`} label={account.name || 'Account'} />
                 <button
-                  onClick={() => deleteAccount(account.id)}
+                  onClick={() => setPendingDeleteId(account.id)}
                   className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
                   title="Remove account"
                 >
@@ -282,6 +284,14 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
         <p className="text-xs" style={{ color: 'var(--text-faint, #6b7280)' }}>
           Some balances sync automatically via <strong>Plaid</strong>. Synced accounts update when you click Sync in the Connected Bank Accounts section.
         </p>
+      )}
+
+      {pendingDeleteId != null && (
+        <ConfirmDeleteModal
+          itemName={accounts.find(a => a.id === pendingDeleteId)?.name || 'this account'}
+          onConfirm={() => { deleteAccount(pendingDeleteId); setPendingDeleteId(null) }}
+          onCancel={() => setPendingDeleteId(null)}
+        />
       )}
     </div>
   )

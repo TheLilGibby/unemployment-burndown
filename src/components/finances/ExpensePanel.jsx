@@ -6,6 +6,7 @@ import DragHandle from '../layout/DragHandle'
 import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
+import ConfirmDeleteModal from '../common/ConfirmDeleteModal'
 
 function TrashIcon() {
   return (
@@ -19,6 +20,7 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(expenses, onChange)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [bulkCategory, setBulkCategory] = useState('')
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
 
   function toggleSelected(id) {
     setSelectedIds(prev => {
@@ -187,7 +189,7 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
               />
               <CommentButton itemId={`expense_${expense.id}`} label={expense.category || 'Expense'} />
               <button
-                onClick={() => deleteExpense(expense.id)}
+                onClick={() => setPendingDeleteId(expense.id)}
                 className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
               >
                 <TrashIcon />
@@ -234,6 +236,14 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
       <p className="text-xs text-gray-600">
         "Essential" expenses are protected from the What-If expense reduction slider. Drag <span className="text-gray-500">⠿</span> to reorder.
       </p>
+
+      {pendingDeleteId != null && (
+        <ConfirmDeleteModal
+          itemName={expenses.find(e => e.id === pendingDeleteId)?.category || 'this expense'}
+          onConfirm={() => { deleteExpense(pendingDeleteId); setPendingDeleteId(null) }}
+          onCancel={() => setPendingDeleteId(null)}
+        />
+      )}
     </div>
   )
 }
