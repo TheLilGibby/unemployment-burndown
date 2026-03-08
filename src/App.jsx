@@ -1321,6 +1321,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               scenarioResults: jobScenarioResults,
               totalSavings,
               unemployment,
+              creditCards,
+              monthlyIncome,
+              investments,
+              transactions: effectiveTransactions,
             }}
           />
         } />

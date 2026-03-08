@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera, MapPin, Download, Table, FileText, Package } from 'lucide-react'
+import { User, Mail, Building2, Shield, Key, Bell, BellOff, Trash2, AlertTriangle, Sun, Moon, Monitor, EyeOff, Briefcase, Palette, Camera, MapPin, Download, Table, FileText, Package, Database, CreditCard, TrendingUp, DollarSign } from 'lucide-react'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
   exportSavingsCSV,
   exportScenariosCSV,
+  exportTransactionsCSV,
+  exportIncomeCSV,
+  exportCreditCardsCSV,
+  exportInvestmentsCSV,
   exportAllData,
   exportSummaryJSON,
+  exportFullBackupJSON,
 } from '../utils/export'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -607,6 +612,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                     { label: 'Expenses CSV', icon: Table, onClick: () => exportExpensesCSV(exportData.expenses), disabled: !exportData.expenses?.length },
                     { label: 'Savings Accounts CSV', icon: Table, onClick: () => exportSavingsCSV(exportData.savingsAccounts), disabled: !exportData.savingsAccounts?.length },
                     { label: 'Scenarios CSV', icon: Table, onClick: () => exportScenariosCSV(exportData.scenarios, exportData.scenarioResults), disabled: !exportData.scenarios?.length },
+                    { label: 'Credit Cards CSV', icon: CreditCard, onClick: () => exportCreditCardsCSV(exportData.creditCards), disabled: !exportData.creditCards?.length },
+                    { label: 'Income Sources CSV', icon: DollarSign, onClick: () => exportIncomeCSV(exportData.monthlyIncome), disabled: !exportData.monthlyIncome?.length },
+                    { label: 'Investments CSV', icon: TrendingUp, onClick: () => exportInvestmentsCSV(exportData.investments), disabled: !exportData.investments?.length },
+                    { label: 'Transactions CSV', icon: Table, onClick: () => exportTransactionsCSV(exportData.transactions), disabled: !exportData.transactions?.length },
                   ].map(({ label, icon: Icon, onClick, disabled }) => (
                     <div key={label} className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                       <div className="flex items-center gap-2.5">
@@ -641,7 +650,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                       Export
                     </button>
                   </div>
-                  <div className="flex items-center justify-between py-3">
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                     <div className="flex items-center gap-2.5">
                       <FileText className="w-4 h-4 text-gray-400" />
                       <div>
@@ -661,6 +670,23 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                           })
                         } catch (e) { alert(`Export failed: ${e.message}`) }
                       }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
+                      style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Database className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">Full Data Backup</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Complete application state as JSON backup</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { try { exportFullBackupJSON(exportData) } catch (e) { alert(`Export failed: ${e.message}`) } }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
                       style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)', background: 'var(--bg-input, #fff)' }}
                     >

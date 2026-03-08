@@ -179,7 +179,92 @@ export function exportAllData(data) {
     exportScenariosCSV(data.scenarios, data.scenarioResults, `scenarios-${timestamp}.csv`)
   }
   
-  // Add more exports as needed (income, assets, etc.)
+  if (data.creditCards && data.creditCards.length > 0) {
+    exportCreditCardsCSV(data.creditCards, `credit-cards-${timestamp}.csv`)
+  }
+
+  if (data.investments && data.investments.length > 0) {
+    exportInvestmentsCSV(data.investments, `investments-${timestamp}.csv`)
+  }
+}
+
+/**
+ * Export income sources as CSV
+ */
+export function exportIncomeCSV(incomeItems, filename = null) {
+  if (!incomeItems || incomeItems.length === 0) {
+    throw new Error('No income data to export')
+  }
+
+  const csvData = incomeItems.map(item => ({
+    Name: item.name || item.source || '',
+    'Monthly Amount': (Number(item.monthlyAmount) || 0).toFixed(2),
+    Description: item.description || '',
+  }))
+
+  const csv = arrayToCSV(csvData)
+  const fname = filename || `income-${dayjs().format('YYYY-MM-DD')}.csv`
+  downloadFile(csv, fname)
+}
+
+/**
+ * Export credit cards data as CSV
+ */
+export function exportCreditCardsCSV(creditCards, filename = null) {
+  if (!creditCards || creditCards.length === 0) {
+    throw new Error('No credit card data to export')
+  }
+
+  const csvData = creditCards.map(card => ({
+    Name: card.cardName || card.name || '',
+    Balance: card.balance != null ? Number(card.balance).toFixed(2) : '0.00',
+    Limit: card.limit != null ? Number(card.limit).toFixed(2) : '0.00',
+    APR: card.apr != null ? `${card.apr}%` : '',
+    'Min Payment': card.minPayment != null ? Number(card.minPayment).toFixed(2) : '0.00',
+    Institution: card.institution || '',
+    Active: card.active ? 'Yes' : 'No',
+  }))
+
+  const csv = arrayToCSV(csvData)
+  const fname = filename || `credit-cards-${dayjs().format('YYYY-MM-DD')}.csv`
+  downloadFile(csv, fname)
+}
+
+/**
+ * Export investments data as CSV
+ */
+export function exportInvestmentsCSV(investments, filename = null) {
+  if (!investments || investments.length === 0) {
+    throw new Error('No investment data to export')
+  }
+
+  const csvData = investments.map(inv => ({
+    Name: inv.name || '',
+    Type: inv.type || '',
+    'Current Value': inv.currentValue != null ? Number(inv.currentValue).toFixed(2) : '0.00',
+    'Cost Basis': inv.costBasis != null ? Number(inv.costBasis).toFixed(2) : '0.00',
+    Institution: inv.institution || '',
+    Active: inv.active ? 'Yes' : 'No',
+  }))
+
+  const csv = arrayToCSV(csvData)
+  const fname = filename || `investments-${dayjs().format('YYYY-MM-DD')}.csv`
+  downloadFile(csv, fname)
+}
+
+/**
+ * Export full application state as JSON backup
+ */
+export function exportFullBackupJSON(state, filename = null) {
+  const backup = {
+    version: '1.0',
+    exportDate: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    data: state,
+  }
+
+  const json = JSON.stringify(backup, null, 2)
+  const fname = filename || `financial-backup-${dayjs().format('YYYY-MM-DD')}.json`
+  downloadFile(json, fname, 'application/json')
 }
 
 /**
