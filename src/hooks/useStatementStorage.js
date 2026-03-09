@@ -1,24 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-function authHeaders() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-async function safeJson(res) {
-  const text = await res.text()
-  try {
-    return JSON.parse(text)
-  } catch {
-    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-      throw new Error('API not reachable — backend may not be configured')
-    }
-    throw new Error(`Unexpected response (HTTP ${res.status})`)
-  }
-}
+import { API_BASE, authHeaders, safeJson } from '../utils/apiClient'
 
 /**
  * Fetches parsed credit card statement data via the backend API.

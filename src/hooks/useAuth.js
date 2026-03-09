@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { validateOrgName } from '../utils/validation'
+import {
+  API_BASE, TOKEN_KEY, getToken, setToken, clearToken,
+  safeJson, extractError, refreshTokenSingleton,
+} from '../utils/apiClient'
 
-const TOKEN_KEY = 'burndown_token'
 const ADMIN_TOKEN_KEY = 'burndown_admin_token'
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 
 // Refresh tokens 5 minutes before they expire
 const REFRESH_BUFFER_MS = 5 * 60 * 1000
@@ -22,76 +23,7 @@ function decodeTokenPayload(token) {
   }
 }
 
-// ── Singleton refresh state (shared across all hook instances) ──
-let _refreshPromise = null
 let _refreshTimer = null
-
-async function _doRefresh() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  if (!token) return null
-
-  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) return null
-
-  const data = await res.json()
-  if (data.token) {
-    sessionStorage.setItem(TOKEN_KEY, data.token)
-  }
-  return data.token || null
-}
-
-/**
- * Attempt to refresh the token. Deduplicates concurrent calls so only
- * one network request is in-flight at a time.
- */
-function refreshTokenSingleton() {
-  if (!_refreshPromise) {
-    _refreshPromise = _doRefresh().finally(() => { _refreshPromise = null })
-  }
-  return _refreshPromise
-}
-
-/**
- * Authenticated fetch wrapper with automatic 401 retry.
- * On 401, attempts a token refresh and retries the request once.
- * Other hooks/components can import this for transparent token handling.
- */
-export async function authFetch(url, options = {}) {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  const headers = { ...options.headers }
-  if (token) headers.Authorization = `Bearer ${token}`
-
-  const res = await fetch(url, { ...options, headers })
-
-  if (res.status === 401 && token) {
-    const newToken = await refreshTokenSingleton()
-    if (newToken) {
-      headers.Authorization = `Bearer ${newToken}`
-      return fetch(url, { ...options, headers })
-    }
-  }
-
-  return res
-}
-
-async function parseResponse(res) {
-  const text = await res.text()
-  try {
-    return JSON.parse(text)
-  } catch {
-    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-      throw new Error('API not reachable — VITE_PLAID_API_URL may not be configured. Contact your admin.')
-    }
-    throw new Error(`Unexpected response from server (HTTP ${res.status})`)
-  }
-}
-
-function extractError(data) {
-  return data.error || data.message || null
-}
 
 export function useAuth() {
   const [authed, setAuthed] = useState(false)
@@ -139,7 +71,7 @@ export function useAuth() {
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     if (!token) {
       setLoading(false)
       return
@@ -154,7 +86,7 @@ export function useAuth() {
     })
       .then(async res => {
         if (!res.ok) throw new Error('Token invalid')
-        return parseResponse(res)
+        return safeJson(res)
       })
       .then(userData => {
         setUser(userData)
@@ -163,7 +95,7 @@ export function useAuth() {
         scheduleRefresh(token)
       })
       .catch(() => {
-        sessionStorage.removeItem(TOKEN_KEY)
+        clearToken()
         sessionStorage.removeItem(ADMIN_TOKEN_KEY)
         setImpersonating(false)
         setLoading(false)
@@ -185,7 +117,7 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Login failed')
         return false
@@ -199,7 +131,7 @@ export function useAuth() {
       }
 
       // Login successful
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       setAuthed(true)
       scheduleRefresh(data.token)
@@ -230,12 +162,12 @@ export function useAuth() {
         },
         body: JSON.stringify({ code }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Invalid code')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       setAuthed(true)
       setMfaPending(false)
@@ -260,12 +192,12 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Registration failed')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       setAuthed(true)
 
@@ -306,7 +238,7 @@ export function useAuth() {
 
   const sendPhoneOtp = useCallback(async (phoneNumber) => {
     setError(null)
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/auth/send-phone-otp`, {
         method: 'POST',
@@ -316,7 +248,7 @@ export function useAuth() {
         },
         body: JSON.stringify({ phoneNumber }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Failed to send code')
         return false
@@ -330,7 +262,7 @@ export function useAuth() {
 
   const verifyPhoneOtp = useCallback(async (code) => {
     setError(null)
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/auth/verify-phone-otp`, {
         method: 'POST',
@@ -340,12 +272,12 @@ export function useAuth() {
         },
         body: JSON.stringify({ code }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Verification failed')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       scheduleRefresh(data.token)
       return true
@@ -360,7 +292,7 @@ export function useAuth() {
       clearTimeout(_refreshTimer)
       _refreshTimer = null
     }
-    sessionStorage.removeItem(TOKEN_KEY)
+    clearToken()
     sessionStorage.removeItem(ADMIN_TOKEN_KEY)
     setAuthed(false)
     setUser(null)
@@ -378,20 +310,18 @@ export function useAuth() {
     setError(null)
   }, [])
 
-  // Helper to get current token for API calls
-  const getToken = useCallback(() => {
-    return sessionStorage.getItem(TOKEN_KEY)
-  }, [])
+  // Helper to get current token for API calls (re-export for consumers)
+  const getTokenCb = useCallback(() => getToken(), [])
 
   const updateProfile = useCallback(async ({ profileColor, avatarDataUrl } = {}) => {
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ profileColor, avatarDataUrl }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) return { ok: false, error: extractError(data) || 'Update failed' }
       setUser(prev => ({
         ...prev,
@@ -411,12 +341,12 @@ export function useAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Dev login failed')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       setAuthed(true)
       scheduleRefresh(data.token)
@@ -428,7 +358,7 @@ export function useAuth() {
   }, [scheduleRefresh])
 
   const deleteAccount = useCallback(async () => {
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/auth/delete-account`, {
         method: 'POST',
@@ -437,12 +367,12 @@ export function useAuth() {
           Authorization: `Bearer ${token}`,
         },
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         return { ok: false, error: extractError(data) || 'Account deletion failed' }
       }
       // Clear local state
-      sessionStorage.removeItem(TOKEN_KEY)
+      clearToken()
       setAuthed(false)
       setUser(null)
       setMfaPending(false)
@@ -457,12 +387,7 @@ export function useAuth() {
 
   const createOrg = useCallback(async (name) => {
     setError(null)
-    const nameErr = validateOrgName(name)
-    if (nameErr) {
-      setError(nameErr)
-      return false
-    }
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/org/create`, {
         method: 'POST',
@@ -472,12 +397,12 @@ export function useAuth() {
         },
         body: JSON.stringify({ name }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Failed to create organization')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       return data.org
     } catch (e) {
@@ -488,7 +413,7 @@ export function useAuth() {
 
   const joinOrg = useCallback(async (joinCode) => {
     setError(null)
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/org/join`, {
         method: 'POST',
@@ -498,12 +423,12 @@ export function useAuth() {
         },
         body: JSON.stringify({ joinCode }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Failed to join organization')
         return false
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       return data.org
     } catch (e) {
@@ -520,7 +445,7 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Request failed')
         return false
@@ -536,7 +461,7 @@ export function useAuth() {
 
   const impersonate = useCallback(async (targetUserId) => {
     setError(null)
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     try {
       const res = await fetch(`${API_BASE}/api/admin/impersonate`, {
         method: 'POST',
@@ -546,14 +471,14 @@ export function useAuth() {
         },
         body: JSON.stringify({ targetUserId }),
       })
-      const data = await parseResponse(res)
+      const data = await safeJson(res)
       if (!res.ok) {
         setError(extractError(data) || 'Impersonation failed')
         return false
       }
       // Store original admin token so we can restore later
       sessionStorage.setItem(ADMIN_TOKEN_KEY, token)
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setUser(data.user)
       setImpersonating(true)
       return true
@@ -567,7 +492,7 @@ export function useAuth() {
     const adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY)
     if (!adminToken) return
 
-    sessionStorage.setItem(TOKEN_KEY, adminToken)
+    setToken(adminToken)
     sessionStorage.removeItem(ADMIN_TOKEN_KEY)
     setImpersonating(false)
 
@@ -577,7 +502,7 @@ export function useAuth() {
         headers: { Authorization: `Bearer ${adminToken}` },
       })
       if (res.ok) {
-        const userData = await parseResponse(res)
+        const userData = await safeJson(res)
         setUser(userData)
       }
     } catch {
@@ -592,7 +517,7 @@ export function useAuth() {
    *  - If refresh fails, logs the user out
    */
   const authFetch = useCallback(async (url, options = {}) => {
-    const token = sessionStorage.getItem(TOKEN_KEY)
+    const token = getToken()
     const headers = { ...options.headers }
     if (token) headers.Authorization = `Bearer ${token}`
 
@@ -625,7 +550,7 @@ export function useAuth() {
     register,
     logout,
     cancelMfa,
-    getToken,
+    getToken: getTokenCb,
     authFetch,
     createOrg,
     joinOrg,

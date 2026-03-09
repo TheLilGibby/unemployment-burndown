@@ -1,12 +1,5 @@
 import { useCallback, useRef } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-function authHeaders() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+import { API_BASE, authHeaders } from '../utils/apiClient'
 
 /**
  * Hook that provides methods to send push notifications via the backend ntfy.sh integration.

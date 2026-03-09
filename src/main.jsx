@@ -6,6 +6,7 @@ import App from './App.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { HiddenModeProvider } from './context/HiddenModeContext.jsx'
 import ErrorBoundary from './components/common/ErrorBoundary.jsx'
+import ScrollToTop from './components/common/ScrollToTop.jsx'
 // import BugDropWidget from './components/feedback/BugDropWidget.jsx'
 
 // Strip trailing slash to prevent Amplify refresh routing issues
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')).render(
         <HiddenModeProvider>
           {/* <BugDropWidget /> */}
           <BrowserRouter>
+            <ScrollToTop />
             <App />
           </BrowserRouter>
         </HiddenModeProvider>

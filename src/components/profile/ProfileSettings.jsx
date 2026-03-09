@@ -1,13 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { PROFILE_COLORS } from './ProfileBubble'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-function authHeaders() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+import { API_BASE, authHeaders } from '../../utils/apiClient'
 
 const COLOR_KEYS = Object.keys(PROFILE_COLORS)
 
