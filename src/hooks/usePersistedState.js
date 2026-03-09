@@ -12,9 +12,11 @@ export default function usePersistedState(key, defaultValue) {
   })
 
   function setPersistedValue(val) {
-    const next = typeof val === 'function' ? val(value) : val
-    if (key) localStorage.setItem(key, JSON.stringify(next))
-    setValue(next)
+    setValue(prev => {
+      const next = typeof val === 'function' ? val(prev) : val
+      if (key) localStorage.setItem(key, JSON.stringify(next))
+      return next
+    })
   }
 
   return [value, setPersistedValue]
