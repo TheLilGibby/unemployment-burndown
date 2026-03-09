@@ -62,6 +62,7 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import AppLoadingSkeleton from './components/common/AppLoadingSkeleton'
 import BurndownPageSkeleton from './components/common/BurndownPageSkeleton'
 import { SkeletonStyles } from './components/common/Skeleton'
+import { useUnsavedChangesWarning } from './hooks/useUnsavedChangesWarning'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -289,6 +290,16 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
   }
   if (currentJobIncome === 0 && !jobOfferActiveNow) currentIncome += sideIncome
+  // Recurring monthly income sources
+  for (const src of monthlyIncome) {
+    if (!src.monthlyAmount) continue
+    if (src.startDate && dayjs(src.startDate).isAfter(today)) continue
+    if (src.endDate && dayjs(src.endDate).isBefore(today)) continue
+    currentIncome += Number(src.monthlyAmount) || 0
+  }
+  // Partner income
+  const partnerActiveNow = partnerStartDate && !today.isBefore(partnerStartDate)
+  if (partnerActiveNow) currentIncome += partnerIncome
   let currentEffExpenses = effectiveExpenses
   if (jobOfferActiveNow) {
     if (jobOfferBenefitsOffset > 0) currentEffExpenses = Math.max(0, currentEffExpenses - jobOfferBenefitsOffset)
@@ -426,6 +437,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
+  const [hasDirtyChanges, setHasDirtyChanges] = useState(false)
+  useUnsavedChangesWarning(hasDirtyChanges)
 
   // Cmd+K / Ctrl+K to open command palette
   useEffect(() => {
@@ -610,6 +623,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       if (dirtySections.current.size > 0) {
         addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
         dirtySections.current.clear()
+        setHasDirtyChanges(false)
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
@@ -696,6 +710,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       } catch {}
       setter(v)
       dirtySections.current.add(label)
+      setHasDirtyChanges(true)
     }
   }
   const onSavingsChange      = track(() => savingsAccounts, setSavingsAccounts, 'Cash & savings',     summarizeSavings,      diffArray)
@@ -727,6 +742,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     const next = typeof updater === 'function' ? updater(categoryBudgets) : updater
     setCategoryBudgets(next)
     dirtySections.current.add('Category budgets')
+    setHasDirtyChanges(true)
   }
 
   // Transaction linking handlers
@@ -758,6 +774,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       ]
     }))
     dirtySections.current.add('Transaction links')
+    setHasDirtyChanges(true)
   }
 
   function handleUnlinkTransaction(overviewKey, transactionId) {
@@ -768,6 +785,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       return updated
     })
     dirtySections.current.add('Transaction links')
+    setHasDirtyChanges(true)
   }
 
   function handleTransactionOverride(txnId, updates) {
@@ -776,6 +794,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       [txnId]: { ...(prev[txnId] || {}), ...updates },
     }))
     dirtySections.current.add('Transaction overrides')
+    setHasDirtyChanges(true)
   }
 
   async function handleGlobalSync(itemId) {

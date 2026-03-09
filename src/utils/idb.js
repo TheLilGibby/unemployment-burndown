@@ -13,8 +13,14 @@ function openDB() {
   })
 }
 
+let dbPromise = null
+function getDB() {
+  if (!dbPromise) dbPromise = openDB()
+  return dbPromise
+}
+
 export async function idbGet(key) {
-  const db = await openDB()
+  const db = await getDB()
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
     req.onsuccess = e => resolve(e.target.result ?? null)
@@ -23,7 +29,7 @@ export async function idbGet(key) {
 }
 
 export async function idbSet(key, value) {
-  const db = await openDB()
+  const db = await getDB()
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(value, key)
     req.onsuccess = () => resolve()
@@ -32,7 +38,7 @@ export async function idbSet(key, value) {
 }
 
 export async function idbDel(key) {
-  const db = await openDB()
+  const db = await getDB()
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key)
     req.onsuccess = () => resolve()
