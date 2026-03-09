@@ -37,6 +37,7 @@ function buildWaterfallData(scenario, c) {
   const spending = scenario.monthlyTakeHome + equityMonthly + bonusMonthly - savings - invest + benefitsOffset - commute
   if (benefitsOffset > 0) {
     bars.push({ label: 'Benefits', value: benefitsOffset, base: running, fill: c.emerald })
+    running += benefitsOffset
   }
   if (commute > 0) {
     running -= commute
