@@ -158,6 +158,29 @@ function generateOrgId() { return `org_${crypto.randomBytes(8).toString('hex')}`
 function generateJoinCode() { return crypto.randomBytes(4).toString('hex').toUpperCase() }
 
 // ── S3 / local-file helpers (org-scoped) ──
+
+// Validate that a user-supplied resource ID contains only safe characters.
+// Prevents path traversal attacks (e.g. "../../etc/passwd").
+const SAFE_ID_RE = /^[a-zA-Z0-9_\-.]+$/
+function validateResourceId(id, label = 'id') {
+  if (!id || !SAFE_ID_RE.test(id)) {
+    const err = new Error(`Invalid ${label}: contains disallowed characters`)
+    err.statusCode = 400
+    throw err
+  }
+  return id
+}
+
+// Verify that a resolved local file path is contained within LOCAL_DATA_DIR.
+// Defense-in-depth against path traversal even if ID validation is bypassed.
+function assertPathContained(filePath) {
+  const normalizedBase = resolve(LOCAL_DATA_DIR)
+  const normalizedTarget = resolve(filePath)
+  if (!normalizedTarget.startsWith(normalizedBase + '/') && !normalizedTarget.startsWith(normalizedBase + '\\') && normalizedTarget !== normalizedBase) {
+    throw new Error('Path traversal detected')
+  }
+}
+
 function dataKey(orgId) { return orgId ? `orgs/${orgId}/data.json` : 'data.json' }
 function statementsIndexKey(orgId) { return orgId ? `orgs/${orgId}/statements/index.json` : 'statements/index.json' }
 function statementKey(orgId, id) { return orgId ? `orgs/${orgId}/statements/${id}.json` : `statements/${id}.json` }
@@ -167,6 +190,7 @@ function snapshotKey(orgId, date) { return orgId ? `orgs/${orgId}/snapshots/${da
 async function s3Get(key) {
   if (USE_LOCAL_DATA) {
     const filePath = resolve(LOCAL_DATA_DIR, key)
+    assertPathContained(filePath)
     if (!existsSync(filePath)) {
       const err = new Error(`Local file not found: ${filePath}`)
       err.name = 'NoSuchKey'
@@ -181,6 +205,7 @@ async function s3Get(key) {
 async function s3Put(key, data) {
   if (USE_LOCAL_DATA) {
     const filePath = resolve(LOCAL_DATA_DIR, key)
+    assertPathContained(filePath)
     mkdirSync(dirname(filePath), { recursive: true })
     writeFileSync(filePath, JSON.stringify(data, null, 2))
     return
@@ -2067,9 +2092,11 @@ app.get('/api/statements', orgMiddleware, async (req, res) => {
 // GET /api/statements/:id — single statement
 app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
   try {
+    validateResourceId(req.params.id, 'statement id')
     const data = await s3Get(statementKey(req.user.orgId, req.params.id))
     res.json(data)
   } catch (err) {
+    if (err.statusCode === 400) return res.status(400).json({ error: err.message })
     if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       return res.status(404).json({ error: 'Statement not found' })
     }
@@ -2082,6 +2109,12 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 app.patch('/api/statements/:statementId/transactions/:transactionId', orgMiddleware, async (req, res) => {
   const orgId = req.user.orgId
   const { statementId, transactionId } = req.params
+  try {
+    validateResourceId(statementId, 'statement id')
+    validateResourceId(transactionId, 'transaction id')
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
   const allowedFields = ['category', 'isPayroll', 'payrollJobId']
   const updates = {}
   for (const field of allowedFields) {
