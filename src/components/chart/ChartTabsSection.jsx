@@ -10,6 +10,7 @@ import TopExpensesChart from './TopExpensesChart'
 import IncomeCompositionChart from './IncomeCompositionChart'
 import NetPositionChart from './NetPositionChart'
 import { useChartColors } from '../../hooks/useChartColors'
+import { SkeletonBlock, SkeletonStyles } from '../common/Skeleton'
 
 // ─── Chart registry ───────────────────────────────────────────────────────────
 const CHART_DEFS = [
@@ -81,6 +82,8 @@ export default function ChartTabsSection({
   historicalBurndown,
   snapshotLoading,
   onHistoricalDateSelect,
+  // Loading state
+  loading = false,
 }) {
   const c = useChartColors()
   const [activeId, setActiveId] = useState('burndown')
@@ -167,7 +170,13 @@ export default function ChartTabsSection({
 
       {/* ── Chart content ── */}
       <div className="p-4 sm:p-5">
-        {activeId === 'burndown' && (
+        {loading && (
+          <div data-testid="chart-loading-skeleton">
+            <SkeletonStyles />
+            <SkeletonBlock height="14rem" />
+          </div>
+        )}
+        {!loading && activeId === 'burndown' && (
           <div className="space-y-3">
             {/* Historical snapshot date picker */}
             <SnapshotDatePicker
@@ -207,16 +216,16 @@ export default function ChartTabsSection({
             />
           </div>
         )}
-        {activeId === 'netposition' && (
+        {!loading && activeId === 'netposition' && (
           <NetPositionChart dataPoints={dataPoints} />
         )}
-        {activeId === 'burnrate' && (
+        {!loading && activeId === 'burnrate' && (
           <BurnRateChart dataPoints={dataPoints} />
         )}
-        {activeId === 'cashflow' && (
+        {!loading && activeId === 'cashflow' && (
           <IncomeVsExpensesChart dataPoints={dataPoints} />
         )}
-        {activeId === 'expensemix' && (
+        {!loading && activeId === 'expensemix' && (
           <ExpenseDonutChart
             expenses={expenses}
             subscriptions={subscriptions}
@@ -224,7 +233,7 @@ export default function ChartTabsSection({
             investments={investments}
           />
         )}
-        {activeId === 'topspend' && (
+        {!loading && activeId === 'topspend' && (
           <TopExpensesChart
             expenses={expenses}
             subscriptions={subscriptions}
@@ -232,7 +241,7 @@ export default function ChartTabsSection({
             investments={investments}
           />
         )}
-        {activeId === 'incomemix' && (
+        {!loading && activeId === 'incomemix' && (
           <IncomeCompositionChart
             dataPoints={dataPoints}
             monthlyBenefits={monthlyBenefits}

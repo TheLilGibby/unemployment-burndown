@@ -9,6 +9,35 @@ import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
 import SnapTradeConnectButton from '../snaptrade/SnapTradeConnectButton'
 import SnapTradeAccountsPanel from '../snaptrade/SnapTradeAccountsPanel'
+import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
+
+function InvestmentsPanelSkeleton() {
+  return (
+    <div className="space-y-3" data-testid="investments-panel-skeleton">
+      <SkeletonStyles />
+      {/* SnapTrade section placeholder */}
+      <div className="rounded-lg border px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <SkeletonLine width="8rem" height="0.75rem" />
+            <SkeletonLine width="12rem" height="0.6rem" />
+          </div>
+          <SkeletonLine width="5rem" height="2rem" style={{ borderRadius: '0.5rem' }} />
+        </div>
+      </div>
+      {/* Manual investments placeholder */}
+      {[1, 2].map(i => (
+        <div key={i} className="flex items-center gap-3 py-1">
+          <SkeletonLine width="1rem" height="1rem" style={{ borderRadius: '0.25rem', flexShrink: 0 }} />
+          <SkeletonLine height="2.25rem" style={{ borderRadius: '0.5rem', flex: 1 }} />
+          <SkeletonLine width="7rem" height="2.25rem" style={{ borderRadius: '0.5rem', flexShrink: 0 }} />
+          <SkeletonLine width="2rem" height="1.25rem" style={{ borderRadius: '0.75rem', flexShrink: 0 }} />
+        </div>
+      ))}
+      <SkeletonLine width="100%" height="2.25rem" style={{ borderRadius: '0.5rem' }} />
+    </div>
+  )
+}
 
 function TrashIcon() {
   return (
@@ -18,7 +47,7 @@ function TrashIcon() {
   )
 }
 
-export default function InvestmentsPanel({ investments, onChange, people = [], filterPersonId = null }) {
+export default function InvestmentsPanel({ investments, onChange, people = [], filterPersonId = null, loading = false }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(investments, onChange)
   const snapTrade = useSnapTrade()
   const [snapTradeLoaded, setSnapTradeLoaded] = useState(false)
@@ -28,6 +57,8 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
       snapTrade.fetchAccounts().then(() => setSnapTradeLoaded(true))
     }
   }, [snapTradeLoaded])
+
+  if (loading || (snapTrade.loading && !snapTradeLoaded)) return <InvestmentsPanelSkeleton />
 
   function update(id, field, val) {
     onChange(investments.map(inv => inv.id === id ? { ...inv, [field]: val } : inv))

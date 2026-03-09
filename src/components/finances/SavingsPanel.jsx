@@ -7,6 +7,29 @@ import AssigneeSelect from '../people/AssigneeSelect'
 import CommentButton from '../comments/CommentButton'
 import CurrencyInput from './CurrencyInput'
 import ConfirmDeleteModal from '../common/ConfirmDeleteModal'
+import { SkeletonLine, SkeletonStyles } from '../common/Skeleton'
+
+function SavingsPanelSkeleton() {
+  return (
+    <div className="space-y-3" data-testid="savings-panel-skeleton">
+      <SkeletonStyles />
+      {[1, 2, 3].map(i => (
+        <div key={i} className="flex items-center gap-3 py-1">
+          <SkeletonLine width="1.25rem" height="1.25rem" style={{ borderRadius: '0.375rem', flexShrink: 0 }} />
+          <SkeletonLine width="1.75rem" height="1.1rem" style={{ borderRadius: '0.75rem', flexShrink: 0 }} />
+          <SkeletonLine height="2.25rem" style={{ borderRadius: '0.5rem', flex: 1 }} />
+          <SkeletonLine width="8rem" height="2.25rem" style={{ borderRadius: '0.5rem', flexShrink: 0 }} />
+          <SkeletonLine width="6.5rem" height="2.25rem" style={{ borderRadius: '0.5rem', flexShrink: 0 }} />
+        </div>
+      ))}
+      <SkeletonLine width="100%" height="2.25rem" style={{ borderRadius: '0.5rem' }} />
+      <div className="rounded-lg px-4 py-3 flex items-center justify-between" style={{ background: 'var(--bg-input)' }}>
+        <SkeletonLine width="8rem" height="0.75rem" />
+        <SkeletonLine width="5rem" height="1.5rem" />
+      </div>
+    </div>
+  )
+}
 
 function TrashIcon() {
   return (
@@ -46,10 +69,12 @@ function lookupInstitution(plaidLinkedItems, plaidAccountId) {
   return null
 }
 
-export default function SavingsPanel({ accounts, onChange, people = [], filterPersonId = null, plaidLinkedItems = [] }) {
+export default function SavingsPanel({ accounts, onChange, people = [], filterPersonId = null, plaidLinkedItems = [], loading = false }) {
   const { dragHandleProps, getItemProps, draggingId, overedId } = useDragReorder(accounts, onChange)
   const [expandedIds, setExpandedIds] = useState(new Set())
   const [pendingDeleteId, setPendingDeleteId] = useState(null)
+
+  if (loading) return <SavingsPanelSkeleton />
 
   const hasAnyPlaid = accounts.some(a => a.plaidAccountId)
 
