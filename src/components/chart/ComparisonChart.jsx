@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 import {
   LineChart,
   Line,
@@ -100,7 +101,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
 
           <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
           <ReferenceLine
-            x="Feb 2026"
+            x={dayjs().format('MMM YYYY')}
             stroke={c.amber}
             strokeDasharray="4 2"
             strokeWidth={1.5}
