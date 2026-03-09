@@ -86,11 +86,17 @@ export function useFileStorage() {
       setFileHandle(handle)
       setStatus('saving')
       setErrorMsg(null)
-      const writable = await handle.createWritable()
-      await writable.write(JSON.stringify(data, null, 2))
-      await writable.close()
-      setStatus('connected')
-      setLastSaved(new Date())
+      let writable
+      try {
+        writable = await handle.createWritable()
+        await writable.write(JSON.stringify(data, null, 2))
+        await writable.close()
+        writable = null
+        setStatus('connected')
+        setLastSaved(new Date())
+      } finally {
+        if (writable) writable.abort().catch(() => {})
+      }
     } catch (e) {
       if (e.name !== 'AbortError') {
         setStatus('error')
@@ -102,17 +108,21 @@ export function useFileStorage() {
   // Write current state to the open file handle
   const saveToFile = useCallback(async (data) => {
     if (!fileHandle) return
+    let writable
     try {
       setStatus('saving')
-      const writable = await fileHandle.createWritable()
+      writable = await fileHandle.createWritable()
       await writable.write(JSON.stringify(data, null, 2))
       await writable.close()
+      writable = null
       setStatus('connected')
       setLastSaved(new Date())
       setErrorMsg(null)
     } catch (e) {
       setStatus('error')
       setErrorMsg(e.message)
+    } finally {
+      if (writable) writable.abort().catch(() => {})
     }
   }, [fileHandle])
 
