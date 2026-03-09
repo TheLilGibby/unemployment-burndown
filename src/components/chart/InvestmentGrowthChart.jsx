@@ -40,7 +40,7 @@ export default function InvestmentGrowthChart({ scenarios }) {
 
   const chartData = useMemo(() => {
     if (!scenarios.length) return []
-    const today = dayjs('2026-02-21')
+    const today = dayjs()
     const dataMap = {}
 
     for (let m = 0; m <= zoom; m++) {

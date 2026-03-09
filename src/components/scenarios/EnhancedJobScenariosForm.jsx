@@ -10,7 +10,7 @@ const SCENARIO_COLORS = [
   '#3b82f6', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4',
 ]
 const MAX_SCENARIOS = 6
-const today = dayjs('2026-02-21')
+const today = dayjs()
 const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
 export default function EnhancedJobScenariosForm({ scenarios, onChange, scenarioResults, effectiveExpenses = 0 }) {
