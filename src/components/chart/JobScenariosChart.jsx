@@ -1,3 +1,4 @@
+import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
 import { useState } from 'react'
 import {
   LineChart,
@@ -64,9 +65,9 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
 
   const merged = mergeDataPoints(baselineResult.dataPoints, scenarios, scenarioResults, zoom)
 
-  // Thin to ~60 points max for performance
-  const step = Math.max(1, Math.ceil(merged.length / 60))
-  const chartData = merged.filter((_, i) => i % step === 0 || i === merged.length - 1)
+
+
+  const chartData = thinChartData(merged, 60, isBurndownCritical)
 
   // Compute max balance for Y axis
   const allKeys = ['No Job (Baseline)', ...scenarios.map(s => s.name)]

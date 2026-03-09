@@ -1,3 +1,4 @@
+import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
 import { useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
@@ -53,8 +54,8 @@ export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
 
   const merged = mergeDataPoints(baselineResult.dataPoints, scenarios, scenarioResults, zoom)
 
-  const step = Math.max(1, Math.ceil(merged.length / 60))
-  const chartData = merged.filter((_, i) => i % step === 0 || i === merged.length - 1)
+
+  const chartData = thinChartData(merged, 60, isBurndownCritical)
 
   const allKeys = ['No Job (Baseline)', ...scenarios.map(s => s.name)]
   const maxBalance = Math.max(0, ...chartData.map(d => Math.max(...allKeys.map(k => d[k] ?? 0))))

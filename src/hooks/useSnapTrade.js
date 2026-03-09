@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiFetch } from '../utils/apiClient'
 
 /**
@@ -17,6 +17,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
   const [error, setError]             = useState(null)
   const [loading, setLoading]         = useState(false)
   const fetchedRef = useRef(false)
+  const cleanupRef = useRef(null)
 
   // ── Fetch connected brokerage accounts ──
 
@@ -53,15 +54,19 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       // Open SnapTrade portal in a popup
       const popup = window.open(portalUrl, 'snaptrade-connect', 'width=500,height=700')
 
+      const expectedOrigin = new URL(portalUrl).origin
+
       return new Promise((resolve, reject) => {
         let resolved = false
 
         const handleMessage = (event) => {
+          if (event.origin !== expectedOrigin) return
           // SnapTrade portal sends postMessage on success
           if (event.data?.status === 'SUCCESS' && event.data?.authorizationId) {
             resolved = true
             window.removeEventListener('message', handleMessage)
             clearInterval(pollInterval)
+            cleanupRef.current = null
 
             apiFetch('/snaptrade/callback', {
               method: 'POST',
@@ -86,6 +91,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
             clearInterval(pollInterval)
             if (!resolved) {
               window.removeEventListener('message', handleMessage)
+              cleanupRef.current = null
               setLoading(false)
               // Refresh accounts in case connection was made before close
               fetchAccounts()
@@ -93,6 +99,11 @@ export function useSnapTrade({ onSyncComplete } = {}) {
             }
           }
         }, 500)
+
+        cleanupRef.current = () => {
+          window.removeEventListener('message', handleMessage)
+          clearInterval(pollInterval)
+        }
       })
     } catch (e) {
       setError(e.message)
@@ -116,15 +127,18 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       if (!portalUrl) throw new Error('No portal URL returned')
 
       const popup = window.open(portalUrl, 'snaptrade-reconnect', 'width=500,height=700')
+      const expectedOrigin = new URL(portalUrl).origin
 
       return new Promise((resolve, reject) => {
         let resolved = false
 
         const handleMessage = (event) => {
+          if (event.origin !== expectedOrigin) return
           if (event.data?.status === 'SUCCESS') {
             resolved = true
             window.removeEventListener('message', handleMessage)
             clearInterval(pollInterval)
+            cleanupRef.current = null
             fetchAccounts()
             setLoading(false)
             resolve({ reconnected: true })
@@ -138,12 +152,18 @@ export function useSnapTrade({ onSyncComplete } = {}) {
             clearInterval(pollInterval)
             if (!resolved) {
               window.removeEventListener('message', handleMessage)
+              cleanupRef.current = null
               setLoading(false)
               fetchAccounts()
               resolve(null)
             }
           }
         }, 500)
+
+        cleanupRef.current = () => {
+          window.removeEventListener('message', handleMessage)
+          clearInterval(pollInterval)
+        }
       })
     } catch (e) {
       setError(e.message)
@@ -197,6 +217,13 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     } catch (e) {
       setError(e.message)
       throw e
+    }
+  }, [])
+
+  // Tear down any lingering event listener / interval on unmount
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) cleanupRef.current()
     }
   }, [])
 

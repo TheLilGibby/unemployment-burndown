@@ -1,3 +1,4 @@
+import { thinChartData } from '../../utils/thinChartData'
 import { useMemo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -52,9 +53,9 @@ export default function BurnRateChart({ dataPoints }) {
 
   const chartData = useMemo(() => {
     const filtered = dataPoints.filter(pt => pt.month > 0 && pt.month <= zoomMonths)
-    const MAX = 60
-    const step = Math.max(1, Math.ceil(filtered.length / MAX))
-    return filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1)
+    // Thin data while preserving critical event points
+
+    return thinChartData(filtered, 60)
   }, [dataPoints, zoomMonths])
 
   const maxAbs = Math.max(...chartData.map(d => Math.abs(d.netBurn)), 1)
