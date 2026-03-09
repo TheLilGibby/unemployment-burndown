@@ -1,11 +1,32 @@
+import { useState } from 'react'
 import { formatCurrency } from '../../utils/formatters'
 import { matchesPersonFilter } from '../../utils/personFilter'
+import { STATE_UNEMPLOYMENT_DATA, getStateByCode } from '../../constants/stateUnemploymentData'
 import dayjs from 'dayjs'
 import AssigneeSelect from '../people/AssigneeSelect'
 
 export default function UnemploymentPanel({ value, onChange, furloughDate, onFurloughDateChange, people = [], derivedStartDate = null, filterPersonId = null }) {
+  const [selectedState, setSelectedState] = useState(value.stateCode || '')
+
   function update(field, val) {
     onChange({ ...value, [field]: val })
+  }
+
+  function handleStateChange(stateCode) {
+    setSelectedState(stateCode)
+    if (!stateCode) {
+      onChange({ ...value, stateCode: '' })
+      return
+    }
+    const state = getStateByCode(stateCode)
+    if (state) {
+      onChange({
+        ...value,
+        stateCode,
+        weeklyAmount: state.maxWeeklyBenefit,
+        durationWeeks: state.maxWeeks,
+      })
+    }
   }
 
   const totalBenefits = (Number(value.weeklyAmount) || 0) * (Number(value.durationWeeks) || 0)
@@ -13,6 +34,8 @@ export default function UnemploymentPanel({ value, onChange, furloughDate, onFur
   const endDate = dayjs(value.startDate).add(Number(value.durationWeeks) || 0, 'week')
 
   const dimmed = filterPersonId && !matchesPersonFilter(value.assignedTo, filterPersonId)
+
+  const stateInfo = selectedState ? getStateByCode(selectedState) : null
 
   return (
     <div className={`space-y-4 transition-opacity ${dimmed ? 'opacity-25' : ''}`}>
@@ -38,6 +61,61 @@ export default function UnemploymentPanel({ value, onChange, furloughDate, onFur
           )}
         </div>
       )}
+
+      {/* State lookup */}
+      <div>
+        <label className="block text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>Look Up Your State</label>
+        <select
+          value={selectedState}
+          onChange={e => handleStateChange(e.target.value)}
+          className="w-full sm:w-64 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+          style={{
+            background: 'var(--bg-page)',
+            border: '1px solid var(--border-input)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <option value="">Select your state...</option>
+          {STATE_UNEMPLOYMENT_DATA.map(s => (
+            <option key={s.stateCode} value={s.stateCode}>
+              {s.stateName}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+          Auto-fills max weekly benefit and duration. You can override below with your actual approved amounts.
+        </p>
+      </div>
+
+      {/* State benefit info card */}
+      {stateInfo && (
+        <div
+          className="rounded-lg px-4 py-3 text-sm space-y-2"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+        >
+          <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+            {stateInfo.stateName} Unemployment Benefits
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div>Max weekly: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(stateInfo.maxWeeklyBenefit)}</span></div>
+            <div>Max duration: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {stateInfo.maxWeeks} weeks{stateInfo.maxWeeksRange ? ` (range: ${stateInfo.maxWeeksRange})` : ''}
+            </span></div>
+            <div>Waiting period: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{stateInfo.waitingPeriod.description}</span></div>
+            <div>Calculation: <span style={{ color: 'var(--text-primary)' }}>{stateInfo.calculationMethod}</span></div>
+          </div>
+          <a
+            href={stateInfo.filingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-xs underline mt-1"
+            style={{ color: 'var(--accent-blue)' }}
+          >
+            File on {stateInfo.stateName} DOL website
+          </a>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>Benefits Start Date</label>
@@ -130,7 +208,9 @@ export default function UnemploymentPanel({ value, onChange, furloughDate, onFur
       </div>
 
       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-        Tip: Check your state's unemployment website for exact weekly benefit amount. Most states have a 1-2 week waiting period.
+        {selectedState
+          ? 'Values auto-filled from state data. Override with your actual approved amounts for best accuracy.'
+          : 'Tip: Select your state above to auto-fill benefit estimates, or check your state\'s unemployment website for exact amounts.'}
       </p>
     </div>
   )
