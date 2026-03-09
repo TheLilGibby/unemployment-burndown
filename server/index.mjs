@@ -53,7 +53,21 @@ if (!process.env.PLAID_CLIENT_ID) {
 }
 
 const app = express()
-app.use(cors())
+
+// ── CORS configuration ──
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : [process.env.APP_URL || 'http://localhost:5173']
+app.use(cors({
+  origin(origin, cb) {
+    // Allow requests with no origin (server-to-server, curl, mobile apps)
+    if (!origin) return cb(null, true)
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    cb(new Error(`Origin ${origin} not allowed by CORS`))
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+}))
 app.use(express.json({ limit: '10mb' }))
 app.use(requestLogger)
 
