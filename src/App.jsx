@@ -62,6 +62,7 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import AppLoadingSkeleton from './components/common/AppLoadingSkeleton'
 import BurndownPageSkeleton from './components/common/BurndownPageSkeleton'
 import { SkeletonStyles } from './components/common/Skeleton'
+import { useUnsavedChangesWarning } from './hooks/useUnsavedChangesWarning'
 
 // Migrate old job scenario shape to enhanced model (backward compat)
 function migrateJobScenario(s) {
@@ -436,6 +437,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const { entries: logEntries, addEntry, clearLog, loadEntries, userName, setUserName } = useActivityLog(user?.userId)
   const dirtySections = useRef(new Set())
+  const [hasDirtyChanges, setHasDirtyChanges] = useState(false)
+  useUnsavedChangesWarning(hasDirtyChanges)
 
   // Cmd+K / Ctrl+K to open command palette
   useEffect(() => {
@@ -604,26 +607,28 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       s3Storage.clearRestoreData()
       addEntry('load', 'Data loaded from cloud')
       setDataReady(true)
-    } else if (s3Storage.status === 'connected' || s3Storage.status === 'error') {
+    } else if (s3Storage.status === 'connected') {
+      setDataReady(true)
+    } else if (s3Storage.status === 'error') {
+      console.warn('[App] S3 storage failed to load — using local defaults')
       setDataReady(true)
     }
   }, [s3Storage.restoreData, s3Storage.status]) // eslint-disable-line
 
-  // Auto-save to S3 on every state change (debounced 1.5 s)
+  // Auto-save to S3 on state change (debounced 3 s, only when sections are dirty)
   const autoSaveTimer = useRef(null)
   useEffect(() => {
     if (s3Storage.status === 'loading') return
+    if (dirtySections.current.size === 0) return
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       s3Storage.save(buildFullState())
       snapshots.saveSnapshot(buildSnapshot()) // idempotent — server only writes once per day
-      if (dirtySections.current.size > 0) {
-        addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
-        dirtySections.current.clear()
-      }
-    }, 1500)
+      addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
+      dirtySections.current.clear()
+    }, 3000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }
@@ -706,6 +711,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       } catch {}
       setter(v)
       dirtySections.current.add(label)
+      setHasDirtyChanges(true)
     }
   }
   const onSavingsChange      = track(() => savingsAccounts, setSavingsAccounts, 'Cash & savings',     summarizeSavings,      diffArray)
@@ -737,6 +743,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     const next = typeof updater === 'function' ? updater(categoryBudgets) : updater
     setCategoryBudgets(next)
     dirtySections.current.add('Category budgets')
+    setHasDirtyChanges(true)
   }
 
   // Transaction linking handlers
@@ -768,6 +775,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       ]
     }))
     dirtySections.current.add('Transaction links')
+    setHasDirtyChanges(true)
   }
 
   function handleUnlinkTransaction(overviewKey, transactionId) {
@@ -778,6 +786,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       return updated
     })
     dirtySections.current.add('Transaction links')
+    setHasDirtyChanges(true)
   }
 
   function handleTransactionOverride(txnId, updates) {
@@ -786,6 +795,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       [txnId]: { ...(prev[txnId] || {}), ...updates },
     }))
     dirtySections.current.add('Transaction overrides')
+    setHasDirtyChanges(true)
   }
 
   async function handleGlobalSync(itemId) {
@@ -1225,6 +1235,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/credit-cards" element={
+          <ErrorBoundary level="section">
           <CreditCardHubPage
             creditCards={creditCards}
             people={people}
@@ -1255,6 +1266,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             statementIndex={statementIndex}
             onStatementsRefresh={refreshStatementIndex}
           />
+          </ErrorBoundary>
         } />
 
         <Route path="/job-scenarios" element={
@@ -1273,38 +1285,44 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/retirement" element={
-          <RetirementPage
-            retirement={retirement}
-            onRetirementChange={onRetirementChange}
-            people={people}
-          />
+          <ErrorBoundary level="section">
+            <RetirementPage
+              retirement={retirement}
+              onRetirementChange={onRetirementChange}
+              people={people}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/goals" element={
-          <GoalsPage
-            goals={goals}
-            onGoalsChange={onGoalsChange}
-            savingsAccounts={savingsAccounts}
-            investments={investments}
-            creditCards={creditCards}
-            people={people}
-          />
+          <ErrorBoundary level="section">
+            <GoalsPage
+              goals={goals}
+              onGoalsChange={onGoalsChange}
+              savingsAccounts={savingsAccounts}
+              investments={investments}
+              creditCards={creditCards}
+              people={people}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/net-worth" element={
-          <NetWorthDashboardPage
-            savingsAccounts={savingsAccounts}
-            expenses={expenses}
-            creditCards={creditCards}
-            investments={investments}
-            assets={assets}
-            monthlyIncome={monthlyIncome}
-            unemployment={unemployment}
-            dataPoints={current.dataPoints}
-            currentNetBurn={current.currentNetBurn}
-            monthlyBenefits={current.monthlyBenefits}
-            jobs={jobs}
-          />
+          <ErrorBoundary level="section">
+            <NetWorthDashboardPage
+              savingsAccounts={savingsAccounts}
+              expenses={expenses}
+              creditCards={creditCards}
+              investments={investments}
+              assets={assets}
+              monthlyIncome={monthlyIncome}
+              unemployment={unemployment}
+              dataPoints={current.dataPoints}
+              currentNetBurn={current.currentNetBurn}
+              monthlyBenefits={current.monthlyBenefits}
+              jobs={jobs}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/analysis" element={
@@ -1323,39 +1341,43 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/budget" element={
-          <BudgetPage
-            categoryBudgets={categoryBudgets}
-            onCategoryBudgetsChange={onCategoryBudgetsChange}
-            allTransactions={effectiveTransactions}
-            transactionOverrides={transactionOverrides}
-          />
+          <ErrorBoundary level="section">
+            <BudgetPage
+              categoryBudgets={categoryBudgets}
+              onCategoryBudgetsChange={onCategoryBudgetsChange}
+              allTransactions={effectiveTransactions}
+              transactionOverrides={transactionOverrides}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/settings" element={
-          <UserProfilePage
-            user={user}
-            updateProfile={updateProfile}
-            jobs={jobs}
-            onJobsChange={onJobsChange}
-            people={people}
-            allTransactions={effectiveTransactions}
-            transactionOverrides={transactionOverrides}
-            properties={properties}
-            onPropertiesChange={onPropertiesChange}
-            exportData={{
-              burndown: current,
-              expenses,
-              savingsAccounts,
-              scenarios: jobScenarios,
-              scenarioResults: jobScenarioResults,
-              totalSavings,
-              unemployment,
-              creditCards,
-              monthlyIncome,
-              investments,
-              transactions: effectiveTransactions,
-            }}
-          />
+          <ErrorBoundary level="section">
+            <UserProfilePage
+              user={user}
+              updateProfile={updateProfile}
+              jobs={jobs}
+              onJobsChange={onJobsChange}
+              people={people}
+              allTransactions={effectiveTransactions}
+              transactionOverrides={transactionOverrides}
+              properties={properties}
+              onPropertiesChange={onPropertiesChange}
+              exportData={{
+                burndown: current,
+                expenses,
+                savingsAccounts,
+                scenarios: jobScenarios,
+                scenarioResults: jobScenarioResults,
+                totalSavings,
+                unemployment,
+                creditCards,
+                monthlyIncome,
+                investments,
+                transactions: effectiveTransactions,
+              }}
+            />
+          </ErrorBoundary>
         } />
         {user?.isSuperAdmin && (
           <>

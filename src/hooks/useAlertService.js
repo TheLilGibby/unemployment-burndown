@@ -42,7 +42,10 @@ export function useAlertService(preferences, onPreferencesChange) {
         }),
       })
 
-      if (!res.ok) return
+      if (!res.ok) {
+        console.warn(`[useAlertService] evaluate failed: HTTP ${res.status}`)
+        return
+      }
 
       const data = await res.json()
       if (data.results?.length > 0) {
@@ -60,8 +63,8 @@ export function useAlertService(preferences, onPreferencesChange) {
           }))
         }
       }
-    } catch {
-      // Silent fail — push notifications are best-effort
+    } catch (err) {
+      console.warn('[useAlertService] evaluate error:', err.message)
     } finally {
       pendingRef.current = false
     }

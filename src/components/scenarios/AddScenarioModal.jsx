@@ -5,7 +5,7 @@ import { US_STATES, getStateTaxRate, computeMonthlyTakeHome } from '../../utils/
 import CurrencyInput from '../finances/CurrencyInput'
 import dayjs from 'dayjs'
 
-const today = dayjs('2026-02-21')
+const today = dayjs()
 const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
 export default function AddScenarioModal({ onAdd, onClose }) {

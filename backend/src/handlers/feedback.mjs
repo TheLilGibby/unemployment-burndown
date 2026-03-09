@@ -1,4 +1,5 @@
 import { ok, err } from '../lib/response.mjs'
+import { requireAuth } from '../lib/auth.mjs'
 import { createRequestLogger } from '../lib/logger.mjs'
 
 const REPO = 'RAG-Consulting-LLC/unemployment-burndown'
@@ -95,6 +96,9 @@ function formatIssueBody(description, screenshotMd, metadata) {
 export async function handler(event) {
   const log = createRequestLogger('feedback', event)
   try {
+    const { error: authErr } = requireAuth(event)
+    if (authErr) return err(authErr.statusCode, authErr.message)
+
     if (!GITHUB_TOKEN) {
       log.error('GITHUB_TOKEN not configured')
       return err(503, 'Feedback service is not configured')
@@ -105,6 +109,12 @@ export async function handler(event) {
 
     if (!description || !description.trim()) {
       return err(400, 'Description is required')
+    }
+
+    // Limit screenshot payload to 5 MB
+    const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024
+    if (screenshot && screenshot.length > MAX_SCREENSHOT_BYTES) {
+      return err(413, 'Screenshot exceeds 5 MB limit')
     }
 
     const labels = ['external']
