@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -44,7 +44,7 @@ function CustomTooltip({ active, payload, c }) {
   )
 }
 
-export default function CashFlowSummaryChart({ dataPoints, months = 12 }) {
+function CashFlowSummaryChart({ dataPoints, months = 12 }) {
   const c = useChartColors()
   const data = useMemo(() => {
     const pts = dataPoints.slice(0, months + 1)
@@ -110,3 +110,5 @@ export default function CashFlowSummaryChart({ dataPoints, months = 12 }) {
     </div>
   )
 }
+
+export default memo(CashFlowSummaryChart)

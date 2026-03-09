@@ -1,5 +1,5 @@
 import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -162,7 +162,7 @@ function renderDot(props, c) {
 }
 
 // ─── Main chart ───────────────────────────────────────────────────────────────
-export default function BurndownChart({
+function BurndownChart({
   dataPoints,
   runoutDate,
   baseDataPoints,                          // optional: the no-what-if baseline or historical snapshot
@@ -476,3 +476,5 @@ export default function BurndownChart({
     </div>
   )
 }
+
+export default memo(BurndownChart)

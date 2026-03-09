@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
@@ -138,7 +138,7 @@ function CustomTooltip({ active, payload, colors }) {
   )
 }
 
-export default function CashFlowWaterfallChart({
+function CashFlowWaterfallChart({
   expenses,
   subscriptions,
   creditCards,
@@ -198,3 +198,5 @@ export default function CashFlowWaterfallChart({
     </div>
   )
 }
+
+export default memo(CashFlowWaterfallChart)

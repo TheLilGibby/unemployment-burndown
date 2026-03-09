@@ -1,5 +1,5 @@
 import { thinChartData } from '../../utils/thinChartData'
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
@@ -60,7 +60,7 @@ function CustomTooltip({ active, payload, colors }) {
   )
 }
 
-export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) {
+function IncomeCompositionChart({ dataPoints, monthlyBenefits }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState('2Y')
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
@@ -180,3 +180,5 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
     </div>
   )
 }
+
+export default memo(IncomeCompositionChart)

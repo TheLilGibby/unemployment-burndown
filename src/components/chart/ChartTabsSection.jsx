@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import dayjs from 'dayjs'
 import { TrendingDown, Flame, ArrowLeftRight, PieChart, BarChart2, BarChart3, Scale } from 'lucide-react'
 import BurndownChart from './BurndownChart'
@@ -59,7 +59,7 @@ const CHART_DEFS = [
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function ChartTabsSection({
+function ChartTabsSection({
   // BurndownChart props
   dataPoints,
   runoutDate,
@@ -251,3 +251,5 @@ export default function ChartTabsSection({
     </div>
   )
 }
+
+export default memo(ChartTabsSection)

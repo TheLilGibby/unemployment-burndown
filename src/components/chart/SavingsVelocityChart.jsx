@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer, Cell,
@@ -55,7 +55,7 @@ function CustomTooltip({ active, payload, c }) {
   )
 }
 
-export default function SavingsVelocityChart({ dataPoints }) {
+function SavingsVelocityChart({ dataPoints }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState('1Y')
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
@@ -189,3 +189,5 @@ export default function SavingsVelocityChart({ dataPoints }) {
     </div>
   )
 }
+
+export default memo(SavingsVelocityChart)

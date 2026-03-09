@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
@@ -19,7 +19,7 @@ const ZOOM_OPTIONS = [
   { label: '30Y', months: 360 },
 ]
 
-export default function InvestmentGrowthChart({ scenarios }) {
+function InvestmentGrowthChart({ scenarios }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState(120)
 
@@ -152,3 +152,5 @@ export default function InvestmentGrowthChart({ scenarios }) {
     </div>
   )
 }
+
+export default memo(InvestmentGrowthChart)

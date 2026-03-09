@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, LabelList,
@@ -7,7 +7,7 @@ import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
 import { useChartColors } from '../../hooks/useChartColors'
 
-export default function TopExpensesChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
+function TopExpensesChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
   const c = useChartColors()
 
   const TYPE_CONFIG = useMemo(() => ({
@@ -153,3 +153,5 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
     </div>
   )
 }
+
+export default memo(TopExpensesChart)

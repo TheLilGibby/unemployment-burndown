@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
@@ -59,7 +59,7 @@ function CustomTooltip({ active, payload, colors }) {
   )
 }
 
-export default function WaterfallChart({ scenarios }) {
+function WaterfallChart({ scenarios }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const c = useChartColors()
   if (!scenarios.length) return null
@@ -121,3 +121,5 @@ export default function WaterfallChart({ scenarios }) {
     </div>
   )
 }
+
+export default memo(WaterfallChart)

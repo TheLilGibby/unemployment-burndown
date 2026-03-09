@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import dayjs from 'dayjs'
 import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
 import {
@@ -44,7 +45,7 @@ function mergeDataPoints(pointsA, pointsB, labelA, labelB) {
   return Object.values(map).sort((a, b) => a.month - b.month)
 }
 
-export default function ComparisonChart({ scenarioA, scenarioB }) {
+function ComparisonChart({ scenarioA, scenarioB }) {
   const c = useChartColors()
 
   if (!scenarioA || !scenarioB) return (
@@ -134,3 +135,5 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
     </div>
   )
 }
+
+export default memo(ComparisonChart)

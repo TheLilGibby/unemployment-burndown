@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { useChartColors } from '../../hooks/useChartColors'
 
 function ScoreGauge({ score, size = 160, chartColors }) {
@@ -77,7 +77,7 @@ function RatioRow({ label, value, status, detail, chartColors }) {
   )
 }
 
-export default function FinancialHealthScore({
+function FinancialHealthScore({
   totalSavings = 0,
   totalDebt = 0,
   monthlyExpenses = 0,
@@ -174,3 +174,5 @@ export default function FinancialHealthScore({
     </div>
   )
 }
+
+export default memo(FinancialHealthScore)

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { memo, useMemo, useState, useCallback } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
@@ -95,7 +95,7 @@ function Toggle({ checked, onChange, size = 'sm', colors }) {
   )
 }
 
-export default function ExpenseDonutChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
+function ExpenseDonutChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
   const c = useChartColors()
   const [active, setActive] = useState(null)
   const [animDone, setAnimDone] = useState(false)
@@ -417,3 +417,5 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
     </div>
   )
 }
+
+export default memo(ExpenseDonutChart)
