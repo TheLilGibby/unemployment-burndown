@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { validateOrgName } from '../utils/validation'
 
 const TOKEN_KEY = 'burndown_token'
 const ADMIN_TOKEN_KEY = 'burndown_admin_token'
@@ -456,6 +457,11 @@ export function useAuth() {
 
   const createOrg = useCallback(async (name) => {
     setError(null)
+    const nameErr = validateOrgName(name)
+    if (nameErr) {
+      setError(nameErr)
+      return false
+    }
     const token = sessionStorage.getItem(TOKEN_KEY)
     try {
       const res = await fetch(`${API_BASE}/api/org/create`, {

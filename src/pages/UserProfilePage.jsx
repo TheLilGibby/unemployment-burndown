@@ -14,6 +14,7 @@ import {
   exportFullBackupJSON,
 } from '../utils/export'
 import { Link } from 'react-router-dom'
+import { validateAvatarFile } from '../utils/validation'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useTheme } from '../context/ThemeContext'
@@ -135,6 +136,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
     const file = e.target.files?.[0]
     if (!file) return
     setProfileError(null)
+    const fileErr = validateAvatarFile(file)
+    if (fileErr) {
+      setProfileError(fileErr)
+      return
+    }
     try {
       const compressed = await compressImage(file)
       setAvatarDataUrl(compressed)
