@@ -55,19 +55,29 @@ if (!process.env.PLAID_CLIENT_ID) {
 const app = express()
 
 // ── CORS configuration ──
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+// In production, set ALLOWED_ORIGINS to a comma-separated list of allowed origins.
+// Defaults to the APP_URL and common local dev origins.
+const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : [process.env.APP_URL || 'http://localhost:5173']
+  : [
+      process.env.APP_URL || 'http://localhost:5173',
+      'https://localhost:5173',
+      'http://localhost:5173',
+    ]
+
 app.use(cors({
-  origin(origin, cb) {
-    // Allow requests with no origin (server-to-server, curl, mobile apps)
-    if (!origin) return cb(null, true)
-    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
-    cb(new Error(`Origin ${origin} not allowed by CORS`))
+  origin(origin, callback) {
+    // Allow requests with no origin (e.g. server-to-server, curl, mobile apps)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    callback(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }))
+
 app.use(express.json({ limit: '10mb' }))
 app.use(requestLogger)
 
