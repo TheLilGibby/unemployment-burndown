@@ -1,20 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-async function safeJson(res) {
-  const text = await res.text()
-  try {
-    return JSON.parse(text)
-  } catch {
-    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-      throw new Error('API not reachable — backend may not be configured')
-    }
-    throw new Error(`Unexpected response (HTTP ${res.status})`)
-  }
-}
+import { API_BASE, getToken, setToken, safeJson } from '../../utils/apiClient'
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams()
@@ -90,7 +76,7 @@ export default function AcceptInvite() {
       if (!res.ok) throw new Error(data.error || 'Registration failed')
 
       // Store token for subsequent API calls
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setStep('phone-verify')
 
       // Auto-send OTP
@@ -105,7 +91,7 @@ export default function AcceptInvite() {
     setOtpSending(true)
     setError(null)
     try {
-      const token = tokenOverride || sessionStorage.getItem(TOKEN_KEY)
+      const token = tokenOverride || getToken()
       const res = await fetch(`${API_BASE}/api/auth/send-phone-otp`, {
         method: 'POST',
         headers: {
@@ -128,7 +114,7 @@ export default function AcceptInvite() {
     setError(null)
     setSubmitting(true)
     try {
-      const token = sessionStorage.getItem(TOKEN_KEY)
+      const token = getToken()
       const res = await fetch(`${API_BASE}/api/auth/verify-phone-otp`, {
         method: 'POST',
         headers: {
@@ -141,7 +127,7 @@ export default function AcceptInvite() {
       if (!res.ok) throw new Error(data.error || 'Verification failed')
 
       // Store the new token (has org info now)
-      sessionStorage.setItem(TOKEN_KEY, data.token)
+      setToken(data.token)
       setStep('success')
     } catch (e) {
       setError(e.message)

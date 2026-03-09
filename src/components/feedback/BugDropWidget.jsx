@@ -3,7 +3,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { useToast } from '../../context/ToastContext'
 // html2canvas is loaded dynamically in handleOpen to reduce bundle size
 
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+import { API_BASE } from '../../utils/apiClient'
 
 const CATEGORIES = [
   { label: 'Bug', value: 'bug' },

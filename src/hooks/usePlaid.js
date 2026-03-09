@@ -1,12 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-function authHeaders() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+import { apiFetch } from '../utils/apiClient'
 
 /**
  * Hook that manages the Plaid integration lifecycle:
@@ -28,34 +21,12 @@ export function usePlaid({ onSyncComplete } = {}) {
   const [loading, setLoading]           = useState(false)
   const fetchedRef = useRef(false)
 
-  // ── Helpers ──
-
-  async function apiCall(path, options = {}) {
-    const url = `${API_BASE}${path}`
-    const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      ...options,
-    })
-    const text = await res.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-        throw new Error('API not reachable — backend may not be configured')
-      }
-      throw new Error(`Unexpected response (HTTP ${res.status})`)
-    }
-    if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
-    return data
-  }
-
   // ── Create link token ──
 
   const createLinkToken = useCallback(async () => {
     setError(null)
     try {
-      const data = await apiCall('/plaid/link-token', {
+      const data = await apiFetch('/plaid/link-token', {
         method: 'POST',
         body: JSON.stringify({}),
       })
@@ -71,7 +42,7 @@ export function usePlaid({ onSyncComplete } = {}) {
   const createUpdateLinkToken = useCallback(async (itemId) => {
     setError(null)
     try {
-      const data = await apiCall('/plaid/link-token/update', {
+      const data = await apiFetch('/plaid/link-token/update', {
         method: 'POST',
         body: JSON.stringify({ itemId }),
       })
@@ -88,7 +59,7 @@ export function usePlaid({ onSyncComplete } = {}) {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/plaid/exchange', {
+      const data = await apiFetch('/plaid/exchange', {
         method: 'POST',
         body: JSON.stringify({ public_token: publicToken, metadata }),
       })
@@ -121,7 +92,7 @@ export function usePlaid({ onSyncComplete } = {}) {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiCall('/plaid/accounts')
+      const data = await apiFetch('/plaid/accounts')
       setLinkedItems(data.items || [])
       setLoading(false)
       fetchedRef.current = true
@@ -143,7 +114,7 @@ export function usePlaid({ onSyncComplete } = {}) {
       const body = {}
       if (itemId) body.itemId = itemId
 
-      const data = await apiCall('/plaid/sync', {
+      const data = await apiFetch('/plaid/sync', {
         method: 'POST',
         body: JSON.stringify(body),
       })
@@ -174,7 +145,7 @@ export function usePlaid({ onSyncComplete } = {}) {
   const disconnect = useCallback(async (itemId) => {
     setError(null)
     try {
-      await apiCall('/plaid/disconnect', {
+      await apiFetch('/plaid/disconnect', {
         method: 'POST',
         body: JSON.stringify({ itemId }),
       })

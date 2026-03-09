@@ -38,12 +38,7 @@ function getInitials(name) {
     .slice(0, 2)
 }
 
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-function authHeaders() {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+import { API_BASE, authHeaders } from '../../utils/apiClient'
 
 export default function CardOverviewBanner({
   creditCards, savingsAccounts = [], statementIndex, selectedCardId, onSelectCard, people = [],

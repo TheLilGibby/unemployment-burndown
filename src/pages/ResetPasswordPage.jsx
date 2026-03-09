@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+import { API_BASE } from '../utils/apiClient'
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()

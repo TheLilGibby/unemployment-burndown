@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
+import { API_BASE, getToken, authHeaders } from '../utils/apiClient'
 
 /**
  * Fetches org member profiles (userId, email, profileColor, avatarDataUrl)
@@ -14,11 +12,10 @@ export function useOrgMembers(user) {
 
   const fetchMembers = useCallback(async () => {
     if (!user?.orgId) return
-    const token = sessionStorage.getItem(TOKEN_KEY)
-    if (!token) return
+    if (!getToken()) return
     try {
       const res = await fetch(`${API_BASE}/api/org`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       })
       if (!res.ok) return
       const data = await res.json()

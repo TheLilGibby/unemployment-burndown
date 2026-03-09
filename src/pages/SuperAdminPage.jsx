@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Building2, Users, Eye, ChevronDown, ChevronRight, Search, Shield, Activity } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+import { API_BASE } from '../utils/apiClient'
 
 export default function SuperAdminPage() {
   const { getToken, impersonate } = useAuth()

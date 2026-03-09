@@ -1,26 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
-
-function getToken() {
-  return sessionStorage.getItem(TOKEN_KEY)
-}
-
-async function apiFetch(path, opts = {}) {
-  const token = getToken()
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...opts.headers,
-    },
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
-  return data
-}
+import { apiFetch, getToken } from '../utils/apiClient'
 
 export function useJobs() {
   const [jobs, setJobs] = useState([])

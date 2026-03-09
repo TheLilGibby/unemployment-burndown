@@ -1,8 +1,6 @@
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
-const TOKEN_KEY = 'burndown_token'
+import { API_BASE, getToken } from '../../utils/apiClient'
 
 /**
  * Consent modal shown before opening Plaid Link.
@@ -14,7 +12,7 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
   const handleAccept = async () => {
     // Record consent server-side for audit trail before proceeding
     try {
-      const token = sessionStorage.getItem(TOKEN_KEY)
+      const token = getToken()
       if (token) {
         await fetch(`${API_BASE}/api/privacy/consent`, {
           method: 'POST',

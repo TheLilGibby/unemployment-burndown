@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+import { API_BASE } from '../utils/apiClient'
 
 // ---------------------------------------------------------------------------
 // AWS service cost model based on actual infrastructure (template.yaml)

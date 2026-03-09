@@ -1,6 +1,5 @@
 import { useState } from 'react'
-
-const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+import { API_BASE, getToken, safeJson } from '../../utils/apiClient'
 
 /**
  * MFA setup component. Shows in a settings panel.
@@ -12,22 +11,6 @@ export default function MfaSetup({ mfaEnabled, onMfaChange }) {
   const [secret, setSecret] = useState(null)
   const [code, setCode] = useState('')
   const [error, setError] = useState(null)
-
-  function getToken() {
-    return sessionStorage.getItem('burndown_token')
-  }
-
-  async function safeJson(res) {
-    const text = await res.text()
-    try {
-      return JSON.parse(text)
-    } catch {
-      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-        throw new Error('API not reachable — backend may not be configured')
-      }
-      throw new Error(`Unexpected response (HTTP ${res.status})`)
-    }
-  }
 
   async function startSetup() {
     setStep('loading')
