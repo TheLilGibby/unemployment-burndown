@@ -186,6 +186,14 @@ export function exportAllData(data) {
   if (data.investments && data.investments.length > 0) {
     exportInvestmentsCSV(data.investments, `investments-${timestamp}.csv`)
   }
+
+  if (data.monthlyIncome && data.monthlyIncome.length > 0) {
+    exportIncomeCSV(data.monthlyIncome, `monthly-income-${timestamp}.csv`)
+  }
+
+  if (data.transactions && data.transactions.length > 0) {
+    exportTransactionsCSV(data.transactions, `transactions-${timestamp}.csv`)
+  }
 }
 
 /**
