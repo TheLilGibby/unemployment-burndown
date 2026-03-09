@@ -321,7 +321,7 @@ app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
 })
 
 // POST /api/auth/dev-login — quick login for local development only
-if (USE_LOCAL_DATA) {
+if (USE_LOCAL_DATA && process.env.NODE_ENV !== 'production') {
   app.post('/api/auth/dev-login', async (req, res) => {
     try {
       const email = 'test@test.com'
