@@ -81,6 +81,22 @@ export default function OrgSettings({ user, onClose }) {
   useEffect(() => { fetchOrg() }, [fetchOrg])
   useEffect(() => { fetchInvites() }, [fetchInvites])
 
+  // Escape key handler
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Body scroll lock
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   async function handleRegenerateCode() {
     setRegenerating(true)
     try {
@@ -162,10 +178,11 @@ export default function OrgSettings({ user, onClose }) {
   const pendingInvites = invites.filter(inv => inv.status === 'pending' && !inv.expired)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
+        onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Household Settings</h2>
