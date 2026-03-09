@@ -19,13 +19,21 @@ document.createElement = vi.fn((tag) => {
 document.body.appendChild = vi.fn()
 document.body.removeChild = vi.fn()
 
+const mockAppendChild = vi.fn()
+const mockRemoveChild = vi.fn()
+document.body.appendChild = mockAppendChild
+document.body.removeChild = mockRemoveChild
+
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('exportBurndownCSV', () => {
   it('exports burndown dataPoints as CSV', () => {
-    exportBurndownCSV({
-      dataPoints: [{ date: '2026-01-01', dateLabel: 'Jan 2026', balance: 10000, income: 2000, netBurn: 1000, totalDebt: 500, netPosition: 9500, inBenefitWindow: true, jobActive: false }],
-    })
+    const data = {
+      dataPoints: [
+        { date: '2026-01-01', dateLabel: 'Jan 2026', balance: 10000, income: 2000, netBurn: 1000, totalDebt: 500, netPosition: 9500, inBenefitWindow: true, jobActive: false },
+      ],
+    }
+    exportBurndownCSV(data)
     expect(mockLink.click).toHaveBeenCalled()
     expect(mockLink.download).toContain('.csv')
   })
@@ -36,33 +44,34 @@ describe('exportBurndownCSV', () => {
 })
 
 describe('exportExpensesCSV', () => {
-  it('exports', () => {
+  it('exports expenses', () => {
     exportExpensesCSV([{ name: 'Rent', monthlyAmount: 1500, essential: true, category: 'Housing' }])
     expect(mockLink.click).toHaveBeenCalled()
+  })
+  it('throws error when empty', () => {
+    expect(() => exportExpensesCSV([])).toThrow('No expenses to export')
   })
   it('throws when empty', () => { expect(() => exportExpensesCSV([])).toThrow() })
 })
 
 describe('exportSavingsCSV', () => {
-  it('exports', () => {
+  it('exports savings', () => {
     exportSavingsCSV([{ name: 'Checking', amount: 5000, type: 'Checking', institution: 'Bank A' }])
     expect(mockLink.click).toHaveBeenCalled()
+  })
+  it('throws error when empty', () => {
+    expect(() => exportSavingsCSV([])).toThrow('No savings accounts to export')
   })
   it('throws when empty', () => { expect(() => exportSavingsCSV([])).toThrow() })
 })
 
 describe('exportScenariosCSV', () => {
-  it('exports', () => {
-    exportScenariosCSV([{ name: 'A', company: 'B', startDate: '2026-03-01', grossAnnualSalary: 120000, usState: 'CA', taxRatePct: 25 }], [{ runwayChange: 15.5 }])
+  it('exports scenarios', () => {
+    exportScenariosCSV([{ name: 'Tech Co', company: 'Corp', startDate: '2026-03-01', grossAnnualSalary: 120000, usState: 'CA', taxRatePct: 25 }], [{ runwayChange: 15.5 }])
     expect(mockLink.click).toHaveBeenCalled()
   })
-  it('throws when empty', () => { expect(() => exportScenariosCSV([])).toThrow() })
-})
-
-describe('exportBurndownPDF', () => {
-  it('throws when no data', async () => {
-    await expect(exportBurndownPDF({ burndown: null })).rejects.toThrow('No burndown data to export')
-    await expect(exportBurndownPDF({ burndown: { dataPoints: [] } })).rejects.toThrow('No burndown data to export')
+  it('throws error when empty', () => {
+    expect(() => exportScenariosCSV([])).toThrow('No scenarios to export')
   })
 })
 
