@@ -96,9 +96,17 @@ export default function GoalFormModal({ goal, onSave, onClose, savingsAccounts =
     })
   }
 
+  const [validationErrors, setValidationErrors] = useState({})
+
   function handleSave() {
-    if (!form.name.trim()) return
-    if (!form.targetAmount || form.targetAmount <= 0) return
+    const errors = {}
+    if (!form.name.trim()) errors.name = 'Goal name is required.'
+    if (!form.targetAmount || form.targetAmount <= 0) errors.targetAmount = 'Target amount must be greater than 0.'
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      return
+    }
+    setValidationErrors({})
     onSave(form)
   }
 
@@ -150,6 +158,7 @@ export default function GoalFormModal({ goal, onSave, onClose, savingsAccounts =
                 }}
                 autoFocus
               />
+              {validationErrors.name && <p className="text-xs mt-1" style={{ color: 'var(--red, #ef4444)' }}>{validationErrors.name}</p>}
             </div>
 
             {/* Icon picker */}
@@ -226,6 +235,7 @@ export default function GoalFormModal({ goal, onSave, onClose, savingsAccounts =
                   min="0"
                 />
               </div>
+              {validationErrors.targetAmount && <p className="text-xs mt-1" style={{ color: 'var(--red, #ef4444)' }}>{validationErrors.targetAmount}</p>}
             </div>
 
             {/* Target date */}

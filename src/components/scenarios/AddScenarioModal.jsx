@@ -3,9 +3,10 @@ import { ChevronRight } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { US_STATES, getStateTaxRate, computeMonthlyTakeHome } from '../../utils/stateTaxRates'
 import CurrencyInput from '../finances/CurrencyInput'
+import AllocationField from '../common/AllocationField'
 import dayjs from 'dayjs'
 
-const today = dayjs('2026-02-21')
+const today = dayjs()
 const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
 export default function AddScenarioModal({ onAdd, onClose }) {
@@ -364,58 +365,5 @@ export default function AddScenarioModal({ onAdd, onClose }) {
         </div>
       </div>
     </>
-  )
-}
-
-function AllocationField({ label, value, type, onValueChange, onTypeChange, takeHome, color }) {
-  const resolvedAmount = type === 'percent' ? (takeHome * value / 100) : value
-
-  return (
-    <div>
-      <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>{label}</label>
-      <div className="flex items-center gap-1">
-        {type === 'dollar' && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>$</span>}
-        <input
-          type="number"
-          min="0"
-          step={type === 'percent' ? 1 : 50}
-          max={type === 'percent' ? 100 : undefined}
-          value={value}
-          onChange={e => onValueChange(Number(e.target.value))}
-          className="flex-1 text-sm rounded px-2 py-1.5 focus:outline-none"
-          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-        />
-        {type === 'percent' && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>}
-        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: 'var(--border-default)' }}>
-          <button
-            type="button"
-            onClick={() => onTypeChange('dollar')}
-            className="text-xs px-2 py-1 transition-colors"
-            style={{
-              background: type === 'dollar' ? color + '30' : 'var(--bg-input)',
-              color: type === 'dollar' ? color : 'var(--text-faint)',
-            }}
-          >
-            $
-          </button>
-          <button
-            type="button"
-            onClick={() => onTypeChange('percent')}
-            className="text-xs px-2 py-1 transition-colors"
-            style={{
-              background: type === 'percent' ? color + '30' : 'var(--bg-input)',
-              color: type === 'percent' ? color : 'var(--text-faint)',
-            }}
-          >
-            %
-          </button>
-        </div>
-      </div>
-      {type === 'percent' && value > 0 && (
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
-          = {formatCurrency(resolvedAmount)}/mo
-        </p>
-      )}
-    </div>
   )
 }

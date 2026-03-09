@@ -16,7 +16,7 @@ export default function JobOfferPanel({ value, onChange, baseRunwayMonths, altRu
 
   const isActive = salary > 0 && !!startDate
 
-  const today = dayjs('2026-02-21')
+  const today = dayjs()
   const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
   const monthsUntilStart = startDate

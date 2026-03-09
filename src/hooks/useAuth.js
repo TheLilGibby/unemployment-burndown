@@ -447,12 +447,18 @@ export function useAuth() {
       })
       const data = await safeJson(res)
       if (!res.ok) {
-        setError(extractError(data) || 'Request failed')
+        if (res.status === 404) {
+          setError('No account found with that email address.')
+        } else if (res.status >= 500) {
+          setError('Something went wrong. Please try again later.')
+        } else {
+          setError(extractError(data) || 'Request failed')
+        }
         return false
       }
       return data.message || true
     } catch (e) {
-      setError(e.message || 'Network error. Please try again.')
+      setError('Unable to reach the server. Please check your connection.')
       return false
     }
   }, [])

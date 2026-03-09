@@ -27,15 +27,15 @@ export default function PropertyPanel({ properties = [], onChange }) {
   return (
     <div className="space-y-3">
       {properties.length === 0 ? (
-        <p className="text-sm text-gray-600 text-center py-4">
+        <p className="text-sm text-center py-4" style={{ color: 'var(--text-faint)' }}>
           No properties yet. Add properties to track home improvement projects against.
         </p>
       ) : (
         <>
           {/* Column headers — desktop only */}
           <div
-            className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '1fr 200px 32px 32px' }}
+            className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+            style={{ gridTemplateColumns: '1fr 200px 32px 32px', color: 'var(--text-secondary)' }}
           >
             <span>Address</span>
             <span>Parcel Number</span>
@@ -55,20 +55,33 @@ export default function PropertyPanel({ properties = [], onChange }) {
                   type="text"
                   value={property.address}
                   onChange={e => updateProperty(property.id, 'address', e.target.value)}
-                  className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                  style={{
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                    color: 'var(--text-primary)',
+                  }}
                   placeholder="123 Main St, City, ST 12345"
                 />
                 <input
                   type="text"
                   value={property.parcelNumber}
                   onChange={e => updateProperty(property.id, 'parcelNumber', e.target.value)}
-                  className="min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                  style={{
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                    color: 'var(--text-primary)',
+                  }}
                   placeholder="Parcel #"
                 />
                 <CommentButton itemId={`property_${property.id}`} label={property.address || 'Property'} />
                 <button
                   onClick={() => deleteProperty(property.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="transition-colors flex items-center justify-center"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                 >
                   <TrashIcon />
                 </button>
@@ -78,7 +91,12 @@ export default function PropertyPanel({ properties = [], onChange }) {
                     type="text"
                     value={property.description || ''}
                     onChange={e => updateProperty(property.id, 'description', e.target.value)}
-                    className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-amber-500 placeholder-gray-600"
+                    className="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/60"
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                    }}
                     placeholder="Add a note..."
                   />
                 </div>
@@ -90,13 +108,22 @@ export default function PropertyPanel({ properties = [], onChange }) {
 
       <button
         onClick={addProperty}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = '#f59e0b'
+          e.currentTarget.style.color = '#fbbf24'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Property
       </button>
 
       {properties.length > 0 && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
           Properties can be selected when adding home improvements.
         </p>
       )}

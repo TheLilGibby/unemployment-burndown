@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { X, CreditCard, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { findCategory, resolveCategory } from '../../constants/categories'
@@ -26,6 +26,10 @@ export default function CCPaymentPicklistModal({
   const [showCategories, setShowCategories] = useState(true)
   const [filterCategory, setFilterCategory] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    if (open) { setShowCategories(true); setFilterCategory(''); setSearchTerm('') }
+  }, [open])
 
   const categorySummary = useMemo(
     () => summarizePicklistByCategory(transactions.filter(t => (t.amount || 0) > 0)),

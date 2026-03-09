@@ -16,18 +16,30 @@ function ScenarioRow({ id, icon, label, color, summary, delta, isActive, isOpen,
     ? 'text-emerald-400'
     : delta < 0
     ? 'text-red-400'
-    : 'text-gray-500'
+    : ''
 
   const borderAccent = isActive
     ? `border-l-2 ${color}`
     : 'border-l-2 border-l-transparent'
 
   return (
-    <div className={`rounded-lg border border-gray-700/60 overflow-hidden transition-colors ${isOpen ? 'bg-gray-800/40' : 'bg-gray-800/20 hover:bg-gray-800/40'}`}>
+    <div
+      className={`rounded-lg border overflow-hidden transition-colors ${borderAccent}`}
+      style={{
+        borderColor: 'var(--border-card)',
+        background: isOpen ? 'var(--bg-input)' : 'var(--bg-card)',
+      }}
+      onMouseEnter={e => {
+        if (!isOpen) e.currentTarget.style.background = 'var(--bg-input)'
+      }}
+      onMouseLeave={e => {
+        if (!isOpen) e.currentTarget.style.background = 'var(--bg-card)'
+      }}
+    >
       {/* Summary row — always visible */}
       <button
         onClick={onToggle}
-        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${borderAccent}`}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors`}
       >
         <ChevronRight
           size={14}
@@ -36,13 +48,13 @@ function ScenarioRow({ id, icon, label, color, summary, delta, isActive, isOpen,
           style={{ color: 'var(--text-muted)', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
         />
         <span className="text-sm">{icon}</span>
-        <span className="text-xs font-medium text-gray-300 min-w-0">{label}</span>
+        <span className="text-xs font-medium min-w-0" style={{ color: 'var(--text-secondary)' }}>{label}</span>
 
         {/* Status summary */}
         <span className="ml-auto flex items-center gap-2 min-w-0">
           {isActive ? (
             <>
-              <span className="text-xs text-gray-400 truncate max-w-[180px]">{summary}</span>
+              <span className="text-xs truncate max-w-[180px]" style={{ color: 'var(--text-muted)' }}>{summary}</span>
               {delta !== null && delta !== 0 && (
                 <span className={`text-xs font-bold whitespace-nowrap ${deltaColor}`}>
                   {delta > 0 ? '+' : ''}{formatMonths(Math.abs(delta))}
@@ -51,14 +63,14 @@ function ScenarioRow({ id, icon, label, color, summary, delta, isActive, isOpen,
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
             </>
           ) : (
-            <span className="text-xs text-gray-600 italic">not set</span>
+            <span className="text-xs italic" style={{ color: 'var(--text-faint)' }}>not set</span>
           )}
         </span>
       </button>
 
       {/* Expanded content */}
       {isOpen && (
-        <div className="px-3 pb-3 pt-1 border-t border-gray-700/40">
+        <div className="px-3 pb-3 pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           {children}
         </div>
       )}
@@ -173,8 +185,10 @@ export default function WhatIfPanel({
         <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs border ${
           delta > 0 ? 'bg-emerald-950/30 border-emerald-700/30 text-emerald-300'
           : delta < 0 ? 'bg-red-950/30 border-red-700/30 text-red-300'
-          : 'bg-gray-700/30 border-gray-600 text-gray-400'
-        }`}>
+          : ''
+        }`}
+        style={delta === 0 ? { background: 'var(--bg-input)', borderColor: 'var(--border-card)', color: 'var(--text-muted)' } : {}}
+        >
           <span>
             {delta > 0 ? 'Scenarios extend runway by' : delta < 0 ? 'Scenarios shorten runway by' : 'No net runway change'}
           </span>
@@ -240,7 +254,7 @@ export default function WhatIfPanel({
 
           {/* Expense cut - compact inline */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-400 shrink-0">Cut expenses</label>
+            <label className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Cut expenses</label>
             <input
               type="range" min="0" max="100" step="5"
               value={value.expenseReductionPct}
@@ -254,7 +268,7 @@ export default function WhatIfPanel({
 
           {/* Expense raise - compact inline */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-400 shrink-0">Raise expenses</label>
+            <label className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Raise expenses</label>
             <input
               type="range" min="0" max="50" step="1"
               value={value.expenseRaisePct || 0}
@@ -269,7 +283,7 @@ export default function WhatIfPanel({
 
           {/* Side income - compact inline */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-400 shrink-0">Side income</label>
+            <label className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Side income</label>
             <input
               type="range" min="0" max="5000" step="100"
               value={value.sideIncomeMonthly}
@@ -384,7 +398,16 @@ export default function WhatIfPanel({
       {hasChanges && (
         <button
           onClick={onReset}
-          className="flex items-center justify-center gap-1.5 w-full text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-gray-400 hover:border-orange-500 hover:text-orange-400 transition-colors"
+          className="flex items-center justify-center gap-1.5 w-full text-xs px-3 py-1.5 rounded-lg border transition-colors"
+          style={{ borderColor: 'var(--border-card)', background: 'var(--bg-card)', color: 'var(--text-muted)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = '#f97316'
+            e.currentTarget.style.color = '#f97316'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--border-card)'
+            e.currentTarget.style.color = 'var(--text-muted)'
+          }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
             <path fillRule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L6.053 5h6.447a5.5 5.5 0 1 1 0 11H6a.75.75 0 0 1 0-1.5h6.5a4 4 0 1 0 0-8H6.053l1.715 1.708a.75.75 0 0 1-1.06 1.061L4.197 6.757a1 1 0 0 1 0-1.414l2.511-2.511a.75.75 0 0 1 1.085.4z" clipRule="evenodd" />

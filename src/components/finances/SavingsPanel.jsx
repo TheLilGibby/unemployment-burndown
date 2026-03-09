@@ -94,8 +94,8 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
     <div className="space-y-3">
       {/* Column headers — desktop only */}
       <div
-        className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-        style={{ gridTemplateColumns: '20px 32px 1fr 130px 100px 32px 32px 32px' }}
+        className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+        style={{ gridTemplateColumns: '20px 32px 1fr 130px 100px 32px 32px 32px', color: 'var(--text-secondary)' }}
       >
         <span></span>
         <span></span>
@@ -129,7 +129,10 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
               {/* Subrow 1: drag · toggle · name (+ Plaid badge) */}
               <div className="flex items-center gap-2 sm:contents">
                 <div
-                  className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  className="transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   {...dragHandleProps(account.id)}
                 >
                   <DragHandle />
@@ -139,13 +142,15 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                   onClick={() => toggleAccount(account.id)}
                   title={isActive ? 'Exclude from total' : 'Include in total'}
                   className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer p-0.5 ${
-                    isActive ? 'bg-blue-500' : 'bg-gray-600'
+                    isActive ? 'bg-blue-500' : ''
                   }`}
+                  style={!isActive ? { backgroundColor: 'var(--bg-input)' } : {}}
                 >
                   <span
-                    className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    className={`block w-4 h-4 rounded-full shadow transition-transform ${
                       isActive ? 'translate-x-3' : 'translate-x-0'
                     }`}
+                    style={{ backgroundColor: 'var(--text-primary)' }}
                   />
                 </button>
                 <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -153,7 +158,12 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                     type="text"
                     value={account.name}
                     onChange={e => updateAccount(account.id, 'name', e.target.value)}
-                    className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                    className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                    style={{
+                      background: 'var(--bg-page)',
+                      border: '1px solid var(--border-input)',
+                      color: 'var(--text-primary)',
+                    }}
                     placeholder="e.g. Chase Checking"
                   />
                   {isPlaid && (
@@ -193,21 +203,32 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
               <div className="flex items-center gap-2 sm:contents">
                 {isPlaid ? (
                   <div
-                    className="flex-1 sm:flex-none flex items-center bg-gray-700/60 border border-gray-600/60 rounded-lg px-2 py-2"
+                    className="flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2"
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
                     title="Balance synced automatically via Plaid"
                   >
-                    <span className="text-gray-500 text-sm mr-1">$</span>
-                    <span className="text-white text-sm tabular-nums">
+                    <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
+                    <span className="text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>
                       {(Number(account.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 ) : (
-                  <div className="flex-1 sm:flex-none flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-2 focus-within:border-blue-500">
-                    <span className="text-gray-500 text-sm mr-1">$</span>
+                  <div
+                    className="flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 focus-within:ring-1 focus-within:ring-blue-500/60"
+                    style={{
+                      background: 'var(--bg-page)',
+                      border: '1px solid var(--border-input)',
+                    }}
+                  >
+                    <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                     <CurrencyInput
                       value={account.amount}
                       onChange={val => updateAccount(account.id, 'amount', val)}
-                      className="bg-transparent text-white text-sm w-full outline-none"
+                      className="bg-transparent text-sm w-full outline-none"
+                      style={{ color: 'var(--text-primary)' }}
                       min="0"
                     />
                   </div>
@@ -226,7 +247,12 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                     type="date"
                     value={account.balanceDate || ''}
                     onChange={e => updateAccount(account.id, 'balanceDate', e.target.value)}
-                    className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500 w-[100px]"
+                    className="rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/60 w-[100px]"
+                    style={{
+                      background: 'var(--bg-page)',
+                      border: '1px solid var(--border-input)',
+                      color: 'var(--text-primary)',
+                    }}
                     title="Date of this balance"
                   />
                 )}
@@ -238,7 +264,10 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                 <CommentButton itemId={`account_${account.id}`} label={account.name || 'Account'} />
                 <button
                   onClick={() => setPendingDeleteId(account.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="transition-colors flex items-center justify-center"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   title="Remove account"
                 >
                   <TrashIcon />
@@ -252,7 +281,12 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
                       type="text"
                       value={account.description || ''}
                       onChange={e => updateAccount(account.id, 'description', e.target.value)}
-                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                      className="flex-1 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                      style={{
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)',
+                      }}
                       placeholder="Add a note..."
                     />
                     {isPlaid && institution?.connectedBy && (
@@ -270,14 +304,26 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
 
       <button
         onClick={addAccount}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-blue-500 hover:text-blue-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = 'var(--accent-blue)'
+          e.currentTarget.style.color = 'var(--accent-blue)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Account
       </button>
 
-      <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex items-center justify-between">
-        <span className="text-gray-400 text-sm font-medium">Total Cash Available</span>
-        <span className="text-white text-2xl font-bold sensitive">{formatCurrency(total)}</span>
+      <div
+        className="rounded-lg px-4 py-3 flex items-center justify-between"
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+      >
+        <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total Cash Available</span>
+        <span className="text-2xl font-bold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(total)}</span>
       </div>
 
       {hasAnyPlaid && (

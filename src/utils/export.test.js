@@ -16,6 +16,8 @@ document.createElement = vi.fn((tag) => {
   if (tag === 'a') return mockLink
   return originalCreateElement(tag)
 })
+document.body.appendChild = vi.fn()
+document.body.removeChild = vi.fn()
 
 const mockAppendChild = vi.fn()
 const mockRemoveChild = vi.fn()
@@ -35,8 +37,7 @@ describe('exportBurndownCSV', () => {
     expect(mockLink.click).toHaveBeenCalled()
     expect(mockLink.download).toContain('.csv')
   })
-
-  it('throws error when no data provided', () => {
+  it('throws when no data', () => {
     expect(() => exportBurndownCSV(null)).toThrow('No burndown data to export')
     expect(() => exportBurndownCSV({ dataPoints: [] })).toThrow('No burndown data to export')
   })
@@ -50,6 +51,7 @@ describe('exportExpensesCSV', () => {
   it('throws error when empty', () => {
     expect(() => exportExpensesCSV([])).toThrow('No expenses to export')
   })
+  it('throws when empty', () => { expect(() => exportExpensesCSV([])).toThrow() })
 })
 
 describe('exportSavingsCSV', () => {
@@ -60,6 +62,7 @@ describe('exportSavingsCSV', () => {
   it('throws error when empty', () => {
     expect(() => exportSavingsCSV([])).toThrow('No savings accounts to export')
   })
+  it('throws when empty', () => { expect(() => exportSavingsCSV([])).toThrow() })
 })
 
 describe('exportScenariosCSV', () => {
