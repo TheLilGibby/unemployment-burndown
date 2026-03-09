@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '../../context/ToastContext'
+import { validateEmail } from '../../utils/validation'
 
 const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
 const TOKEN_KEY = 'burndown_token'
@@ -115,7 +116,11 @@ export default function OrgSettings({ user, onClose }) {
   async function handleSendInvite(e) {
     e.preventDefault()
     setInviteError(null)
-    if (!inviteEmail.trim()) return
+    const emailErr = validateEmail(inviteEmail)
+    if (emailErr) {
+      setInviteError(emailErr)
+      return
+    }
 
     setInviteSending(true)
     try {
