@@ -612,20 +612,18 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }, [s3Storage.restoreData, s3Storage.status]) // eslint-disable-line
 
-  // Auto-save to S3 on every state change (debounced 1.5 s)
+  // Auto-save to S3 on state change (debounced 3 s, only when sections are dirty)
   const autoSaveTimer = useRef(null)
   useEffect(() => {
     if (s3Storage.status === 'loading') return
+    if (dirtySections.current.size === 0) return
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       s3Storage.save(buildFullState())
       snapshots.saveSnapshot(buildSnapshot()) // idempotent — server only writes once per day
-      if (dirtySections.current.size > 0) {
-        addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
-        dirtySections.current.clear()
-        setHasDirtyChanges(false)
-      }
-    }, 1500)
+      addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
+      dirtySections.current.clear()
+    }, 3000)
     return () => clearTimeout(autoSaveTimer.current)
   }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
 
