@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import {
   ComposedChart,
   Area,
@@ -55,7 +55,7 @@ function CustomTooltip({ active, payload, colors }) {
   )
 }
 
-export default function NetPositionChart({ dataPoints }) {
+function NetPositionChart({ dataPoints }) {
   const [zoom, setZoom] = useState(12)
   const c = useChartColors()
 
@@ -200,3 +200,5 @@ export default function NetPositionChart({ dataPoints }) {
     </div>
   )
 }
+
+export default memo(NetPositionChart)

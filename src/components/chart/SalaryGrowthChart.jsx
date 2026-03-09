@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
@@ -14,7 +14,7 @@ const ZOOM_OPTIONS = [
   { label: '20Y', years: 20 },
 ]
 
-export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) {
+function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState(5)
   const [mode, setMode] = useState('gross') // 'gross' | 'takeHome' | 'totalComp'
@@ -255,3 +255,5 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
     </div>
   )
 }
+
+export default memo(SalaryGrowthChart)

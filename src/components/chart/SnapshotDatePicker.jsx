@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import dayjs from 'dayjs'
 import { Clock, X } from 'lucide-react'
 
@@ -5,7 +6,7 @@ import { Clock, X } from 'lucide-react'
  * Compact control for selecting a historical snapshot date to compare.
  * Renders nothing when no snapshots are available yet.
  */
-export default function SnapshotDatePicker({
+function SnapshotDatePicker({
   availableDates,    // string[] of 'YYYY-MM-DD'
   selectedDate,      // string | null
   onChange,          // (date: string | null) => void
@@ -54,3 +55,5 @@ export default function SnapshotDatePicker({
     </div>
   )
 }
+
+export default memo(SnapshotDatePicker)

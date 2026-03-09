@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -15,7 +15,7 @@ const METRIC_OPTIONS = [
   { key: 'balance', label: 'Balance' },
 ]
 
-export default function YearOverYearChart({ dataPoints }) {
+function YearOverYearChart({ dataPoints }) {
   const [metric, setMetric] = useState('net')
   const c = useChartColors()
 
@@ -168,3 +168,5 @@ export default function YearOverYearChart({ dataPoints }) {
     </div>
   )
 }
+
+export default memo(YearOverYearChart)

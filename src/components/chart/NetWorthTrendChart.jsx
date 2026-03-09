@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import {
   ComposedChart,
   Area,
@@ -65,7 +65,7 @@ function CustomTooltip({ active, payload, c }) {
   )
 }
 
-export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
+function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState(24)
 
@@ -174,3 +174,5 @@ export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
     </div>
   )
 }
+
+export default memo(NetWorthTrendChart)

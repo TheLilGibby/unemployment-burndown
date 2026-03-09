@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ReferenceLine, Cell,
@@ -25,7 +25,7 @@ function CustomTooltip({ active, payload, label, colors }) {
   )
 }
 
-export default function SpendingPatternsChart({ dataPoints }) {
+function SpendingPatternsChart({ dataPoints }) {
   const c = useChartColors()
   const [view, setView] = useState('trend') // 'trend' | 'anomaly'
 
@@ -252,3 +252,5 @@ export default function SpendingPatternsChart({ dataPoints }) {
     </div>
   )
 }
+
+export default memo(SpendingPatternsChart)

@@ -1,5 +1,5 @@
 import { thinChartData } from '../../utils/thinChartData'
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Cell,
@@ -46,7 +46,7 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function BurnRateChart({ dataPoints }) {
+function BurnRateChart({ dataPoints }) {
   const c = useChartColors()
   const [zoom, setZoom] = useState('2Y')
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
@@ -139,3 +139,5 @@ export default function BurnRateChart({ dataPoints }) {
     </div>
   )
 }
+
+export default memo(BurnRateChart)

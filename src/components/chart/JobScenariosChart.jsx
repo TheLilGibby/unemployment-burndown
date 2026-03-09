@@ -1,5 +1,5 @@
 import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -57,7 +57,7 @@ function mergeDataPoints(baselinePoints, scenarios, scenarioResults, maxMonths) 
   return Object.values(map).sort((a, b) => a.month - b.month)
 }
 
-export default function JobScenariosChart({ scenarios, scenarioResults }) {
+function JobScenariosChart({ scenarios, scenarioResults }) {
   const [zoom, setZoom] = useState(24)
   const c = useChartColors()
   const baselineResult = scenarioResults['__baseline__']
@@ -154,3 +154,5 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
     </div>
   )
 }
+
+export default memo(JobScenariosChart)

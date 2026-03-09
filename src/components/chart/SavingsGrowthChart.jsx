@@ -1,5 +1,5 @@
 import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
@@ -31,7 +31,7 @@ function mergeDataPoints(baselinePoints, scenarios, scenarioResults, maxMonths) 
   return Object.values(map).sort((a, b) => a.month - b.month)
 }
 
-export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
+function SavingsGrowthChart({ scenarios, scenarioResults }) {
   const [zoom, setZoom] = useState(60)
   const c = useChartColors()
 
@@ -140,3 +140,5 @@ export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
     </div>
   )
 }
+
+export default memo(SavingsGrowthChart)

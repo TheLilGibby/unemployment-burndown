@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell,
 } from 'recharts'
 import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { useChartColors } from '../../hooks/useChartColors'
 
-export default function TaxComparisonChart({ scenarios }) {
+function TaxComparisonChart({ scenarios }) {
   const c = useChartColors()
 
   if (!scenarios.length) return null
@@ -65,3 +66,5 @@ export default function TaxComparisonChart({ scenarios }) {
     </div>
   )
 }
+
+export default memo(TaxComparisonChart)

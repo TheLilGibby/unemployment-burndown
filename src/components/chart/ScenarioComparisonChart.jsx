@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, Cell, RadarChart,
@@ -29,7 +29,7 @@ function computeScenarioMetrics(result) {
   }
 }
 
-export default function ScenarioComparisonChart({ scenarios, scenarioResults }) {
+function ScenarioComparisonChart({ scenarios, scenarioResults }) {
   const [view, setView] = useState('bar') // 'bar' | 'radar' | 'table'
   const c = useChartColors()
 
@@ -229,3 +229,5 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
     </div>
   )
 }
+
+export default memo(ScenarioComparisonChart)
