@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
 import {
   LineChart,
   Line,
@@ -60,14 +61,16 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
 
   const merged = mergeDataPoints(scenarioA.dataPoints, scenarioB.dataPoints, labelA, labelB)
 
-  // Thin to 60 points max
-  const MAX_POINTS = 60
-  const step = Math.max(1, Math.ceil(merged.length / MAX_POINTS))
-  const chartData = merged.filter((_, i) => i % step === 0 || i === merged.length - 1)
+
+
+
+  const chartData = thinChartData(merged, 60, isBurndownCritical)
 
   const maxBalance = Math.max(
     ...chartData.map(d => Math.max(d[labelA] ?? 0, d[labelB] ?? 0))
   )
+
+  const todayLabel = dayjs().format('MMM YYYY')
 
   return (
     <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
@@ -101,7 +104,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
 
           <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
           <ReferenceLine
-            x={dayjs().format('MMM YYYY')}
+            x={todayLabel}
             stroke={c.amber}
             strokeDasharray="4 2"
             strokeWidth={1.5}
