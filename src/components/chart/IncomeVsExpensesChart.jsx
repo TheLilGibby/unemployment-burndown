@@ -77,6 +77,17 @@ export default function IncomeVsExpensesChart({ dataPoints }) {
 
   const maxVal = Math.max(...chartData.map(d => Math.max(d.income || 0, d.outflow || 0)), 1)
 
+  if (!dataPoints || dataPoints.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm"
+        style={{ height: 260, color: c.tick }}
+      >
+        No income or expense data to display yet.
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Legend + zoom */}

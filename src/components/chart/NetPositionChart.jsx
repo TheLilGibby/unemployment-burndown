@@ -71,6 +71,17 @@ export default function NetPositionChart({ dataPoints }) {
   const maxVal = Math.max(...allValues, 0)
   const minVal = Math.min(...allValues, 0)
 
+  if (!dataPoints || dataPoints.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm"
+        style={{ height: 260, color: c.tick }}
+      >
+        No net position data to display yet.
+      </div>
+    )
+  }
+
   return (
     <div>
       {/* Zoom controls */}

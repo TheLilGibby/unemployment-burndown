@@ -180,6 +180,7 @@ export default function BurndownChart({
   // This handles both same-start baselines (what-if) and cross-timeline historical
   // snapshots that may start from a different calendar date.
   const mergedData = useMemo(() => {
+    if (!dataPoints || dataPoints.length === 0) return []
     const baseMap = {}
     if (baseDataPoints) {
       for (const pt of baseDataPoints) baseMap[pt.dateLabel] = pt.balance
@@ -229,6 +230,17 @@ export default function BurndownChart({
   const pct75 = Math.max(0, Math.min(1, 1 - 0.25))  // 0.75 down
 
   const hasBaseline = showBaseline && baseDataPoints && baseDataPoints.length > 0
+
+  if (!dataPoints || dataPoints.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm"
+        style={{ height: 260, color: c.tick }}
+      >
+        No burndown data to display yet.
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">

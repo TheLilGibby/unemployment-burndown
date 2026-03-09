@@ -76,7 +76,14 @@ export default function InvestmentGrowthChart({ scenarios }) {
     return Object.values(dataMap)
   }, [scenarios, zoom])
 
-  if (!scenarios.length) return null
+  if (!scenarios.length) return (
+    <div
+      className="flex items-center justify-center text-sm"
+      style={{ height: 260, color: c.tick }}
+    >
+      No investment scenarios to display yet.
+    </div>
+  )
 
   const step = Math.max(1, Math.ceil(chartData.length / 60))
   const thinned = chartData.filter((_, i) => i % step === 0 || i === chartData.length - 1)

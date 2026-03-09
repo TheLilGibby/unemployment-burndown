@@ -45,7 +45,14 @@ function mergeDataPoints(pointsA, pointsB, labelA, labelB) {
 export default function ComparisonChart({ scenarioA, scenarioB }) {
   const c = useChartColors()
 
-  if (!scenarioA || !scenarioB) return null
+  if (!scenarioA || !scenarioB) return (
+    <div
+      className="flex items-center justify-center text-sm"
+      style={{ height: 260, color: c.tick }}
+    >
+      Select two scenarios to compare.
+    </div>
+  )
 
   const labelA = scenarioA.label || 'Scenario A'
   const labelB = scenarioB.label || 'Scenario B'

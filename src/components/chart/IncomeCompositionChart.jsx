@@ -82,6 +82,17 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
   const hasBenefits   = chartData.some(d => d.benefits > 0)
   const hasOtherIncome = chartData.some(d => d.otherIncome > 0)
 
+  if (!dataPoints || dataPoints.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm"
+        style={{ height: 260, color: c.tick }}
+      >
+        No income composition data to display yet.
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Legend + zoom */}

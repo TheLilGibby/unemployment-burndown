@@ -59,6 +59,17 @@ export default function BurnRateChart({ dataPoints }) {
 
   const maxAbs = Math.max(...chartData.map(d => Math.abs(d.netBurn)), 1)
 
+  if (!dataPoints || dataPoints.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm"
+        style={{ height: 260, color: c.tick }}
+      >
+        No burn rate data to display yet.
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Legend + zoom */}
