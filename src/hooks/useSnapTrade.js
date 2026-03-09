@@ -25,10 +25,10 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     setLoading(true)
     try {
       const data = await apiFetch('/snaptrade/accounts')
-      setConnections(data.connections || [])
+      setConnections(data?.connections || [])
       setLoading(false)
       fetchedRef.current = true
-      return data.connections
+      return data?.connections
     } catch (e) {
       setError(e.message)
       setLoading(false)
