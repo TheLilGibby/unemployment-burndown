@@ -64,16 +64,18 @@ export function useJobs() {
 
   const deleteJob = useCallback(async (jobId) => {
     setError(null)
+    const previousJobs = jobs
     try {
       await apiFetch(`/api/jobs/${jobId}`, { method: 'DELETE' })
       setJobs(prev => prev.filter(j => j.jobId !== jobId))
       return true
     } catch (err) {
       setError(err.message)
+      setJobs(previousJobs)
       toast.error('Delete Job Failed', err.message)
       return false
     }
-  }, [toast])
+  }, [toast, jobs])
 
   return { jobs, loading, error, fetchJobs, createJob, updateJob, deleteJob }
 }
