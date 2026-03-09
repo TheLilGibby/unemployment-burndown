@@ -1232,6 +1232,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/credit-cards" element={
+          <ErrorBoundary level="section">
           <CreditCardHubPage
             creditCards={creditCards}
             people={people}
@@ -1262,6 +1263,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             statementIndex={statementIndex}
             onStatementsRefresh={refreshStatementIndex}
           />
+          </ErrorBoundary>
         } />
 
         <Route path="/job-scenarios" element={
@@ -1280,38 +1282,44 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/retirement" element={
-          <RetirementPage
-            retirement={retirement}
-            onRetirementChange={onRetirementChange}
-            people={people}
-          />
+          <ErrorBoundary level="section">
+            <RetirementPage
+              retirement={retirement}
+              onRetirementChange={onRetirementChange}
+              people={people}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/goals" element={
-          <GoalsPage
-            goals={goals}
-            onGoalsChange={onGoalsChange}
-            savingsAccounts={savingsAccounts}
-            investments={investments}
-            creditCards={creditCards}
-            people={people}
-          />
+          <ErrorBoundary level="section">
+            <GoalsPage
+              goals={goals}
+              onGoalsChange={onGoalsChange}
+              savingsAccounts={savingsAccounts}
+              investments={investments}
+              creditCards={creditCards}
+              people={people}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/net-worth" element={
-          <NetWorthDashboardPage
-            savingsAccounts={savingsAccounts}
-            expenses={expenses}
-            creditCards={creditCards}
-            investments={investments}
-            assets={assets}
-            monthlyIncome={monthlyIncome}
-            unemployment={unemployment}
-            dataPoints={current.dataPoints}
-            currentNetBurn={current.currentNetBurn}
-            monthlyBenefits={current.monthlyBenefits}
-            jobs={jobs}
-          />
+          <ErrorBoundary level="section">
+            <NetWorthDashboardPage
+              savingsAccounts={savingsAccounts}
+              expenses={expenses}
+              creditCards={creditCards}
+              investments={investments}
+              assets={assets}
+              monthlyIncome={monthlyIncome}
+              unemployment={unemployment}
+              dataPoints={current.dataPoints}
+              currentNetBurn={current.currentNetBurn}
+              monthlyBenefits={current.monthlyBenefits}
+              jobs={jobs}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/analysis" element={
@@ -1330,39 +1338,43 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         } />
 
         <Route path="/budget" element={
-          <BudgetPage
-            categoryBudgets={categoryBudgets}
-            onCategoryBudgetsChange={onCategoryBudgetsChange}
-            allTransactions={effectiveTransactions}
-            transactionOverrides={transactionOverrides}
-          />
+          <ErrorBoundary level="section">
+            <BudgetPage
+              categoryBudgets={categoryBudgets}
+              onCategoryBudgetsChange={onCategoryBudgetsChange}
+              allTransactions={effectiveTransactions}
+              transactionOverrides={transactionOverrides}
+            />
+          </ErrorBoundary>
         } />
 
         <Route path="/settings" element={
-          <UserProfilePage
-            user={user}
-            updateProfile={updateProfile}
-            jobs={jobs}
-            onJobsChange={onJobsChange}
-            people={people}
-            allTransactions={effectiveTransactions}
-            transactionOverrides={transactionOverrides}
-            properties={properties}
-            onPropertiesChange={onPropertiesChange}
-            exportData={{
-              burndown: current,
-              expenses,
-              savingsAccounts,
-              scenarios: jobScenarios,
-              scenarioResults: jobScenarioResults,
-              totalSavings,
-              unemployment,
-              creditCards,
-              monthlyIncome,
-              investments,
-              transactions: effectiveTransactions,
-            }}
-          />
+          <ErrorBoundary level="section">
+            <UserProfilePage
+              user={user}
+              updateProfile={updateProfile}
+              jobs={jobs}
+              onJobsChange={onJobsChange}
+              people={people}
+              allTransactions={effectiveTransactions}
+              transactionOverrides={transactionOverrides}
+              properties={properties}
+              onPropertiesChange={onPropertiesChange}
+              exportData={{
+                burndown: current,
+                expenses,
+                savingsAccounts,
+                scenarios: jobScenarios,
+                scenarioResults: jobScenarioResults,
+                totalSavings,
+                unemployment,
+                creditCards,
+                monthlyIncome,
+                investments,
+                transactions: effectiveTransactions,
+              }}
+            />
+          </ErrorBoundary>
         } />
         {user?.isSuperAdmin && (
           <>
