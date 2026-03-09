@@ -353,7 +353,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
               <button
                 type="button"
                 onClick={() => { setShowForgot(true); setForgotEmail(email); setLocalError(null) }}
-                className="text-xs hover:underline"
+                className="text-xs underline"
                 style={{ color: 'var(--accent-blue)' }}
               >
                 Forgot password?
@@ -418,7 +418,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
               setLocalError(null)
               setFieldErrors({})
             }}
-            className="text-sm hover:underline"
+            className="text-sm underline"
             style={{ color: 'var(--accent-blue)' }}
           >
             {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
@@ -428,7 +428,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
         <div className="mt-4 text-center">
           <Link
             to="/privacy"
-            className="text-xs hover:underline"
+            className="text-xs underline"
             style={{ color: 'var(--text-muted)' }}
           >
             Privacy Policy
