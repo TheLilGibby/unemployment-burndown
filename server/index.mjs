@@ -161,7 +161,7 @@ function generateJoinCode() { return crypto.randomBytes(4).toString('hex').toUpp
 
 // Validate that a user-supplied resource ID contains only safe characters.
 // Prevents path traversal attacks (e.g. "../../etc/passwd").
-const SAFE_ID_RE = /^[a-zA-Z0-9_\-\.]+$/
+const SAFE_ID_RE = /^[a-zA-Z0-9_\-.]+$/
 function validateResourceId(id, label = 'id') {
   if (!id || !SAFE_ID_RE.test(id)) {
     const err = new Error(`Invalid ${label}: contains disallowed characters`)
