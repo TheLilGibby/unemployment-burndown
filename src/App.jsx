@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { DEFAULTS } from './constants/defaults'
@@ -18,14 +18,14 @@ import CloudSaveStatus from './components/layout/CloudSaveStatus'
 import ActivityLogPanel from './components/layout/ActivityLogPanel'
 import FinancialSidebar from './components/layout/FinancialSidebar'
 import BurndownPage from './pages/BurndownPage'
-import CreditCardHubPage from './pages/CreditCardHubPage'
-import JobScenariosPage from './components/scenarios/JobScenariosPage'
-import UserProfilePage from './pages/UserProfilePage'
-import RetirementPage from './pages/RetirementPage'
-import GoalsPage from './pages/GoalsPage'
-import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
-import BudgetPage from './pages/BudgetPage'
-import NetWorthDashboardPage from './pages/NetWorthDashboardPage'
+const CreditCardHubPage = lazy(() => import('./pages/CreditCardHubPage'))
+const JobScenariosPage = lazy(() => import('./components/scenarios/JobScenariosPage'))
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage'))
+const RetirementPage = lazy(() => import('./pages/RetirementPage'))
+const GoalsPage = lazy(() => import('./pages/GoalsPage'))
+const ComparativeAnalysisPage = lazy(() => import('./pages/ComparativeAnalysisPage'))
+const BudgetPage = lazy(() => import('./pages/BudgetPage'))
+const NetWorthDashboardPage = lazy(() => import('./pages/NetWorthDashboardPage'))
 import AccountsSidebar from './components/statements/AccountsSidebar'
 import { useBudget } from './hooks/useBudget'
 import { useStatementStorage } from './hooks/useStatementStorage'
@@ -41,13 +41,13 @@ import { isCCPayment } from './utils/ccPaymentDetector'
 import { CommentsProvider } from './context/CommentsContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
-import SuperAdminToolsPage from './pages/SuperAdminToolsPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
+const SuperAdminToolsPage = lazy(() => import('./pages/SuperAdminToolsPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 import OrgSetup from './components/auth/OrgSetup'
 import AcceptInvite from './components/auth/AcceptInvite'
-import SuperAdminPage from './pages/SuperAdminPage'
-import NotFoundPage from './pages/NotFoundPage'
+const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 import ImpersonationBanner from './components/admin/ImpersonationBanner'
 import OrgSettings from './components/org/OrgSettings'
 import ProfileMenu from './components/profile/ProfileMenu'
@@ -341,8 +341,8 @@ export default function App() {
   const location = useLocation()
 
   // Public pages accessible without authentication
-  if (location.pathname === '/privacy') return <PrivacyPolicyPage />
-  if (location.pathname === '/reset-password') return <ResetPasswordPage />
+  if (location.pathname === '/privacy') return <Suspense fallback={<AppLoadingSkeleton />}><PrivacyPolicyPage /></Suspense>
+  if (location.pathname === '/reset-password') return <Suspense fallback={<AppLoadingSkeleton />}><ResetPasswordPage /></Suspense>
   if (location.pathname === '/accept-invite') return <AcceptInvite />
 
   // Show loading skeleton while checking token
@@ -1125,6 +1125,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
       {!dataReady ? <BurndownPageSkeleton /> :
       <div className={`${globalSidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} transition-[margin] duration-200`}>
+      <Suspense fallback={<AppLoadingSkeleton />}>
       <Routes>
         <Route path="/" element={
           <div className="xl:mr-[10rem]">
@@ -1388,6 +1389,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </Suspense>
       </div>}
     </div>
     </CommentsProvider>
