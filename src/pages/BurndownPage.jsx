@@ -28,6 +28,8 @@ export default function BurndownPage({
   hasWhatIf,
   totalSavings,
   viewSettings,
+  // Loading state
+  loading = false,
   // Data
   people,
   savingsAccounts,
@@ -149,12 +151,13 @@ export default function BurndownPage({
         historicalBurndown={historicalBurndown}
         snapshotLoading={snapshots?.snapshotLoading || false}
         onHistoricalDateSelect={onHistoricalDateSelect}
+        loading={loading}
       />
       </div>
 
       {/* Vertically stacked sections */}
       <SectionCard id="sec-savings" title="Cash & Savings Accounts" className="scroll-mt-20">
-        <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} plaidLinkedItems={plaid?.linkedItems || []} />
+        <SavingsPanel accounts={savingsAccounts} onChange={onSavingsChange} people={people} plaidLinkedItems={plaid?.linkedItems || []} loading={loading} />
       </SectionCard>
 
       <SectionCard id="sec-unemployment" title="Unemployment Benefits" className="scroll-mt-20">
@@ -277,13 +280,13 @@ export default function BurndownPage({
 
       {/* Monthly expense breakdown â€” full width */}
       <SectionCard id="sec-expenses" title="Monthly Expenses" className="scroll-mt-20">
-        <ExpensePanel expenses={expenses} onChange={onExpensesChange} people={people} />
+        <ExpensePanel expenses={expenses} onChange={onExpensesChange} people={people} loading={loading} />
       </SectionCard>
 
       {/* Monthly investments â€” full width */}
       {viewSettings.sections.investments && (
         <SectionCard id="sec-investments" title="Monthly Investments" className="scroll-mt-20">
-          <InvestmentsPanel investments={investments} onChange={onInvestmentsChange} people={people} />
+          <InvestmentsPanel investments={investments} onChange={onInvestmentsChange} people={people} loading={loading} />
         </SectionCard>
       )}
 
