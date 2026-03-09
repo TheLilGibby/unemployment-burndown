@@ -41,7 +41,7 @@ export default function OneTimePurchasePanel({ purchases, onChange, people = [],
   function addPurchase() {
     onChange([
       ...purchases,
-      { id: Date.now(), description: 'New Purchase', date: new Date().toISOString().slice(0, 10), amount: 0, medium: 'Venmo', assignedTo: null },
+      { id: crypto.randomUUID(), description: 'New Purchase', date: new Date().toISOString().slice(0, 10), amount: 0, medium: 'Venmo', assignedTo: null },
     ])
   }
 

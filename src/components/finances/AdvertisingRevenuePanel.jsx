@@ -27,7 +27,7 @@ function ItemList({ items, onChange, sign, accentColor, emptyLabel, addLabel, co
   function addItem() {
     onChange([
       ...items,
-      { id: Date.now(), description: '', monthlyAmount: 0, startDate: '', endDate: '', assignedTo: null },
+      { id: crypto.randomUUID(), description: '', monthlyAmount: 0, startDate: '', endDate: '', assignedTo: null },
     ])
   }
 

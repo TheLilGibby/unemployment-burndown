@@ -30,7 +30,7 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
   }
 
   function addSub() {
-    onChange([...subscriptions, { id: Date.now(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null, description: '' }])
+    onChange([...subscriptions, { id: crypto.randomUUID(), name: 'New Subscription', monthlyAmount: 0, active: true, assignedTo: null, description: '' }])
   }
 
   const activeTotal = subscriptions

@@ -36,7 +36,7 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
 
   function addAsset() {
     onChange([...assets, {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: 'New Asset',
       estimatedValue: 0,
       includedInWhatIf: false,

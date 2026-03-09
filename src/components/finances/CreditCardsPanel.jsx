@@ -96,7 +96,7 @@ export default function CreditCardsPanel({ cards, onChange, people = [], filterP
 
   function addCard() {
     onChange([...cards, {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: 'New Card',
       balance: 0,
       minimumPayment: 0,

@@ -126,6 +126,7 @@ export async function handler(event) {
         phoneVerified: true,
         orgId,
         orgRole,
+        isSuperAdmin,
       },
     })
   } catch (error) {

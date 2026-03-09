@@ -59,7 +59,7 @@ export function useTemplates() {
   // Save current app state as a new template
   const saveNew = useCallback((name, snapshot) => {
     const template = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: name.trim() || 'Untitled',
       savedAt: new Date().toISOString(),
       snapshot,
@@ -124,7 +124,7 @@ export function useTemplates() {
     const original = templates[idx]
     const copy = {
       ...original,
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: `${original.name} (copy)`,
       savedAt: new Date().toISOString(),
     }

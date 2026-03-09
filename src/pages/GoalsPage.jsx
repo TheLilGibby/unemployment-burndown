@@ -53,7 +53,7 @@ export default function GoalsPage({ goals, onGoalsChange, savingsAccounts = [], 
     if (existing) {
       onGoalsChange(goals.map(g => g.id === goalData.id ? goalData : g))
     } else {
-      onGoalsChange([...goals, { ...goalData, id: Date.now(), createdAt: new Date().toISOString() }])
+      onGoalsChange([...goals, { ...goalData, id: crypto.randomUUID(), createdAt: new Date().toISOString() }])
     }
     setShowForm(false)
     setEditingGoal(null)

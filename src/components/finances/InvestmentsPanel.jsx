@@ -71,7 +71,7 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
   function add() {
     onChange([
       ...investments,
-      { id: Date.now(), name: 'New Investment', description: '', monthlyAmount: 0, active: true, assignedTo: null },
+      { id: crypto.randomUUID(), name: 'New Investment', description: '', monthlyAmount: 0, active: true, assignedTo: null },
     ])
   }
 

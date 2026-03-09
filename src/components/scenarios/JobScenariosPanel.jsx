@@ -27,7 +27,7 @@ export default function JobScenariosPanel({ scenarios, onChange, scenarioResults
     if (!newName.trim() || newSalary <= 0 || !newStartDate) return
     const colorIndex = scenarios.length % SCENARIO_COLORS.length
     const newScenario = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: newName.trim(),
       monthlyTakeHome: newSalary,
       startDate: newStartDate,

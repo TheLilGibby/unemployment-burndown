@@ -87,7 +87,7 @@ export default function ExpensePanel({ expenses, onChange, people = [], filterPe
   }
 
   function addExpense() {
-    onChange([...expenses, { id: Date.now(), category: 'New Expense', monthlyAmount: 0, essential: false, assignedTo: null, description: '' }])
+    onChange([...expenses, { id: crypto.randomUUID(), category: 'New Expense', monthlyAmount: 0, essential: false, assignedTo: null, description: '' }])
   }
 
   const totalMonthly = expenses.reduce((sum, e) => sum + (Number(e.monthlyAmount) || 0), 0)

@@ -20,7 +20,7 @@ export default function PropertyPanel({ properties = [], onChange }) {
   function addProperty() {
     onChange([
       ...properties,
-      { id: Date.now(), address: '', parcelNumber: '', description: '' },
+      { id: crypto.randomUUID(), address: '', parcelNumber: '', description: '' },
     ])
   }
 

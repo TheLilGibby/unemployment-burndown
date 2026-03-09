@@ -54,7 +54,7 @@ export default function JobsPanel({ jobs, onChange, people = [], allTransactions
   }
 
   function addItem() {
-    const newId = Date.now()
+    const newId = crypto.randomUUID()
     onChange([
       ...jobs,
       { id: newId, title: '', employer: '', monthlySalary: 0, startDate: '', endDate: '', status: 'active', statusDate: '', assignedTo: null },

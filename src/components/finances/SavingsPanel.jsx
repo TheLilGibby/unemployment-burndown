@@ -101,7 +101,7 @@ export default function SavingsPanel({ accounts, onChange, people = [], filterPe
 
   function addAccount() {
     onChange([...accounts, {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name: 'New Account',
       amount: 0,
       active: true,
