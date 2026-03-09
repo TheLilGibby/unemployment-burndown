@@ -378,13 +378,13 @@ export default function AcceptInvite() {
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               You've joined <strong>{inviteInfo?.orgName}</strong>. Two-factor authentication is now enabled.
             </p>
-            <a
-              href="/"
+            <Link
+              to="/"
               className="inline-block w-full rounded-lg py-2.5 text-sm font-semibold text-center transition-opacity hover:opacity-90"
               style={{ background: 'var(--accent-blue)', color: '#fff' }}
             >
               Go to Dashboard
-            </a>
+            </Link>
           </div>
         )}
 

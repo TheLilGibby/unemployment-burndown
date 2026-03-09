@@ -46,6 +46,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import OrgSetup from './components/auth/OrgSetup'
 import AcceptInvite from './components/auth/AcceptInvite'
 import SuperAdminPage from './pages/SuperAdminPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ImpersonationBanner from './components/admin/ImpersonationBanner'
 import OrgSettings from './components/org/OrgSettings'
 import ProfileMenu from './components/profile/ProfileMenu'
@@ -1335,7 +1336,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           </>
         )}
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </div>}
     </div>
