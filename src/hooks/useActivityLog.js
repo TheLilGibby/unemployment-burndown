@@ -78,7 +78,7 @@ export function useActivityLog(userId) {
         }
       }
       const entry = {
-        id: Date.now() + '-' + Math.random().toString(36).slice(2),
+        id: crypto.randomUUID(),
         timestamp: new Date(),
         type,    // 'save' | 'load' | 'change'
         message,
