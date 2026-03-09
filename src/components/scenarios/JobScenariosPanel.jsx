@@ -15,7 +15,7 @@ const SCENARIO_COLORS = [
 
 const MAX_SCENARIOS = 6
 
-const today = dayjs('2026-02-21')
+const today = dayjs()
 const minDate = today.add(1, 'day').format('YYYY-MM-DD')
 
 export default function JobScenariosPanel({ scenarios, onChange, scenarioResults }) {

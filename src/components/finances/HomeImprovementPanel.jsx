@@ -44,15 +44,15 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
   return (
     <div className="space-y-3">
       {improvements.length === 0 ? (
-        <p className="text-sm text-gray-600 text-center py-4">
+        <p className="text-sm text-center py-4" style={{ color: 'var(--text-faint)' }}>
           No home improvements yet. Track renovation projects, repairs, and upgrades against your properties.
         </p>
       ) : (
         <>
           {/* Column headers — desktop only */}
           <div
-            className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 130px 150px 110px 32px 32px 32px' }}
+            className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+            style={{ gridTemplateColumns: '20px 1fr 130px 150px 110px 32px 32px 32px', color: 'var(--text-secondary)' }}
           >
             <span></span>
             <span>Description</span>
@@ -84,7 +84,10 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
                   {/* Subrow 1: drag + description */}
                   <div className="flex items-center gap-2 sm:contents">
                     <div
-                      className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
+                      className="transition-colors flex items-center justify-center select-none flex-shrink-0"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                       {...dragHandleProps(item.id)}
                     >
                       <DragHandle />
@@ -93,7 +96,12 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
                       type="text"
                       value={item.description}
                       onChange={e => updateItem(item.id, 'description', e.target.value)}
-                      className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                      className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                      style={{
+                        background: 'var(--bg-page)',
+                        border: '1px solid var(--border-input)',
+                        color: 'var(--text-primary)',
+                      }}
                       placeholder="Description"
                     />
                   </div>
@@ -103,12 +111,22 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
                       type="date"
                       value={item.date}
                       onChange={e => updateItem(item.id, 'date', e.target.value)}
-                      className="min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                      className="min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                      style={{
+                        background: 'var(--bg-page)',
+                        border: '1px solid var(--border-input)',
+                        color: 'var(--text-primary)',
+                      }}
                     />
                     <select
                       value={item.propertyId ?? ''}
                       onChange={e => updateItem(item.id, 'propertyId', e.target.value ? Number(e.target.value) : null)}
-                      className="min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-2 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                      className="min-w-0 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                      style={{
+                        background: 'var(--bg-page)',
+                        border: '1px solid var(--border-input)',
+                        color: 'var(--text-primary)',
+                      }}
                     >
                       <option value="">No property</option>
                       {properties.map(p => (
@@ -117,12 +135,19 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
                         </option>
                       ))}
                     </select>
-                    <div className="flex-1 sm:flex-none flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-2 focus-within:border-blue-500">
-                      <span className="text-gray-500 text-sm mr-1">$</span>
+                    <div
+                      className="flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 focus-within:ring-1 focus-within:ring-blue-500/60"
+                      style={{
+                        background: 'var(--bg-page)',
+                        border: '1px solid var(--border-input)',
+                      }}
+                    >
+                      <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                       <CurrencyInput
                         value={item.amount}
                         onChange={val => updateItem(item.id, 'amount', val)}
-                        className="bg-transparent text-white text-sm w-full outline-none"
+                        className="bg-transparent text-sm w-full outline-none"
+                        style={{ color: 'var(--text-primary)' }}
                         min="0"
                       />
                     </div>
@@ -134,7 +159,10 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
                     <CommentButton itemId={overviewKey} label={item.description || 'Home Improvement'} />
                     <button
                       onClick={() => deleteItem(item.id)}
-                      className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                      className="transition-colors flex items-center justify-center"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                     >
                       <TrashIcon />
                     </button>
@@ -148,20 +176,32 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
 
       <button
         onClick={addItem}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = '#f59e0b'
+          e.currentTarget.style.color = '#fbbf24'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Home Improvement
       </button>
 
       {improvements.length > 0 && (
-        <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
+        <div
+          className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+        >
           <div>
-            <span className="text-gray-500">Total improvements: </span>
+            <span style={{ color: 'var(--text-muted)' }}>Total improvements: </span>
             <span className="text-amber-300 font-semibold sensitive">{formatCurrency(total)}</span>
           </div>
           <div>
-            <span className="text-gray-500">Count: </span>
-            <span className="text-white font-semibold">{improvements.length} improvement{improvements.length !== 1 ? 's' : ''}</span>
+            <span style={{ color: 'var(--text-muted)' }}>Count: </span>
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{improvements.length} improvement{improvements.length !== 1 ? 's' : ''}</span>
           </div>
           {/* Per-property breakdown */}
           {(() => {
@@ -175,7 +215,7 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
             if (entries.length <= 1) return null
             return entries.map(([label, amt]) => (
               <div key={label}>
-                <span className="text-gray-500">{label}: </span>
+                <span style={{ color: 'var(--text-muted)' }}>{label}: </span>
                 <span className="text-amber-300/80 font-medium sensitive">{formatCurrency(amt)}</span>
               </div>
             ))
@@ -183,8 +223,8 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
         </div>
       )}
 
-      <p className="text-xs text-gray-600">
-        Home improvements are deducted on their specific date. Drag <span className="text-gray-500">&#x2800;&#x283F;</span> to reorder.
+      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        Home improvements are deducted on their specific date. Drag <span style={{ color: 'var(--text-muted)' }}>&#x2800;&#x283F;</span> to reorder.
       </p>
     </div>
   )

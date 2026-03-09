@@ -19,12 +19,19 @@ export default function SavingsInput({ value, onChange }) {
   return (
     <div className="flex items-center gap-4">
       <div className="flex-1">
-        <label className="block text-xs text-gray-500 mb-1 font-medium">Current Savings / Cash on Hand</label>
+        <label className="block text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>Current Savings / Cash on Hand</label>
         {editing ? (
-          <div className="flex items-center bg-gray-700 border border-blue-500 rounded-lg px-3 py-2">
-            <span className="text-gray-400 mr-1 text-lg">$</span>
+          <div
+            className="flex items-center rounded-lg px-3 py-2"
+            style={{
+              background: 'var(--bg-page)',
+              border: '1px solid var(--accent-blue)',
+            }}
+          >
+            <span className="mr-1 text-lg" style={{ color: 'var(--text-secondary)' }}>$</span>
             <input
-              className="bg-transparent text-white text-2xl font-bold w-full outline-none"
+              className="bg-transparent text-2xl font-bold w-full outline-none"
+              style={{ color: 'var(--text-primary)' }}
               type="number"
               value={raw}
               onChange={e => setRaw(e.target.value)}
@@ -37,10 +44,16 @@ export default function SavingsInput({ value, onChange }) {
         ) : (
           <button
             onClick={startEdit}
-            className="text-left w-full bg-gray-700/50 hover:bg-gray-700 border border-gray-600 hover:border-blue-500 rounded-lg px-3 py-2 transition-colors group"
+            className="text-left w-full rounded-lg px-3 py-2 transition-colors group"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-input)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-input)'}
           >
-            <span className="text-3xl font-bold text-white">{formatCurrency(value)}</span>
-            <span className="ml-2 text-xs text-gray-500 group-hover:text-blue-400 transition-colors">click to edit</span>
+            <span className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(value)}</span>
+            <span className="ml-2 text-xs transition-colors" style={{ color: 'var(--text-muted)' }}>click to edit</span>
           </button>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { X, Link2, Unlink } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { findMatchingTransactions } from '../../utils/transactionMatcher'
@@ -27,6 +27,10 @@ export default function TransactionLinkModal({
   onClose,
 }) {
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    if (open) { setSearch('') }
+  }, [open])
 
   // Build all overview items with type prefixes
   const allItems = useMemo(() => [

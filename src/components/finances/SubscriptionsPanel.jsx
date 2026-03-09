@@ -45,8 +45,8 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
     <div className="space-y-3">
       {/* Column headers — desktop only */}
       <div
-        className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-        style={{ gridTemplateColumns: '20px 32px 1fr 130px 32px 32px 32px' }}
+        className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+        style={{ gridTemplateColumns: '20px 32px 1fr 130px 32px 32px 32px', color: 'var(--text-secondary)' }}
       >
         <span></span>
         <span></span>
@@ -77,7 +77,10 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
               {/* Subrow 1: drag · toggle · name */}
               <div className="flex items-center gap-2 sm:contents">
                 <div
-                  className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  className="transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   {...dragHandleProps(sub.id)}
                 >
                   <DragHandle />
@@ -87,31 +90,45 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                   onClick={() => toggleSub(sub.id)}
                   title={isActive ? 'Pause subscription' : 'Include subscription'}
                   className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer p-0.5 ${
-                    isActive ? 'bg-blue-500' : 'bg-gray-600'
+                    isActive ? 'bg-blue-500' : ''
                   }`}
+                  style={!isActive ? { backgroundColor: 'var(--bg-input)' } : {}}
                 >
                   <span
-                    className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    className={`block w-4 h-4 rounded-full shadow transition-transform ${
                       isActive ? 'translate-x-3' : 'translate-x-0'
                     }`}
+                    style={{ backgroundColor: 'var(--text-primary)' }}
                   />
                 </button>
                 <input
                   type="text"
                   value={sub.name}
                   onChange={e => updateSub(sub.id, 'name', e.target.value)}
-                  className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                  style={{
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                    color: 'var(--text-primary)',
+                  }}
                   placeholder="e.g. Netflix"
                 />
               </div>
               {/* Subrow 2: amount · assignee · trash */}
               <div className="flex items-center gap-2 sm:contents">
-                <div className="flex-1 sm:flex-none flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-2 focus-within:border-blue-500">
-                  <span className="text-gray-500 text-sm mr-1">$</span>
+                <div
+                  className="flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 focus-within:ring-1 focus-within:ring-blue-500/60"
+                  style={{
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                  }}
+                >
+                  <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                   <CurrencyInput
                     value={sub.monthlyAmount}
                     onChange={val => updateSub(sub.id, 'monthlyAmount', val)}
-                    className="bg-transparent text-white text-sm w-full outline-none"
+                    className="bg-transparent text-sm w-full outline-none"
+                    style={{ color: 'var(--text-primary)' }}
                     min="0"
                   />
                 </div>
@@ -123,7 +140,10 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                 <CommentButton itemId={`sub_${sub.id}`} label={sub.name || 'Subscription'} />
                 <button
                   onClick={() => deleteSub(sub.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center flex-shrink-0"
+                  className="transition-colors flex items-center justify-center flex-shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   title="Remove subscription"
                 >
                   <TrashIcon />
@@ -135,7 +155,12 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
                   type="text"
                   value={sub.description || ''}
                   onChange={e => updateSub(sub.id, 'description', e.target.value)}
-                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  className="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                  style={{
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                  }}
                   placeholder="Add a note..."
                 />
               </div>
@@ -146,31 +171,43 @@ export default function SubscriptionsPanel({ subscriptions, onChange, people = [
 
       <button
         onClick={addSub}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-blue-500 hover:text-blue-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = 'var(--accent-blue)'
+          e.currentTarget.style.color = 'var(--accent-blue)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Subscription
       </button>
 
-      <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
+      <div
+        className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm"
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+      >
         <div>
-          <span className="text-gray-500">Active: </span>
-          <span className="text-white font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
+          <span style={{ color: 'var(--text-muted)' }}>Active: </span>
+          <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(activeTotal)}/mo</span>
         </div>
         {inactiveTotal > 0 && (
           <div>
-            <span className="text-gray-500">Paused: </span>
-            <span className="text-gray-500 font-semibold line-through sensitive">{formatCurrency(inactiveTotal)}/mo</span>
+            <span style={{ color: 'var(--text-muted)' }}>Paused: </span>
+            <span className="font-semibold line-through sensitive" style={{ color: 'var(--text-muted)' }}>{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
         {inactiveTotal > 0 && (
           <div>
-            <span className="text-gray-500">Savings if cut: </span>
+            <span style={{ color: 'var(--text-muted)' }}>Savings if cut: </span>
             <span className="text-emerald-400 font-semibold sensitive">+{formatCurrency(inactiveTotal)}/mo</span>
           </div>
         )}
       </div>
-      <p className="text-xs text-gray-600">
-        Toggle subscriptions on/off to see their impact on your runway. Drag <span className="text-gray-500">⠿</span> to reorder.
+      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        Toggle subscriptions on/off to see their impact on your runway. Drag <span style={{ color: 'var(--text-muted)' }}>⠿</span> to reorder.
       </p>
     </div>
   )
