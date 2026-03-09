@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import dayjs from 'dayjs'
 import {
   ComposedChart,
   Area,
@@ -205,7 +206,7 @@ export default function BurndownChart({
 
   const maxBalance = Math.max(...chartData.map(d => Math.max(d.balance, d.baseline ?? 0, d.balanceEssentialOnly ?? 0)), 1)
 
-  const todayLabel = 'Feb 2026'
+  const todayLabel = dayjs().format('MMM YYYY')
 
   // Benefit window labels (find matching dateLabels in chartData)
   const benefitStartLabel = benefitStart
