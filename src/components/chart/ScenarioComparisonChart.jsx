@@ -5,6 +5,7 @@ import {
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from 'recharts'
 import { formatCurrency, formatMonths } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const METRICS = [
   { key: 'runway',          label: 'Runway (months)',  format: v => formatMonths(v) },
@@ -14,23 +15,6 @@ const METRICS = [
   { key: 'balanceAt24',     label: 'Balance @ 24mo',   format: v => formatCurrency(v) },
   { key: 'peakBalance',     label: 'Peak Balance',     format: v => formatCurrency(v) },
 ]
-
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.fill || p.color }} />
-          <span style={{ color: p.fill || p.color }} className="font-semibold">
-            {p.name}: {formatCurrency(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 function computeScenarioMetrics(result) {
   if (!result?.dataPoints?.length) return null
@@ -47,13 +31,31 @@ function computeScenarioMetrics(result) {
 
 export default function ScenarioComparisonChart({ scenarios, scenarioResults }) {
   const [view, setView] = useState('bar') // 'bar' | 'radar' | 'table'
+  const c = useChartColors()
+
+  function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: c.bgCard, border: `1px solid ${c.borderDefault}` }}>
+        <p className="text-xs font-semibold" style={{ color: c.textMuted }}>{label}</p>
+        {payload.map(p => (
+          <div key={p.dataKey} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.fill || p.color }} />
+            <span style={{ color: p.fill || p.color }} className="font-semibold">
+              {p.name}: {formatCurrency(p.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const { barData, radarData, scenarioMetrics } = useMemo(() => {
     if (!scenarios?.length || !scenarioResults) return { barData: [], radarData: [], scenarioMetrics: [] }
 
     const baseResult = scenarioResults['__baseline__']
     const allScenarios = [
-      { id: '__baseline__', name: 'No Job (Baseline)', color: '#6b7280', result: baseResult },
+      { id: '__baseline__', name: 'No Job (Baseline)', color: c.tick, result: baseResult },
       ...scenarios.map(s => ({
         id: s.id,
         name: s.name,
@@ -92,11 +94,11 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
     })
 
     return { barData: bar, radarData: radar, scenarioMetrics: metrics }
-  }, [scenarios, scenarioResults])
+  }, [scenarios, scenarioResults, c])
 
   if (!scenarioMetrics.length) {
     return (
-      <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-center py-8" style={{ color: c.textMuted }}>
         <p className="text-sm">Add job scenarios on the Job Scenarios page to see comparisons here.</p>
       </div>
     )
@@ -105,10 +107,10 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-sm font-semibold" style={{ color: c.textPrimary }}>
           Scenario Comparison
         </h3>
-        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: 'var(--border-default)' }}>
+        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: c.borderDefault }}>
           {[
             { key: 'bar', label: 'Chart' },
             { key: 'radar', label: 'Radar' },
@@ -119,8 +121,8 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
               onClick={() => setView(opt.key)}
               className="text-xs px-3 py-1 transition-colors"
               style={{
-                background: view === opt.key ? 'var(--accent-blue)' + '20' : 'var(--bg-input)',
-                color: view === opt.key ? 'var(--accent-blue)' : 'var(--text-faint)',
+                background: view === opt.key ? c.withAlpha(c.blue, '20') : 'var(--bg-input)',
+                color: view === opt.key ? c.blue : c.textFaint,
               }}
             >
               {opt.label}
@@ -133,10 +135,10 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
         <div className="sensitive-chart" style={{ width: '100%', height: 340 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }} barCategoryGap="20%">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={c.borderSubtle} vertical={false} />
               <XAxis
                 dataKey="metric"
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                tick={{ fill: c.textMuted, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
                 angle={-15}
@@ -149,7 +151,7 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
                   if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'k'
                   return '$' + v
                 }}
-                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                tick={{ fill: c.textMuted, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 width={56}
@@ -168,15 +170,15 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
         <div className="sensitive-chart" style={{ width: '100%', height: 340 }}>
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
-              <PolarGrid stroke="var(--border-subtle)" />
+              <PolarGrid stroke={c.borderSubtle} />
               <PolarAngleAxis
                 dataKey="metric"
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                tick={{ fill: c.textMuted, fontSize: 10 }}
               />
               <PolarRadiusAxis
                 angle={30}
                 domain={[0, 100]}
-                tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
+                tick={{ fill: c.textFaint, fontSize: 9 }}
               />
               {scenarioMetrics.map(s => (
                 <Radar
@@ -199,7 +201,7 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-muted)' }}>
+              <tr style={{ color: c.textMuted }}>
                 <th className="text-left py-1.5 pr-3 font-medium">Scenario</th>
                 {METRICS.map(m => (
                   <th key={m.key} className="text-right py-1.5 px-2 font-medium">{m.label}</th>
@@ -208,13 +210,13 @@ export default function ScenarioComparisonChart({ scenarios, scenarioResults }) 
             </thead>
             <tbody>
               {scenarioMetrics.map(s => (
-                <tr key={s.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={s.id} className="border-t" style={{ borderColor: c.borderSubtle }}>
                   <td className="py-1.5 pr-3 font-medium" style={{ color: s.color }}>
                     <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: s.color }} />
                     {s.name}
                   </td>
                   {METRICS.map(m => (
-                    <td key={m.key} className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                    <td key={m.key} className="text-right py-1.5 px-2" style={{ color: c.textPrimary }}>
                       {m.format(s.metrics[m.key])}
                     </td>
                   ))}

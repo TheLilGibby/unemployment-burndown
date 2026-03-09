@@ -96,7 +96,11 @@ export default function OrgSettings({ user, onClose }) {
   async function handleSendInvite(e) {
     e.preventDefault()
     setInviteError(null)
-    if (!inviteEmail.trim()) return
+    const emailErr = validateEmail(inviteEmail)
+    if (emailErr) {
+      setInviteError(emailErr)
+      return
+    }
 
     setInviteSending(true)
     try {

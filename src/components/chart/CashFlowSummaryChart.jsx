@@ -10,8 +10,9 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, c }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
@@ -34,7 +35,7 @@ function CustomTooltip({ active, payload }) {
         <span className="text-gray-400 text-xs font-semibold">Net Cash Flow</span>
         <span
           className="font-bold"
-          style={{ color: d.netFlow >= 0 ? '#34d399' : '#f87171' }}
+          style={{ color: d.netFlow >= 0 ? c.emerald : c.red }}
         >
           {d.netFlow >= 0 ? `+${formatCurrency(d.netFlow)}` : `−${formatCurrency(Math.abs(d.netFlow))}`}
         </span>
@@ -44,6 +45,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function CashFlowSummaryChart({ dataPoints, months = 12 }) {
+  const c = useChartColors()
   const data = useMemo(() => {
     const pts = dataPoints.slice(0, months + 1)
     return pts.map((d, i) => {
@@ -71,37 +73,37 @@ export default function CashFlowSummaryChart({ dataPoints, months = 12 }) {
     <div>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 10, right: 15, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.4} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.tooltipBorder} opacity={0.4} />
           <XAxis
             dataKey="dateLabel"
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: '#374151' }}
+            axisLine={{ stroke: c.tooltipBorder }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
             tickLine={false}
             axisLine={false}
             domain={[0, maxVal * 1.1]}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip c={c} />} />
 
-          <Bar dataKey="income" fill="#10b981" radius={[3, 3, 0, 0]} name="Income" opacity={0.85} />
-          <Bar dataKey="expenses" fill="#ef4444" radius={[3, 3, 0, 0]} name="Expenses" opacity={0.85} />
+          <Bar dataKey="income" fill={c.emerald} radius={[3, 3, 0, 0]} name="Income" opacity={0.85} />
+          <Bar dataKey="expenses" fill={c.red} radius={[3, 3, 0, 0]} name="Expenses" opacity={0.85} />
 
-          <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="4 2" opacity={0.4} />
+          <ReferenceLine y={0} stroke={c.tick} strokeDasharray="4 2" opacity={0.4} />
         </BarChart>
       </ResponsiveContainer>
 
       <div className="flex items-center justify-center gap-6 mt-3 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#10b981', opacity: 0.85 }} />
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: c.emerald, opacity: 0.85 }} />
           <span style={{ color: 'var(--text-muted)' }}>Income</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#ef4444', opacity: 0.85 }} />
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: c.red, opacity: 0.85 }} />
           <span style={{ color: 'var(--text-muted)' }}>Expenses</span>
         </div>
       </div>

@@ -9,6 +9,7 @@ import ExpenseDonutChart from './ExpenseDonutChart'
 import TopExpensesChart from './TopExpensesChart'
 import IncomeCompositionChart from './IncomeCompositionChart'
 import NetPositionChart from './NetPositionChart'
+import { useChartColors } from '../../hooks/useChartColors'
 
 // ─── Chart registry ───────────────────────────────────────────────────────────
 const CHART_DEFS = [
@@ -81,6 +82,7 @@ export default function ChartTabsSection({
   snapshotLoading,
   onHistoricalDateSelect,
 }) {
+  const c = useChartColors()
   const [activeId, setActiveId] = useState('burndown')
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -141,7 +143,7 @@ export default function ChartTabsSection({
                 {isActive && (
                   <span
                     className="absolute bottom-0 left-0 right-0"
-                    style={{ height: 2, background: 'var(--accent-blue, #3b82f6)', borderRadius: '1px 1px 0 0' }}
+                    style={{ height: 2, background: c.blue, borderRadius: '1px 1px 0 0' }}
                   />
                 )}
               </button>
@@ -179,9 +181,9 @@ export default function ChartTabsSection({
               <div
                 className="flex flex-wrap items-center gap-2 text-xs px-3 py-2 rounded-lg"
                 style={{
-                  background: 'rgba(124,58,237,0.08)',
-                  border: '1px solid rgba(124,58,237,0.25)',
-                  color: '#a78bfa',
+                  background: c.withAlpha(c.purple, '14'),
+                  border: `1px solid ${c.withAlpha(c.purple, '40')}`,
+                  color: c.purple,
                 }}
               >
                 <span>Comparing with snapshot from <strong>{dayjs(selectedHistoricalDate).format('MMMM D, YYYY')}</strong></span>

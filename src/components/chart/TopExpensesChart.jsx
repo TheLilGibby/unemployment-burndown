@@ -5,36 +5,19 @@ import {
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
-
-const TYPE_CONFIG = {
-  essential:     { label: 'Essential',     color: '#3b82f6' },
-  discretionary: { label: 'Discretionary', color: '#f97316' },
-  subscription:  { label: 'Subscription',  color: '#a78bfa' },
-  cc:            { label: 'CC Payment',    color: '#f59e0b' },
-  investment:    { label: 'Investment',    color: '#14b8a6' },
-}
-
-function CustomTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0].payload
-  const cfg = TYPE_CONFIG[d.type]
-  return (
-    <div
-      className="rounded-xl px-3 py-2.5 shadow-2xl"
-      style={{ background: '#111827', border: '1px solid #374151' }}
-    >
-      <p className="text-sm font-semibold text-white mb-0.5">{d.label}</p>
-      <p className="text-sm font-bold" style={{ color: cfg?.color ?? '#fff' }}>
-        {formatCurrency(d.amount)}<span className="text-xs font-normal opacity-60">/mo</span>
-      </p>
-      <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>
-        {cfg?.label ?? d.type}
-      </p>
-    </div>
-  )
-}
+import { useChartColors } from '../../hooks/useChartColors'
 
 export default function TopExpensesChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
+  const c = useChartColors()
+
+  const TYPE_CONFIG = useMemo(() => ({
+    essential:     { label: 'Essential',     color: c.blue },
+    discretionary: { label: 'Discretionary', color: c.orange },
+    subscription:  { label: 'Subscription',  color: c.purple },
+    cc:            { label: 'CC Payment',    color: c.amber },
+    investment:    { label: 'Investment',    color: c.teal },
+  }), [c.blue, c.orange, c.purple, c.amber, c.teal])
+
   const chartData = useMemo(() => {
     const all = [
       ...expenses.map(e => ({
@@ -50,10 +33,10 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
           type: 'subscription',
         })),
       ...creditCards
-        .filter(c => getEffectivePayment(c) > 0)
-        .map(c => ({
-          label: `${c.name || 'Card'} (pmt)`,
-          amount: getEffectivePayment(c),
+        .filter(card => getEffectivePayment(card) > 0)
+        .map(card => ({
+          label: `${card.name || 'Card'} (pmt)`,
+          amount: getEffectivePayment(card),
           type: 'cc',
         })),
       ...investments
@@ -80,7 +63,7 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
     return (
       <div
         className="flex items-center justify-center text-sm"
-        style={{ height: 260, color: '#6b7280' }}
+        style={{ height: 260, color: c.tick }}
       >
         No expense data to display yet.
       </div>
@@ -89,10 +72,30 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
 
   const chartHeight = Math.max(260, chartData.length * 34 + 40)
 
+  function CustomTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    const cfg = TYPE_CONFIG[d.type]
+    return (
+      <div
+        className="rounded-xl px-3 py-2.5 shadow-2xl"
+        style={{ background: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }}
+      >
+        <p className="text-sm font-semibold text-white mb-0.5">{d.label}</p>
+        <p className="text-sm font-bold" style={{ color: cfg?.color ?? '#fff' }}>
+          {formatCurrency(d.amount)}<span className="text-xs font-normal opacity-60">/mo</span>
+        </p>
+        <p className="text-xs mt-0.5" style={{ color: c.tick }}>
+          {cfg?.label ?? d.type}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: '#6b7280' }}>
+      <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: c.tick }}>
         {presentTypes.map(t => {
           const cfg = TYPE_CONFIG[t]
           return (
@@ -115,18 +118,18 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
             margin={{ top: 4, right: 72, left: 4, bottom: 4 }}
             barSize={18}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} horizontal={false} />
             <XAxis
               type="number"
               tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
               type="category"
               dataKey="shortLabel"
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              tick={{ fill: c.textSecondary, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={128}
@@ -135,13 +138,13 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
             <Bar dataKey="amount" radius={[0, 3, 3, 0]}>
               {chartData.map((entry, i) => {
                 const cfg = TYPE_CONFIG[entry.type]
-                return <Cell key={i} fill={(cfg?.color ?? '#6b7280') + 'cc'} />
+                return <Cell key={i} fill={c.withAlpha(cfg?.color ?? c.tick, 'cc')} />
               })}
               <LabelList
                 dataKey="amount"
                 position="right"
                 formatter={v => formatCurrency(v)}
-                style={{ fill: '#9ca3af', fontSize: 11 }}
+                style={{ fill: c.textSecondary, fontSize: 11 }}
               />
             </Bar>
           </BarChart>
