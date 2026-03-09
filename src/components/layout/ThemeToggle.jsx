@@ -76,18 +76,21 @@ export default function ThemeToggle() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-36 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div
+          className="absolute right-0 top-full mt-1 w-36 rounded-xl shadow-2xl z-50 overflow-hidden border"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
+        >
           {OPTIONS.map(({ value, label, Icon }) => {
             const selected = theme === value
             return (
               <button
                 key={value}
                 onClick={() => { setTheme(value); setOpen(false) }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
-                  selected
-                    ? 'bg-blue-950/40 text-blue-300'
-                    : 'text-gray-300 hover:bg-gray-700/40'
-                }`}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                style={{
+                  background: selected ? 'var(--bg-hover)' : 'transparent',
+                  color: selected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                }}
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-left">{label}</span>
