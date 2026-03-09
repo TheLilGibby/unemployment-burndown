@@ -290,6 +290,16 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
   }
   if (currentJobIncome === 0 && !jobOfferActiveNow) currentIncome += sideIncome
+  // Recurring monthly income sources
+  for (const src of monthlyIncome) {
+    if (!src.monthlyAmount) continue
+    if (src.startDate && dayjs(src.startDate).isAfter(today)) continue
+    if (src.endDate && dayjs(src.endDate).isBefore(today)) continue
+    currentIncome += Number(src.monthlyAmount) || 0
+  }
+  // Partner income
+  const partnerActiveNow = partnerStartDate && !today.isBefore(partnerStartDate)
+  if (partnerActiveNow) currentIncome += partnerIncome
   let currentEffExpenses = effectiveExpenses
   if (jobOfferActiveNow) {
     if (jobOfferBenefitsOffset > 0) currentEffExpenses = Math.max(0, currentEffExpenses - jobOfferBenefitsOffset)
