@@ -1,3 +1,4 @@
+import { thinChartData } from '../../utils/thinChartData'
 import { useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
@@ -66,10 +67,10 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
 
   const chartData = useMemo(() => {
     const filtered = dataPoints.filter(pt => pt.month > 0 && pt.month <= zoomMonths)
-    const MAX = 60
-    const step = Math.max(1, Math.ceil(filtered.length / MAX))
-    return filtered
-      .filter((_, i) => i % step === 0 || i === filtered.length - 1)
+
+
+    return thinChartData(filtered, 60)
+
       .map(pt => {
         const benefits = pt.inBenefitWindow ? Math.round(monthlyBenefits) : 0
         const otherIncome = Math.max(0, pt.income - benefits)

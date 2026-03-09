@@ -25,10 +25,10 @@ export function useSnapTrade({ onSyncComplete } = {}) {
     setLoading(true)
     try {
       const data = await apiFetch('/snaptrade/accounts')
-      setConnections(data.connections || [])
+      setConnections(data?.connections || [])
       setLoading(false)
       fetchedRef.current = true
-      return data.connections
+      return data?.connections
     } catch (e) {
       setError(e.message)
       setLoading(false)
@@ -47,7 +47,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
         body: JSON.stringify({}),
       })
 
-      const portalUrl = data.portalUrl
+      const portalUrl = data.portalUrl || data.redirectUrl
       if (!portalUrl) throw new Error('No portal URL returned')
 
       // Open SnapTrade portal in a popup
@@ -112,7 +112,7 @@ export function useSnapTrade({ onSyncComplete } = {}) {
         body: JSON.stringify({ connectionId }),
       })
 
-      const portalUrl = data.portalUrl
+      const portalUrl = data.portalUrl || data.redirectUrl
       if (!portalUrl) throw new Error('No portal URL returned')
 
       const popup = window.open(portalUrl, 'snaptrade-reconnect', 'width=500,height=700')

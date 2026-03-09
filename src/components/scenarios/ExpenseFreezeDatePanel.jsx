@@ -16,7 +16,7 @@ export default function ExpenseFreezeDatePanel({ value, onChange, baseRunwayMont
 
   const isActive = !!freezeDate && reductionPct > 0
 
-  const today = dayjs('2026-02-21')
+  const today = dayjs()
   const monthsUntilFreeze = freezeDate
     ? Math.max(0, Math.round(dayjs(freezeDate).diff(today, 'day') / 30))
     : 0

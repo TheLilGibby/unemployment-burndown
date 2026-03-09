@@ -41,20 +41,23 @@ function downloadFile(content, filename, mimeType = 'text/csv') {
 }
 
 /**
- * Export burndown timeline data as CSV
+ * Export burndown projection data as CSV
  */
 export function exportBurndownCSV(burndownData, filename = null) {
-  if (!burndownData || !burndownData.timeline || burndownData.timeline.length === 0) {
+  const points = burndownData?.dataPoints
+  if (!points || points.length === 0) {
     throw new Error('No burndown data to export')
   }
   
-  const csvData = burndownData.timeline.map(point => ({
-    Date: formatDate(point.date),
+  const csvData = points.map(point => ({
+    Date: point.dateLabel || formatDate(point.date),
     Balance: point.balance.toFixed(2),
-    'Monthly Expenses': point.expenses?.toFixed(2) || '0.00',
     'Monthly Income': point.income?.toFixed(2) || '0.00',
     'Net Burn': point.netBurn?.toFixed(2) || '0.00',
-    'Runway (Months)': point.runwayMonths?.toFixed(1) || '0.0',
+    'Total Debt': point.totalDebt?.toFixed(2) || '0.00',
+    'Net Position': point.netPosition?.toFixed(2) || '0.00',
+    'In Benefit Window': point.inBenefitWindow ? 'Yes' : 'No',
+    'Job Active': point.jobActive ? 'Yes' : 'No',
   }))
   
   const csv = arrayToCSV(csvData)
@@ -163,7 +166,7 @@ export function exportTransactionsCSV(transactions, filename = null) {
 export function exportAllData(data) {
   const timestamp = dayjs().format('YYYY-MM-DD_HHmmss')
   
-  if (data.burndown && data.burndown.timeline && data.burndown.timeline.length > 0) {
+  if (data.burndown && data.burndown.dataPoints && data.burndown.dataPoints.length > 0) {
     exportBurndownCSV(data.burndown, `burndown-${timestamp}.csv`)
   }
   
@@ -185,6 +188,14 @@ export function exportAllData(data) {
 
   if (data.investments && data.investments.length > 0) {
     exportInvestmentsCSV(data.investments, `investments-${timestamp}.csv`)
+  }
+
+  if (data.monthlyIncome && data.monthlyIncome.length > 0) {
+    exportIncomeCSV(data.monthlyIncome, `monthly-income-${timestamp}.csv`)
+  }
+
+  if (data.transactions && data.transactions.length > 0) {
+    exportTransactionsCSV(data.transactions, `transactions-${timestamp}.csv`)
   }
 }
 

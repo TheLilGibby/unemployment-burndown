@@ -86,15 +86,15 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
 
       {/* Manual Investments */}
       {investments.length === 0 ? (
-        <p className="text-sm text-gray-600 text-center py-4">
+        <p className="text-sm text-center py-4" style={{ color: 'var(--text-faint)' }}>
           No investments yet. Add things like 401k contributions, brokerage deposits, crypto DCA, or Roth IRA.
         </p>
       ) : (
         <>
         {/* Column headers — desktop only */}
         <div
-          className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-          style={{ gridTemplateColumns: '20px 1fr 120px 72px 32px 32px 32px' }}
+          className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+          style={{ gridTemplateColumns: '20px 1fr 120px 72px 32px 32px 32px', color: 'var(--text-secondary)' }}
         >
           <span></span>
           <span>Investment</span>
@@ -120,7 +120,10 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
               {/* Subrow 1: drag · name */}
               <div className="flex items-center gap-2 sm:contents">
                 <div
-                  className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  className="transition-colors flex items-center justify-center select-none flex-shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   {...dragHandleProps(inv.id)}
                 >
                   <DragHandle />
@@ -129,38 +132,57 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                   type="text"
                   value={inv.name}
                   onChange={e => update(inv.id, 'name', e.target.value)}
-                  className={`flex-1 min-w-0 bg-gray-700 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none transition-colors ${
-                    inv.active ? 'border-teal-700/50 focus:border-teal-400' : 'border-gray-600 focus:border-gray-500'
+                  className={`flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors ${
+                    inv.active ? 'border-teal-700/50 focus:border-teal-400' : ''
                   }`}
+                  style={inv.active ? {
+                    background: 'var(--bg-page)',
+                    color: 'var(--text-primary)',
+                  } : {
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                    color: 'var(--text-primary)',
+                  }}
                   placeholder="e.g. Roth IRA, 401k, BTC DCA"
                 />
               </div>
               {/* Subrow 2: monthly · status · assignee · trash */}
               <div className="flex items-center gap-2 sm:contents">
-                <div className={`flex-1 sm:flex-none flex items-center bg-gray-700 border rounded-lg px-2 py-2 transition-colors ${
-                  inv.active ? 'border-teal-700/50 focus-within:border-teal-400' : 'border-gray-600 focus-within:border-gray-500'
-                }`}>
-                  <span className="text-gray-500 text-sm mr-1">$</span>
+                <div
+                  className={`flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 transition-colors ${
+                    inv.active ? 'border-teal-700/50 focus-within:border-teal-400' : ''
+                  }`}
+                  style={inv.active ? {
+                    background: 'var(--bg-page)',
+                  } : {
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border-input)',
+                  }}
+                >
+                  <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                   <CurrencyInput
                     value={inv.monthlyAmount}
                     onChange={val => update(inv.id, 'monthlyAmount', val)}
-                    className="bg-transparent text-white text-sm w-full outline-none"
+                    className="bg-transparent text-sm w-full outline-none"
+                    style={{ color: 'var(--text-primary)' }}
                     min="0"
                   />
-                  <span className="text-gray-600 text-xs ml-1 shrink-0">/mo</span>
+                  <span className="text-xs ml-1 shrink-0" style={{ color: 'var(--text-faint)' }}>/mo</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => update(inv.id, 'active', !inv.active)}
                   title={inv.active ? 'Pause this investment' : 'Resume this investment'}
                   className={`w-8 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer p-0.5 ${
-                    inv.active ? 'bg-teal-500' : 'bg-gray-600'
+                    inv.active ? 'bg-teal-500' : ''
                   }`}
+                  style={!inv.active ? { backgroundColor: 'var(--bg-input)' } : {}}
                 >
                   <span
-                    className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    className={`block w-4 h-4 rounded-full shadow transition-transform ${
                       inv.active ? 'translate-x-3' : 'translate-x-0'
                     }`}
+                    style={{ backgroundColor: 'var(--text-primary)' }}
                   />
                 </button>
                 <AssigneeSelect
@@ -171,7 +193,10 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                 <CommentButton itemId={`inv_${inv.id}`} label={inv.name || 'Investment'} />
                 <button
                   onClick={() => remove(inv.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="transition-colors flex items-center justify-center"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   title="Remove investment"
                 >
                   <TrashIcon />
@@ -183,7 +208,12 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
                   type="text"
                   value={inv.description || ''}
                   onChange={e => update(inv.id, 'description', e.target.value)}
-                  className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-teal-500 placeholder-gray-600"
+                  className="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500/60"
+                  style={{
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                  }}
                   placeholder="Add a note..."
                 />
               </div>
@@ -196,28 +226,40 @@ export default function InvestmentsPanel({ investments, onChange, people = [], f
 
       <button
         onClick={add}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-teal-500 hover:text-teal-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = '#14b8a6'
+          e.currentTarget.style.color = '#2dd4bf'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Investment
       </button>
 
       {investments.length > 0 && (
-        <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
+        <div
+          className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+        >
           <div>
-            <span className="text-gray-500">Active monthly: </span>
+            <span style={{ color: 'var(--text-muted)' }}>Active monthly: </span>
             <span className="text-teal-300 font-semibold sensitive">{formatCurrency(activeTotal)}/mo</span>
           </div>
           {pausedTotal > 0 && (
             <div>
-              <span className="text-gray-500">Paused: </span>
-              <span className="text-gray-400 font-semibold sensitive">{formatCurrency(pausedTotal)}/mo</span>
+              <span style={{ color: 'var(--text-muted)' }}>Paused: </span>
+              <span className="font-semibold sensitive" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(pausedTotal)}/mo</span>
             </div>
           )}
         </div>
       )}
 
-      <p className="text-xs text-gray-600">
-        Active investments add to your monthly burn — toggle <span className="text-teal-400 font-medium">Off</span> to pause. Drag <span className="text-gray-500">⠿</span> to reorder.
+      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        Active investments add to your monthly burn — toggle <span className="text-teal-400 font-medium">Off</span> to pause. Drag <span style={{ color: 'var(--text-muted)' }}>⠿</span> to reorder.
       </p>
     </div>
   )

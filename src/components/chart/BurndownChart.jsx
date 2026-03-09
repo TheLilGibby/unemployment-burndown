@@ -1,4 +1,6 @@
+import { thinChartData, isBurndownCritical } from '../../utils/thinChartData'
 import { useState, useMemo } from 'react'
+import dayjs from 'dayjs'
 import {
   ComposedChart,
   Area,
@@ -194,9 +196,9 @@ export default function BurndownChart({
   // Apply zoom filter
   const chartData = useMemo(() => {
     const filtered = mergedData.filter(pt => pt.month <= zoomMonths)
-    const MAX_POINTS = 72
-    const step = Math.max(1, Math.ceil(filtered.length / MAX_POINTS))
-    return filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1)
+    // Thin data while preserving critical event points
+
+    return thinChartData(filtered, 72, isBurndownCritical)
   }, [mergedData, zoomMonths])
 
   // One-time event counts (for legend/callouts)
@@ -205,7 +207,7 @@ export default function BurndownChart({
 
   const maxBalance = Math.max(...chartData.map(d => Math.max(d.balance, d.baseline ?? 0, d.balanceEssentialOnly ?? 0)), 1)
 
-  const todayLabel = 'Feb 2026'
+  const todayLabel = dayjs().format('MMM YYYY')
 
   // Benefit window labels (find matching dateLabels in chartData)
   const benefitStartLabel = benefitStart

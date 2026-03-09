@@ -1,3 +1,4 @@
+import { thinChartData } from '../../utils/thinChartData'
 import { useMemo, useState } from 'react'
 import {
   ComposedChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -64,10 +65,10 @@ export default function IncomeVsExpensesChart({ dataPoints }) {
 
   const chartData = useMemo(() => {
     const filtered = dataPoints.filter(pt => pt.month > 0 && pt.month <= zoomMonths)
-    const MAX = 36
-    const step = Math.max(1, Math.ceil(filtered.length / MAX))
-    return filtered
-      .filter((_, i) => i % step === 0 || i === filtered.length - 1)
+
+
+    return thinChartData(filtered, 36)
+
       .map(pt => ({
         ...pt,
         // outflow = expenses + investments (netBurn = outflow − income)
