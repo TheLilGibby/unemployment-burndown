@@ -66,6 +66,7 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
 
   const chartData = useMemo(() => {
+    if (!dataPoints || dataPoints.length === 0) return []
     const filtered = dataPoints.filter(pt => pt.month > 0 && pt.month <= zoomMonths)
 
 

@@ -67,6 +67,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
   const chartData = thinChartData(merged, 60, isBurndownCritical)
 
   const maxBalance = Math.max(
+    0,
     ...chartData.map(d => Math.max(d[labelA] ?? 0, d[labelB] ?? 0))
   )
 
