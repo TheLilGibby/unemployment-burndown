@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { API_BASE, authHeaders, safeJson } from '../../utils/apiClient'
+import { validateEmail } from '../../utils/validation'
 
 export default function OrgSettings({ user, onClose }) {
   const [org, setOrg] = useState(null)
