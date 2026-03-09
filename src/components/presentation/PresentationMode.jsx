@@ -471,7 +471,7 @@ function SlideScenarios({ whatIf, current, base, assetProceeds }) {
 
 // ─── Slide 6: Key Dates & Assets ─────────────────────────────────────────────
 function SlideActions({ oneTimeExpenses, assets, current, unemployment, whatIf }) {
-  const today = new Date('2026-02-21')
+  const today = new Date()
 
   const upcomingExpenses = (oneTimeExpenses || [])
     .filter(e => e.date && e.amount && new Date(e.date) > today)

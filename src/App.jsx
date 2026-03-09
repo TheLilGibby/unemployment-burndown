@@ -25,6 +25,7 @@ import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
 import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
 import BudgetPage from './pages/BudgetPage'
+import NetWorthDashboardPage from './pages/NetWorthDashboardPage'
 import AccountsSidebar from './components/statements/AccountsSidebar'
 import { useBudget } from './hooks/useBudget'
 import { useStatementStorage } from './hooks/useStatementStorage'
@@ -1276,6 +1277,22 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             investments={investments}
             creditCards={creditCards}
             people={people}
+          />
+        } />
+
+        <Route path="/net-worth" element={
+          <NetWorthDashboardPage
+            savingsAccounts={savingsAccounts}
+            expenses={expenses}
+            creditCards={creditCards}
+            investments={investments}
+            assets={assets}
+            monthlyIncome={monthlyIncome}
+            unemployment={unemployment}
+            dataPoints={current.dataPoints}
+            currentNetBurn={current.currentNetBurn}
+            monthlyBenefits={current.monthlyBenefits}
+            jobs={jobs}
           />
         } />
 
