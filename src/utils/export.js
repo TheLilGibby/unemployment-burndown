@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { formatCurrency, formatDate } from './formatters'
+import { formatCurrency, formatDate, formatMonths } from './formatters'
 
 /**
  * Convert array of objects to CSV string
