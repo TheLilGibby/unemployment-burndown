@@ -502,7 +502,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const effectiveTransactions = appAllTransactions.length > 0 ? appAllTransactions : allTransactionsCache
 
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
   }
 
   function applySnapshot(snapshot) {
@@ -613,7 +613,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations]) // eslint-disable-line
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations]) // eslint-disable-line
 
   function handleSave(id)      { overwrite(id, buildSnapshot()); addEntry('save', `Template "${templates.find(t => t.id === id)?.name || id}" overwritten`) }
   function handleSaveNew(name) { saveNew(name, buildSnapshot()); addEntry('save', `New template "${name}" saved`) }

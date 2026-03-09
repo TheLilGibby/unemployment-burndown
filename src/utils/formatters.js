@@ -23,6 +23,18 @@ export function formatMonths(months) {
   return `${years} yr ${rem} mo`
 }
 
+/**
+ * Compact dollar formatter for chart Y-axis tick labels.
+ * Handles negative values correctly: -$5k instead of $-5k.
+ */
+export function formatAxisValue(v) {
+  const abs = Math.abs(v)
+  const sign = v < 0 ? '-' : ''
+  if (abs >= 1000000) return sign + '$' + (abs / 1000000).toFixed(1) + 'M'
+  if (abs >= 1000) return sign + '$' + (abs / 1000).toFixed(0) + 'k'
+  return sign + '$' + abs
+}
+
 export function formatDays(days) {
   if (days == null || days <= 0) return '0 days'
   if (days < 30) return `${days} day${days !== 1 ? 's' : ''}`

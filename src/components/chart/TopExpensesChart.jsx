@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
 import { useChartColors } from '../../hooks/useChartColors'
 
@@ -121,7 +121,7 @@ export default function TopExpensesChart({ expenses = [], subscriptions = [], cr
             <CartesianGrid strokeDasharray="3 3" stroke={c.grid} horizontal={false} />
             <XAxis
               type="number"
-              tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+              tickFormatter={formatAxisValue}
               tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
