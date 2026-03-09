@@ -39,8 +39,9 @@ export function computeRetirementProjection({
 
     dataPoints.push({ month: m, dateLabel, age, nominalBalance, realBalance: Math.round(realBalance) })
 
-    // Grow balance
-    nominalBalance = nominalBalance * (1 + monthlyReturn) + monthlyContribution
+    // Grow balance; stop contributions after retirement
+    const contrib = m < retirementMonth ? monthlyContribution : 0
+    nominalBalance = nominalBalance * (1 + monthlyReturn) + contrib
   }
 
   // Value at retirement (inflation-adjusted)
