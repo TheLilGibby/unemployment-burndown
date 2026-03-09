@@ -72,7 +72,14 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
     return data
   }, [scenarios, zoom, mode, effectiveExpenses])
 
-  if (!scenarios.length) return null
+  if (!scenarios.length) return (
+    <div
+      className="flex items-center justify-center text-sm"
+      style={{ height: 260, color: c.tick }}
+    >
+      No salary scenarios to display yet.
+    </div>
+  )
 
   const allKeys = scenarios.map(s => s.name)
   const maxVal = Math.max(0, ...chartData.map(d => Math.max(...allKeys.map(k => d[k] ?? 0))))

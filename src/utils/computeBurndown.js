@@ -1,8 +1,9 @@
 import dayjs from 'dayjs'
-import { getEffectivePayment } from './ccPayment'
+import { getEffectivePayment } from './ccPayment.js'
 
 /**
  * Pure burndown simulation — computes a month-by-month cash runway projection.
+ * Extracted from useBurndown hook for use in Node.js tooling (MCP server, scripts).
  *
  * @param {object} params
  * @param {number}  params.savings           Current total savings
@@ -18,7 +19,6 @@ import { getEffectivePayment } from './ccPayment'
  * @param {Array}   params.jobs              Active/ended job records
  * @param {Array}   params.oneTimePurchases  One-time purchases (treated as expenses)
  * @param {Array}   params.creditCards       Credit card records
- * @returns {object} { dataPoints, runoutDate, totalRunwayMonths, currentNetBurn, effectiveExpenses, monthlyBenefits, monthlyInvestments, totalMonthlyIncome, totalJobIncome, benefitEnd, benefitStart, emergencyFloor }
  */
 export function computeBurndown({
   savings = 0,
@@ -76,7 +76,6 @@ export function computeBurndown({
     const slot = Math.max(1, monthsAhead + 1)
     oneTimeByMonth[slot] = (oneTimeByMonth[slot] || 0) + (Number(ote.amount) || 0)
   }
-  // Merge one-time purchases into same expense map (they are also losses)
   for (const otp of oneTimePurchases) {
     if (!otp.date || !otp.amount) continue
     const otpDate = dayjs(otp.date)
@@ -141,7 +140,7 @@ export function computeBurndown({
   }
 
   // --- Credit card balance trajectories ---
-  let ccBalances = creditCards.map(c => ({
+  const ccBalances = creditCards.map(c => ({
     id: c.id,
     balance: Number(c.balance) || 0,
     apr: Number(c.apr) || 0,
@@ -153,7 +152,7 @@ export function computeBurndown({
   // --- Simulation ---
   const MAX_MONTHS = 120
   let balance = (Number(savings) || 0) + (Number(extraCash) || 0)
-  let balanceEssential = balance  // parallel track: essentials + income only
+  let balanceEssential = balance
 
   const dataPoints = [
     {
@@ -179,50 +178,41 @@ export function computeBurndown({
   for (let i = 1; i <= MAX_MONTHS; i++) {
     const currentDate = today.add(i, 'month')
 
-    // Benefits
     const inBenefitWindow =
       currentDate.isAfter(benefitStart) && currentDate.isBefore(benefitEnd)
     let income = inBenefitWindow ? monthlyBenefits : 0
 
-    // Job income from jobs array
     const jobIncomeThisMonth = jobIncomeForDate(currentDate)
     income += jobIncomeThisMonth
 
-    // Job offer salary (what-if scenario, with annual raise compounding)
     const jobOfferActive = jobStartDate && !currentDate.isBefore(jobStartDate)
     if (jobOfferActive) {
       const monthsSinceStart = currentDate.diff(jobStartDate, 'month')
       const fullYears = Math.floor(monthsSinceStart / 12)
-      const raiseFactor = (jobAnnualRaisePct > 0 && fullYears > 0)
+      const raiseF = (jobAnnualRaisePct > 0 && fullYears > 0)
         ? Math.pow(1 + jobAnnualRaisePct / 100, fullYears) : 1
-      income += jobSalary * raiseFactor
+      income += jobSalary * raiseF
 
-      // Signing bonus: one-time income in the first month
       if (jobOfferSigningBonus > 0 && monthsSinceStart === 0) {
         income += jobOfferSigningBonus
       }
 
-      // Annual bonus: paid at each yearly anniversary
       if (jobOfferAnnualBonusPct > 0 && monthsSinceStart > 0 && monthsSinceStart % 12 === 0) {
-        const currentGross = jobOfferGrossAnnual * raiseFactor
+        const currentGross = jobOfferGrossAnnual * raiseF
         const bonusNet = currentGross * (jobOfferAnnualBonusPct / 100) * (1 - jobOfferTaxRatePct / 100)
         income += bonusNet
       }
 
-      // Equity/RSU vesting: distributed monthly as liquid income
       if (jobOfferEquityAnnual > 0) {
         income += jobOfferEquityAnnual / 12
       }
     }
 
-    // Flat side income (applies when no job income from either source)
     if (jobIncomeThisMonth === 0 && !jobOfferActive) income += sideIncome
 
-    // Partner income
     const partnerActive = partnerStartDate && !currentDate.isBefore(partnerStartDate)
     if (partnerActive) income += partnerIncome
 
-    // Recurring monthly income sources
     for (const src of monthlyIncome) {
       if (!src.monthlyAmount) continue
       if (src.startDate && dayjs(src.startDate).isAfter(currentDate)) continue
@@ -230,7 +220,6 @@ export function computeBurndown({
       income += Number(src.monthlyAmount) || 0
     }
 
-    // Freelance ramp: find highest tier whose monthOffset <= i
     if (freelanceRamp.length > 0) {
       const activeTier = [...freelanceRamp]
         .filter(t => t.monthOffset <= i)
@@ -238,16 +227,12 @@ export function computeBurndown({
       if (activeTier) income += Number(activeTier.monthlyAmount) || 0
     }
 
-    // Expense reduction only applies after freeze date (or always if no freeze date)
     const afterFreeze = freezeDate ? !currentDate.isBefore(freezeDate) : true
     const expReductionFactor = afterFreeze ? reductionFactor : 1
     let monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
 
-    // Compensation package adjustments to expenses (only when job is active)
     if (jobOfferActive) {
-      // Employer benefits offset personal insurance costs
       if (jobOfferBenefitsOffset > 0) monthExpenses = Math.max(0, monthExpenses - jobOfferBenefitsOffset)
-      // Commute cost adds to monthly expenses
       if (jobOfferCommuteMonthly > 0) monthExpenses += jobOfferCommuteMonthly
     }
 
@@ -257,12 +242,9 @@ export function computeBurndown({
     const prevBalance = balance
     balance = balance - netBurn
 
-    // Essentials-only parallel track (no discretionary spending, no one-time costs)
     const netBurnEssentialOnly = essentialTotal * raiseFactor + monthlyInvestments - income
-    const prevBalanceEssential = balanceEssential
     balanceEssential = balanceEssential - netBurnEssentialOnly
 
-    // Runout = when balance drops to or below the emergency floor
     const effectiveBalance = balance - emergencyFloor
     const prevEffective   = prevBalance - emergencyFloor
 
@@ -277,7 +259,6 @@ export function computeBurndown({
 
     const effectiveBalanceEssential = balanceEssential - emergencyFloor
 
-    // Update CC balances for this month
     for (const cc of ccBalances) {
       if (cc.balance <= 0) continue
       if (cc.strategy === 'full') {
@@ -310,7 +291,7 @@ export function computeBurndown({
     if (effectiveBalance <= 0 && i >= (runoutMonth || 0) + 3) break
   }
 
-  // Current-month net burn (no one-time)
+  // Current-month net burn
   const currentInBenefit = today.isAfter(benefitStart) && today.isBefore(benefitEnd)
   const activeMonthlyIncomeNow = monthlyIncome
     .filter(src => {
@@ -337,14 +318,12 @@ export function computeBurndown({
     } else {
       currentIncome += jobSalary
     }
-    // Equity vesting income
     if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
   }
   if (currentJobIncome === 0 && !jobOfferActiveNow) {
     currentIncome += sideIncome
   }
   if (partnerActiveNow) currentIncome += partnerIncome
-  // Adjust effective expenses for current-month net burn
   let currentEffectiveExpenses = effectiveExpenses
   if (jobOfferActiveNow) {
     if (jobOfferBenefitsOffset > 0) currentEffectiveExpenses = Math.max(0, currentEffectiveExpenses - jobOfferBenefitsOffset)
