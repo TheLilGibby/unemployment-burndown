@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Download, FileText, Table, Package, CreditCard, TrendingUp, DollarSign, Database } from 'lucide-react'
+import { Download, FileText, Table, Package, CreditCard, TrendingUp, DollarSign, Database, FileDown } from 'lucide-react'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
@@ -12,6 +12,7 @@ import {
   exportAllData,
   exportSummaryJSON,
   exportFullBackupJSON,
+  exportBurndownPDF,
 } from '../../utils/export'
 
 export default function ExportMenu({
@@ -27,8 +28,10 @@ export default function ExportMenu({
   investments,
   transactions,
   fullState,
+  chartRef,
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -50,6 +53,23 @@ export default function ExportMenu({
       setIsOpen(false)
     } catch (error) {
       alert(`Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      setPdfLoading(true)
+      await exportBurndownPDF({
+        burndown,
+        expenses,
+        savingsAccounts,
+        chartElement: chartRef?.current || null,
+      })
+      setIsOpen(false)
+    } catch (error) {
+      alert('PDF export failed: ' + error.message)
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -81,10 +101,10 @@ export default function ExportMenu({
         scenarios,
         scenarioResults,
         totalSavings,
-        monthlyExpenses: burndown?.current?.effectiveExpenses,
-        monthlyIncome: burndown?.current?.monthlyBenefits,
-        runwayMonths: burndown?.current?.totalRunwayMonths,
-        runoutDate: burndown?.current?.runoutDate,
+        monthlyExpenses: burndown?.effectiveExpenses,
+        monthlyIncome: burndown?.monthlyBenefits,
+        runwayMonths: burndown?.totalRunwayMonths,
+        runoutDate: burndown?.runoutDate,
         unemployment,
       })
       setIsOpen(false)
@@ -93,10 +113,10 @@ export default function ExportMenu({
     }
   }
 
-  const MenuItem = ({ icon: Icon, label, onClick, disabled }) => (
+  const MenuItem = ({ icon: Icon, label, onClick, disabled, loading }) => (
     <button
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       style={{ color: 'var(--text-default)' }}
       onMouseEnter={(e) => {
@@ -105,7 +125,7 @@ export default function ExportMenu({
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
     >
       <Icon className="w-4 h-4" />
-      <span>{label}</span>
+      <span>{loading ? 'Generating...' : label}</span>
     </button>
   )
 
@@ -118,6 +138,8 @@ export default function ExportMenu({
   const Divider = () => (
     <div className="my-2 border-t" style={{ borderColor: 'var(--border-subtle)' }} />
   )
+
+  const hasBurndown = burndown?.dataPoints?.length > 0
 
   return (
     <div className="relative" ref={menuRef}>
@@ -144,8 +166,12 @@ export default function ExportMenu({
           }}
         >
           <div className="p-2">
+            <SectionLabel>PDF Report</SectionLabel>
+            <MenuItem icon={FileDown} label="Burndown Report (PDF)" onClick={handleExportPDF} disabled={!hasBurndown} loading={pdfLoading} />
+
+            <Divider />
             <SectionLabel>CSV Exports</SectionLabel>
-            <MenuItem icon={Table} label="Burndown Timeline" onClick={() => handleExport(exportBurndownCSV, burndown)} disabled={!burndown?.timeline?.length} />
+            <MenuItem icon={Table} label="Burndown Timeline" onClick={() => handleExport(exportBurndownCSV, burndown)} disabled={!hasBurndown} />
             <MenuItem icon={Table} label="Expenses" onClick={() => handleExport(exportExpensesCSV, expenses)} disabled={!expenses?.length} />
             <MenuItem icon={Table} label="Savings Accounts" onClick={() => handleExport(exportSavingsCSV, savingsAccounts)} disabled={!savingsAccounts?.length} />
             <MenuItem icon={Table} label="Scenarios" onClick={() => handleExport(exportScenariosCSV, scenarios, scenarioResults)} disabled={!scenarios?.length} />

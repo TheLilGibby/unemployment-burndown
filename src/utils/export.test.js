@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   exportBurndownCSV,
   exportExpensesCSV,
   exportSavingsCSV,
   exportScenariosCSV,
+  exportBurndownPDF,
 } from './export'
 
 // Mock URL.createObjectURL and revokeObjectURL
@@ -32,11 +33,11 @@ beforeEach(() => {
 })
 
 describe('exportBurndownCSV', () => {
-  it('exports burndown timeline data as CSV', () => {
+  it('exports burndown dataPoints as CSV', () => {
     const burndownData = {
-      timeline: [
-        { date: '2026-01-01', balance: 10000, expenses: 3000, income: 2000, netBurn: 1000, runwayMonths: 10 },
-        { date: '2026-02-01', balance: 9000, expenses: 3000, income: 2000, netBurn: 1000, runwayMonths: 9 },
+      dataPoints: [
+        { date: '2026-01-01', dateLabel: 'Jan 2026', balance: 10000, income: 2000, netBurn: 1000, totalDebt: 500, netPosition: 9500, inBenefitWindow: true, jobActive: false },
+        { date: '2026-02-01', dateLabel: 'Feb 2026', balance: 9000, income: 2000, netBurn: 1000, totalDebt: 400, netPosition: 8600, inBenefitWindow: true, jobActive: false },
       ],
     }
 
@@ -49,7 +50,7 @@ describe('exportBurndownCSV', () => {
 
   it('throws error when no data provided', () => {
     expect(() => exportBurndownCSV(null)).toThrow('No burndown data to export')
-    expect(() => exportBurndownCSV({ timeline: [] })).toThrow('No burndown data to export')
+    expect(() => exportBurndownCSV({ dataPoints: [] })).toThrow('No burndown data to export')
   })
 })
 
@@ -128,7 +129,13 @@ describe('CSV escaping', () => {
 
     exportExpensesCSV(expenses, 'test.csv')
 
-    // The CSV should have been created with proper escaping
     expect(mockLink.click).toHaveBeenCalled()
+  })
+})
+
+describe('exportBurndownPDF', () => {
+  it('throws error when no burndown data provided', async () => {
+    await expect(exportBurndownPDF({ burndown: null })).rejects.toThrow('No burndown data to export')
+    await expect(exportBurndownPDF({ burndown: { dataPoints: [] } })).rejects.toThrow('No burndown data to export')
   })
 })

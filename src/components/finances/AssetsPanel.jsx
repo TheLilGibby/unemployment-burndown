@@ -64,15 +64,15 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
   return (
     <div className="space-y-3">
       {assets.length === 0 ? (
-        <p className="text-sm text-gray-600 text-center py-4">
+        <p className="text-sm text-center py-4" style={{ color: 'var(--text-faint)' }}>
           No assets yet. Add things like a car, electronics, collectibles, or investments you could sell.
         </p>
       ) : (
         <>
           {/* Column headers — desktop only */}
           <div
-            className="hidden sm:grid items-center gap-2 text-xs text-gray-500 uppercase tracking-wider font-semibold px-1"
-            style={{ gridTemplateColumns: '20px 1fr 130px 90px 32px 32px 32px' }}
+            className="hidden sm:grid items-center gap-2 text-xs uppercase tracking-wider font-semibold px-1"
+            style={{ gridTemplateColumns: '20px 1fr 130px 90px 32px 32px 32px', color: 'var(--text-secondary)' }}
           >
             <span></span>
             <span>Asset</span>
@@ -102,7 +102,10 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                 {/* Subrow 1: drag · name */}
                 <div className="flex items-center gap-2 sm:contents">
                   <div
-                    className="text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center select-none flex-shrink-0"
+                    className="transition-colors flex items-center justify-center select-none flex-shrink-0"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                     {...dragHandleProps(asset.id)}
                   >
                     <DragHandle />
@@ -111,31 +114,48 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                     type="text"
                     value={asset.name}
                     onChange={e => updateAsset(asset.id, 'name', e.target.value)}
-                    className={`flex-1 min-w-0 bg-gray-700 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none transition-colors ${
+                    className={`flex-1 min-w-0 rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors ${
                       asset.sold
                         ? 'border-green-600/60 focus:border-green-400'
                         : asset.includedInWhatIf
                           ? 'border-violet-600/60 focus:border-violet-400'
-                          : 'border-gray-600 focus:border-blue-500'
+                          : ''
                     }`}
+                    style={!asset.sold && !asset.includedInWhatIf ? {
+                      background: 'var(--bg-page)',
+                      border: '1px solid var(--border-input)',
+                      color: 'var(--text-primary)',
+                    } : {
+                      background: 'var(--bg-page)',
+                      color: 'var(--text-primary)',
+                    }}
                     placeholder="e.g. Car, Guitar, Stocks"
                   />
                 </div>
 
                 {/* Subrow 2: value · sell · assignee · trash */}
                 <div className="flex items-center gap-2 sm:contents">
-                  <div className={`flex-1 sm:flex-none flex items-center bg-gray-700 border rounded-lg px-2 py-2 transition-colors ${
-                    asset.sold
-                      ? 'border-green-600/60 focus-within:border-green-400'
-                      : asset.includedInWhatIf
-                        ? 'border-violet-600/60 focus-within:border-violet-400'
-                        : 'border-gray-600 focus-within:border-blue-500'
-                  }`}>
-                    <span className="text-gray-500 text-sm mr-1">$</span>
+                  <div
+                    className={`flex-1 sm:flex-none flex items-center rounded-lg px-2 py-2 transition-colors ${
+                      asset.sold
+                        ? 'border-green-600/60 focus-within:border-green-400'
+                        : asset.includedInWhatIf
+                          ? 'border-violet-600/60 focus-within:border-violet-400'
+                          : ''
+                    }`}
+                    style={!asset.sold && !asset.includedInWhatIf ? {
+                      background: 'var(--bg-page)',
+                      border: '1px solid var(--border-input)',
+                    } : {
+                      background: 'var(--bg-page)',
+                    }}
+                  >
+                    <span className="text-sm mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                     <CurrencyInput
                       value={asset.estimatedValue}
                       onChange={val => updateAsset(asset.id, 'estimatedValue', val)}
-                      className="bg-transparent text-white text-sm w-full outline-none"
+                      className="bg-transparent text-sm w-full outline-none"
+                      style={{ color: 'var(--text-primary)' }}
                       min="0"
                     />
                   </div>
@@ -146,8 +166,13 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                       className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${
                         asset.includedInWhatIf
                           ? 'bg-violet-600/40 text-violet-300 border border-violet-500/60 shadow-sm shadow-violet-900'
-                          : 'bg-gray-700 text-gray-500 border border-gray-600 hover:border-gray-400'
+                          : ''
                       }`}
+                      style={!asset.includedInWhatIf ? {
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-input)',
+                        color: 'var(--text-muted)',
+                      } : {}}
                     >
                       {asset.includedInWhatIf ? '✓ Sell' : 'Keep'}
                     </button>
@@ -160,7 +185,10 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                   <CommentButton itemId={`asset_${asset.id}`} label={asset.name || 'Asset'} />
                   <button
                     onClick={() => deleteAsset(asset.id)}
-                    className="text-gray-600 hover:text-red-400 transition-colors flex items-center justify-center"
+                    className="transition-colors flex items-center justify-center"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                     title="Remove asset"
                   >
                     <TrashIcon />
@@ -173,23 +201,33 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                     type="text"
                     value={asset.description || ''}
                     onChange={e => updateAsset(asset.id, 'description', e.target.value)}
-                    className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-violet-500 placeholder-gray-600"
+                    className="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500/60"
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                    }}
                     placeholder="Add a note..."
                   />
                 </div>
 
                 {/* Expanded sell details — shown when item is marked to sell */}
                 {asset.includedInWhatIf && (
-                  <div className="sm:col-span-7 border-t border-violet-800/30 pt-2 pb-1 space-y-2">
+                  <div className="sm:col-span-7 pt-2 pb-1 space-y-2" style={{ borderTop: '1px solid rgba(139,92,246,0.2)' }}>
                     {/* FB Marketplace link */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 flex-shrink-0">FB Marketplace:</span>
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>FB Marketplace:</span>
                       <input
                         type="url"
                         value={asset.marketplaceLink || ''}
                         onChange={e => updateAsset(asset.id, 'marketplaceLink', e.target.value)}
                         placeholder="Paste listing URL..."
-                        className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                        className="flex-1 min-w-0 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500/60"
+                        style={{
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-input)',
+                          color: 'var(--text-primary)',
+                        }}
                       />
                       {asset.marketplaceLink && (
                         <a
@@ -211,8 +249,15 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                         className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
                           asset.listed
                             ? 'bg-blue-600/40 text-blue-300 border border-blue-500/60'
-                            : 'bg-gray-700/50 text-gray-500 border border-gray-600 hover:border-blue-500 hover:text-blue-400'
+                            : ''
                         }`}
+                        style={!asset.listed ? {
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-input)',
+                          color: 'var(--text-muted)',
+                        } : {}}
+                        onMouseEnter={e => { if (!asset.listed) { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.color = '#93c5fd' } }}
+                        onMouseLeave={e => { if (!asset.listed) { e.currentTarget.style.borderColor = 'var(--border-input)'; e.currentTarget.style.color = 'var(--text-muted)' } }}
                       >
                         {asset.listed ? '✓ Listed' : 'Mark Listed'}
                       </button>
@@ -220,7 +265,14 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                       {!asset.sold ? (
                         <button
                           onClick={() => updateAsset(asset.id, 'sold', true)}
-                          className="px-2 py-1 rounded text-xs font-semibold bg-gray-700/50 text-gray-500 border border-gray-600 hover:border-green-500 hover:text-green-400 transition-all"
+                          className="px-2 py-1 rounded text-xs font-semibold transition-all"
+                          style={{
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-input)',
+                            color: 'var(--text-muted)',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.color = '#86efac' }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-input)'; e.currentTarget.style.color = 'var(--text-muted)' }}
                         >
                           Mark Sold
                         </button>
@@ -230,26 +282,41 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
                             ✓ Sold
                           </span>
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-gray-500">Date:</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Date:</span>
                             <input
                               type="date"
                               value={asset.saleDate || ''}
                               onChange={e => updateAsset(asset.id, 'saleDate', e.target.value)}
-                              className="bg-gray-700/50 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-green-500"
+                              className="rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-500/60"
+                              style={{
+                                background: 'var(--bg-input)',
+                                border: '1px solid var(--border-input)',
+                                color: 'var(--text-primary)',
+                              }}
                             />
                           </div>
-                          <div className="flex items-center bg-gray-700/50 border border-gray-600 rounded px-2 py-1">
-                            <span className="text-xs text-gray-500 mr-1">$</span>
+                          <div
+                            className="flex items-center rounded px-2 py-1"
+                            style={{
+                              background: 'var(--bg-input)',
+                              border: '1px solid var(--border-input)',
+                            }}
+                          >
+                            <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>$</span>
                             <CurrencyInput
                               value={asset.saleAmount || 0}
                               onChange={val => updateAsset(asset.id, 'saleAmount', val)}
-                              className="bg-transparent text-white text-xs w-20 outline-none"
+                              className="bg-transparent text-xs w-20 outline-none"
+                              style={{ color: 'var(--text-primary)' }}
                               min="0"
                             />
                           </div>
                           <button
                             onClick={() => updateAsset(asset.id, 'sold', false)}
-                            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                            className="text-xs transition-colors"
+                            style={{ color: 'var(--text-faint)' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
                           >
                             undo
                           </button>
@@ -266,42 +333,54 @@ export default function AssetsPanel({ assets, onChange, people = [], filterPerso
 
       <button
         onClick={addAsset}
-        className="w-full py-2 rounded-lg border border-dashed border-gray-600 text-gray-500 hover:border-violet-500 hover:text-violet-400 text-sm transition-colors"
+        className="w-full py-2 rounded-lg border border-dashed text-sm transition-colors"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = '#8b5cf6'
+          e.currentTarget.style.color = '#a78bfa'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
       >
         + Add Asset
       </button>
 
       {assets.length > 0 && (
-        <div className="bg-gray-700/40 rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm">
+        <div
+          className="rounded-lg px-4 py-3 flex flex-wrap gap-4 text-sm"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
+        >
           <div>
-            <span className="text-gray-500">Total est. value: </span>
-            <span className="text-white font-semibold sensitive">{formatCurrency(grandTotal)}</span>
+            <span style={{ color: 'var(--text-muted)' }}>Total est. value: </span>
+            <span className="font-semibold sensitive" style={{ color: 'var(--text-primary)' }}>{formatCurrency(grandTotal)}</span>
           </div>
           {includedTotal > 0 && (
             <div>
-              <span className="text-gray-500">Marked to sell: </span>
+              <span style={{ color: 'var(--text-muted)' }}>Marked to sell: </span>
               <span className="text-violet-300 font-semibold sensitive">{formatCurrency(includedTotal)}</span>
-              <span className="text-gray-600 text-xs ml-1">(shown in what-if)</span>
+              <span className="text-xs ml-1" style={{ color: 'var(--text-faint)' }}>(shown in what-if)</span>
             </div>
           )}
           {listedCount > 0 && (
             <div>
-              <span className="text-gray-500">Listed: </span>
+              <span style={{ color: 'var(--text-muted)' }}>Listed: </span>
               <span className="text-blue-300 font-semibold">{listedCount} item{listedCount !== 1 ? 's' : ''}</span>
             </div>
           )}
           {soldItems.length > 0 && (
             <div>
-              <span className="text-gray-500">Sold: </span>
+              <span style={{ color: 'var(--text-muted)' }}>Sold: </span>
               <span className="text-green-300 font-semibold sensitive">{formatCurrency(soldTotal)}</span>
-              <span className="text-gray-600 text-xs ml-1">({soldItems.length} item{soldItems.length !== 1 ? 's' : ''})</span>
+              <span className="text-xs ml-1" style={{ color: 'var(--text-faint)' }}>({soldItems.length} item{soldItems.length !== 1 ? 's' : ''})</span>
             </div>
           )}
         </div>
       )}
 
-      <p className="text-xs text-gray-600">
-        Toggle <span className="text-violet-400 font-medium">Sell</span> to reveal listing tools. Drag <span className="text-gray-500">⠿</span> to reorder.
+      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        Toggle <span className="text-violet-400 font-medium">Sell</span> to reveal listing tools. Drag <span style={{ color: 'var(--text-muted)' }}>⠿</span> to reorder.
       </p>
     </div>
   )

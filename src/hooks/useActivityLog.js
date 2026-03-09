@@ -71,19 +71,21 @@ export function useActivityLog(userId) {
             timestamp: new Date(),
             diff: diff ? { before: last.diff?.before ?? diff.before, after: diff.after } : last.diff,
           }
-          const next = [updated, ...prev.slice(1)].slice(0, MAX_ENTRIES)
+          const cutoff = retentionCutoff()
+          const next = [updated, ...prev.slice(1)].filter(e => e.timestamp.getTime() > cutoff).slice(0, MAX_ENTRIES)
           try { localStorage.setItem(logKey(currentUserId.current), JSON.stringify(next)) } catch {}
           return next
         }
       }
       const entry = {
-        id: Date.now() + '-' + Math.random().toString(36).slice(2),
+        id: crypto.randomUUID(),
         timestamp: new Date(),
         type,    // 'save' | 'load' | 'change'
         message,
         diff,    // { before: string, after: string } | null
       }
-      const next = [entry, ...prev].slice(0, MAX_ENTRIES)
+      const cutoff = retentionCutoff()
+      const next = [entry, ...prev].filter(e => e.timestamp.getTime() > cutoff).slice(0, MAX_ENTRIES)
       try { localStorage.setItem(logKey(currentUserId.current), JSON.stringify(next)) } catch {}
       return next
     })

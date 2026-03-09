@@ -9,7 +9,7 @@ export default function ComparePanel({ templates, currentResult, currentLabel })
 
   if (templates.length === 0) {
     return (
-      <div className="text-[10px] text-gray-500 text-center py-3">
+      <div className="text-[10px] text-center py-3" style={{ color: 'var(--text-muted)' }}>
         Save a template first to enable comparison.
       </div>
     )
@@ -23,7 +23,7 @@ export default function ComparePanel({ templates, currentResult, currentLabel })
     <div className="space-y-3 pt-2">
       {/* Selector */}
       <div className="flex items-center gap-2">
-        <label className="text-xs text-gray-400 shrink-0">vs.</label>
+        <label className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>vs.</label>
         <select
           value={selectedId ?? ''}
           onChange={e => setSelectedId(e.target.value ? Number(e.target.value) : null)}
@@ -43,19 +43,19 @@ export default function ComparePanel({ templates, currentResult, currentLabel })
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="bg-blue-950/20 border border-blue-700/30 rounded px-2.5 py-2">
               <p className="text-blue-400 font-semibold text-[10px] truncate">{currentLabel || 'Current'}</p>
-              <p className="text-white font-bold">
+              <p className="font-bold" style={{ color: 'var(--text-primary)' }}>
                 {aMonths != null ? formatMonths(aMonths) : '10+ yrs'}
               </p>
-              <p className="text-gray-500 text-[10px]">
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                 {currentResult.runoutDate ? formatDate(currentResult.runoutDate) : 'Beyond 10 yrs'}
               </p>
             </div>
             <div className="bg-purple-950/20 border border-purple-700/30 rounded px-2.5 py-2">
               <p className="text-purple-400 font-semibold text-[10px] truncate">{selected?.name || 'Saved'}</p>
-              <p className="text-white font-bold">
+              <p className="font-bold" style={{ color: 'var(--text-primary)' }}>
                 {bMonths != null ? formatMonths(bMonths) : '10+ yrs'}
               </p>
-              <p className="text-gray-500 text-[10px]">
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                 {compareResult.runoutDate ? formatDate(compareResult.runoutDate) : 'Beyond 10 yrs'}
               </p>
             </div>

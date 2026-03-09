@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import SectionCard from '../components/layout/SectionCard'
 import RunwayBanner from '../components/dashboard/RunwayBanner'
 import ChartTabsSection from '../components/chart/ChartTabsSection'
@@ -20,6 +20,7 @@ import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
 import TransactionLookupModal from '../components/linking/TransactionLookupModal'
+import ExportMenu from '../components/export/ExportMenu'
 
 export default function BurndownPage({
   current,
@@ -87,7 +88,8 @@ export default function BurndownPage({
   onLinkTransaction,
   onUnlinkTransaction,
 }) {
-  const [lookupState, setLookupState] = useState(null) // { overviewKey, overviewItem }
+  const [lookupState, setLookupState] = useState(null)
+  const chartRef = useRef(null) // { overviewKey, overviewItem }
 
   function handleOpenLookup(overviewKey, overviewItem) {
     setLookupState({ overviewKey, overviewItem })
@@ -96,17 +98,38 @@ export default function BurndownPage({
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 main-bottom-pad space-y-5">
 
-      {/* Hero banner */}
+      {/* Hero banner + Export */}
       <div id="sec-runway" className="scroll-mt-20">
-        <RunwayBanner
-          runoutDate={current.runoutDate}
-          totalRunwayMonths={current.totalRunwayMonths}
-          currentNetBurn={current.currentNetBurn}
-          savings={totalSavings}
-        />
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
+            <RunwayBanner
+              runoutDate={current.runoutDate}
+              totalRunwayMonths={current.totalRunwayMonths}
+              currentNetBurn={current.currentNetBurn}
+              savings={totalSavings}
+            />
+          </div>
+          <div className="pt-2">
+            <ExportMenu
+              burndown={current}
+              expenses={expenses}
+              savingsAccounts={savingsAccounts}
+              scenarios={jobScenarios}
+              scenarioResults={jobScenarioResults}
+              totalSavings={totalSavings}
+              unemployment={unemployment}
+              creditCards={creditCards}
+              monthlyIncome={monthlyIncome}
+              investments={investments}
+              transactions={allTransactions}
+              chartRef={chartRef}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Chart tabs */}
+      <div ref={chartRef}>
       <ChartTabsSection
         dataPoints={current.dataPoints}
         runoutDate={current.runoutDate}
@@ -127,6 +150,7 @@ export default function BurndownPage({
         snapshotLoading={snapshots?.snapshotLoading || false}
         onHistoricalDateSelect={onHistoricalDateSelect}
       />
+      </div>
 
       {/* Vertically stacked sections */}
       <SectionCard id="sec-savings" title="Cash & Savings Accounts" className="scroll-mt-20">

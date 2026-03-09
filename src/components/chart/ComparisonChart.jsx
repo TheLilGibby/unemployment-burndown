@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 import {
   LineChart,
   Line,
@@ -68,6 +69,8 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
     ...chartData.map(d => Math.max(d[labelA] ?? 0, d[labelB] ?? 0))
   )
 
+  const todayLabel = dayjs().format('MMM YYYY')
+
   return (
     <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -100,7 +103,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
 
           <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
           <ReferenceLine
-            x="Feb 2026"
+            x={todayLabel}
             stroke={c.amber}
             strokeDasharray="4 2"
             strokeWidth={1.5}
