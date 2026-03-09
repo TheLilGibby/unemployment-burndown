@@ -16,7 +16,12 @@
       "Bash(git -C \"C:/Users/GIBBY/Desktop/claude_code/projects/2026-02-21_unemployement burndown\" status --short)",
       "Bash(python3:*)",
       "Bash(gh auth:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(gh issue:*)",
+      "Bash(git checkout:*)",
+      "Bash(git:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

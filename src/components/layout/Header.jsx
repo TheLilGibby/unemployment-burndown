@@ -70,7 +70,7 @@ export default function Header({ rightSlot, isSuperAdmin }) {
           />
           <div className="hidden sm:flex items-center">
             {tabs.map(tab => {
-              const isActive = activePath === tab.path
+              const isActive = activePath === tab.path || (tab.path !== '/' && activePath.startsWith(tab.path + '/'))
               return (
                 <button
                   key={tab.path}
@@ -111,7 +111,7 @@ export default function Header({ rightSlot, isSuperAdmin }) {
         }}
       >
         {tabs.map(tab => {
-          const isActive = activePath === tab.path
+          const isActive = activePath === tab.path || (tab.path !== '/' && activePath.startsWith(tab.path + '/'))
           const Icon = tab.icon
           return (
             <button

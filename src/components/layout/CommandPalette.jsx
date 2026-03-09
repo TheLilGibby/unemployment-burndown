@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Command } from 'cmdk'
 import {
-  Home, Briefcase, CreditCard, PiggyBank, Target, Wallet,
+  Home, Briefcase, CreditCard, PiggyBank, Target,
   Settings, Search, ArrowRight, DollarSign, TrendingUp,
-  ShieldCheck, FileText, Download, Plus,
+  ShieldCheck, FileText, Download, Plus, BarChart3, ClipboardList,
 } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import './CommandPalette.css'
@@ -15,7 +15,8 @@ const PAGE_ITEMS = [
   { id: 'nav-statements',    label: 'Statements',      path: '/credit-cards',  icon: CreditCard, keywords: 'credit cards transactions bank statements' },
   { id: 'nav-retirement',    label: 'Retirement',      path: '/retirement',    icon: PiggyBank,  keywords: 'retirement 401k savings plan' },
   { id: 'nav-goals',         label: 'Goals',           path: '/goals',         icon: Target,     keywords: 'goals targets savings milestones' },
-  { id: 'nav-networth',      label: 'Net Worth',       path: '/net-worth',     icon: Wallet,     keywords: 'net worth assets liabilities balance sheet' },
+  { id: 'nav-analysis',      label: 'Analysis',        path: '/analysis',      icon: BarChart3,      keywords: 'analysis net worth assets liabilities balance sheet charts' },
+  { id: 'nav-budget',        label: 'Budget',          path: '/budget',        icon: ClipboardList,  keywords: 'budget spending categories' },
   { id: 'nav-settings',      label: 'Settings',        path: '/settings',      icon: Settings,   keywords: 'settings profile account preferences' },
 ]
 

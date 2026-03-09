@@ -25,6 +25,7 @@ import RetirementPage from './pages/RetirementPage'
 import GoalsPage from './pages/GoalsPage'
 import ComparativeAnalysisPage from './pages/ComparativeAnalysisPage'
 import BudgetPage from './pages/BudgetPage'
+import NetWorthDashboardPage from './pages/NetWorthDashboardPage'
 import AccountsSidebar from './components/statements/AccountsSidebar'
 import { useBudget } from './hooks/useBudget'
 import { useStatementStorage } from './hooks/useStatementStorage'
@@ -244,8 +245,9 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     const effectiveBalance = balance - emergencyFloor
     const prevEffective = prevBalance - emergencyFloor
     if (effectiveBalance <= 0 && runoutDate === null) {
-      const safeDenom = netBurn === 0 ? 1 : netBurn
-      const fraction = Math.min(1, Math.max(0, prevEffective / safeDenom))
+      const fraction = netBurn > 0
+        ? Math.min(1, Math.max(0, prevEffective / netBurn))
+        : 0
       const crossoverDate = today.add(i - 1 + fraction, 'month')
       runoutDate = crossoverDate.toDate()
       runoutMonth = i - 1 + fraction
@@ -1276,6 +1278,22 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
             investments={investments}
             creditCards={creditCards}
             people={people}
+          />
+        } />
+
+        <Route path="/net-worth" element={
+          <NetWorthDashboardPage
+            savingsAccounts={savingsAccounts}
+            expenses={expenses}
+            creditCards={creditCards}
+            investments={investments}
+            assets={assets}
+            monthlyIncome={monthlyIncome}
+            unemployment={unemployment}
+            dataPoints={current.dataPoints}
+            currentNetBurn={current.currentNetBurn}
+            monthlyBenefits={current.monthlyBenefits}
+            jobs={jobs}
           />
         } />
 
