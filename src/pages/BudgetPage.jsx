@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import dayjs from 'dayjs'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell, ComposedChart, Line, ReferenceLine,
+} from 'recharts'
 import { formatCurrency } from '../utils/formatters'
 import { useBudget } from '../hooks/useBudget'
 import { STATEMENT_CATEGORIES } from '../constants/categories'
 import SectionCard from '../components/layout/SectionCard'
 import CurrencyInput from '../components/finances/CurrencyInput'
 import {
-  TrendingDown, TrendingUp,
+  TrendingDown, TrendingUp, AlertTriangle,
   Plus, Trash2, ToggleLeft, ToggleRight, BarChart3, Settings2,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Info,
 } from 'lucide-react'
 
 /* ---------- small helpers ------------------------------------------------- */
@@ -99,6 +103,306 @@ function SummaryCards({ summary, variance }) {
         value={`${totalDiff >= 0 ? '+' : ''}${formatCurrency(totalDiff)}`}
         color={totalDiff >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)'}
       />
+    </div>
+  )
+}
+
+/* ---------- variance alerts banner ---------------------------------------- */
+
+function VarianceAlerts({ alerts }) {
+  const [collapsed, setCollapsed] = useState(false)
+  if (alerts.length === 0) return null
+
+  return (
+    <div
+      className="rounded-xl border p-4 space-y-3"
+      style={{ background: 'color-mix(in srgb, var(--accent-red, #ef4444) 8%, var(--bg-card))', borderColor: 'var(--accent-red, #ef4444)' }}
+    >
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={16} strokeWidth={2} style={{ color: 'var(--accent-red, #ef4444)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent-red, #ef4444)' }}>
+            {alerts.length} {alerts.length === 1 ? 'Category' : 'Categories'} Over Budget by &gt;10%
+          </span>
+        </div>
+        {collapsed
+          ? <ChevronDown size={15} strokeWidth={1.75} style={{ color: 'var(--accent-red, #ef4444)' }} />
+          : <ChevronUp size={15} strokeWidth={1.75} style={{ color: 'var(--accent-red, #ef4444)' }} />}
+      </button>
+
+      {!collapsed && (
+        <div className="space-y-2">
+          {alerts.map(a => {
+            const overageAmt = a.actual - a.monthlyLimit
+            const overagePct = Math.round(a.pct - 100)
+            return (
+              <div
+                key={a.categoryKey}
+                className="flex items-center justify-between rounded-lg px-3 py-2"
+                style={{ background: 'color-mix(in srgb, var(--accent-red, #ef4444) 10%, var(--bg-card))' }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: a.categoryColor }} />
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{a.categoryLabel}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                    {formatCurrency(a.actual)} / {formatCurrency(a.monthlyLimit)}
+                  </span>
+                  <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--accent-red, #ef4444)' }}>
+                    +{formatCurrency(overageAmt)} ({overagePct}% over)
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------- budget vs actual bar chart ------------------------------------ */
+
+const CHART_BLUE = '#3b82f6'
+const CHART_EMERALD = '#10b981'
+const CHART_RED = '#ef4444'
+
+function CustomChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-lg space-y-1"
+      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+    >
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map(p => (
+        <div key={p.dataKey} className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span style={{ color: 'var(--text-muted)' }}>{p.name}:</span>
+          <span className="font-medium tabular-nums">{formatCurrency(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BudgetVsActualChart({ variance }) {
+  if (variance.length === 0) return null
+
+  const data = variance.map(v => ({
+    name: v.categoryLabel,
+    Budget: v.monthlyLimit,
+    Actual: v.actual,
+    overBudget: v.overBudget,
+  }))
+
+  return (
+    <div style={{ height: 280 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 40 }} barCategoryGap="30%">
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+          <XAxis
+            dataKey="name"
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            angle={-35}
+            textAnchor="end"
+            interval={0}
+          />
+          <YAxis
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+          />
+          <Tooltip content={<CustomChartTooltip />} />
+          <Legend
+            wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)', paddingTop: 8 }}
+            iconType="circle"
+            iconSize={8}
+          />
+          <Bar dataKey="Budget" fill={CHART_BLUE} radius={[3, 3, 0, 0]} maxBarSize={32} opacity={0.85} />
+          <Bar dataKey="Actual" radius={[3, 3, 0, 0]} maxBarSize={32}>
+            {data.map((entry, idx) => (
+              <Cell key={idx} fill={entry.overBudget ? CHART_RED : CHART_EMERALD} opacity={0.9} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+/* ---------- trend tooltip ------------------------------------------------- */
+
+function TrendTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-lg space-y-1"
+      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+    >
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map(p => (
+        <div key={p.dataKey} className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span style={{ color: 'var(--text-muted)' }}>{p.name}:</span>
+          <span className="font-medium tabular-nums">
+            {p.dataKey === 'adherencePct' ? `${p.value}%` : formatCurrency(p.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ---------- month-over-month trend chart ---------------------------------- */
+
+function TrendChart({ trendData }) {
+  if (trendData.length < 2) return (
+    <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
+      At least 2 months of transaction data needed to show trends.
+    </p>
+  )
+
+  return (
+    <div style={{ height: 260 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={trendData} margin={{ top: 4, right: 32, left: 8, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            yAxisId="dollars"
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+          />
+          <YAxis
+            yAxisId="pct"
+            orientation="right"
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={v => `${v}%`}
+            domain={[0, 150]}
+          />
+          <Tooltip content={<TrendTooltip />} />
+          <Legend
+            wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)', paddingTop: 8 }}
+            iconType="circle"
+            iconSize={8}
+          />
+          <ReferenceLine yAxisId="pct" y={100} stroke="var(--accent-red, #ef4444)" strokeDasharray="4 4" strokeOpacity={0.5} />
+          <Bar yAxisId="dollars" dataKey="totalBudget" name="Budget" fill={CHART_BLUE} radius={[3, 3, 0, 0]} maxBarSize={36} opacity={0.7} />
+          <Bar yAxisId="dollars" dataKey="totalActual" name="Actual" fill={CHART_EMERALD} radius={[3, 3, 0, 0]} maxBarSize={36} opacity={0.85}>
+            {trendData.map((entry, idx) => (
+              <Cell key={idx} fill={entry.totalActual > entry.totalBudget ? CHART_RED : CHART_EMERALD} opacity={0.85} />
+            ))}
+          </Bar>
+          <Line
+            yAxisId="pct"
+            type="monotone"
+            dataKey="adherencePct"
+            name="Adherence %"
+            stroke="#a855f7"
+            strokeWidth={2}
+            dot={{ r: 3, fill: '#a855f7' }}
+            activeDot={{ r: 5 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+/* ---------- runway impact section ----------------------------------------- */
+
+function RunwayImpact({ summary, totalSavings, currentNetBurn, totalRunwayMonths }) {
+  if (!totalSavings || !currentNetBurn || summary.totalActual === 0 || summary.totalBudget === 0) return null
+
+  const plannedMonthlySpend = summary.totalBudget
+  const actualMonthlySpend = summary.totalActual
+  const extraBurnPerMonth = actualMonthlySpend - plannedMonthlySpend
+
+  // If spending less than budget, no negative impact
+  const isOverBudget = extraBurnPerMonth > 0
+  const adjustedNetBurn = currentNetBurn + (isOverBudget ? extraBurnPerMonth : 0)
+  const adjustedRunway = adjustedNetBurn > 0 ? totalSavings / adjustedNetBurn : null
+  const runwayDelta = adjustedRunway != null ? totalRunwayMonths - adjustedRunway : 0
+
+  const impactColor = isOverBudget ? 'var(--accent-red, #ef4444)' : 'var(--accent-emerald, #10b981)'
+  const ImpactIcon = isOverBudget ? TrendingDown : TrendingUp
+
+  return (
+    <div
+      className="rounded-xl border p-4 space-y-3"
+      style={{
+        background: 'var(--bg-card)',
+        borderColor: isOverBudget ? 'var(--accent-red, #ef4444)' : 'var(--border-subtle)',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <Info size={15} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Runway Impact</h3>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-lg p-3 space-y-1" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Planned Monthly</p>
+          <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(plannedMonthlySpend)}</p>
+        </div>
+        <div className="rounded-lg p-3 space-y-1" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Actual Monthly</p>
+          <p className="text-lg font-bold tabular-nums" style={{ color: isOverBudget ? 'var(--accent-red, #ef4444)' : 'var(--text-primary)' }}>
+            {formatCurrency(actualMonthlySpend)}
+          </p>
+        </div>
+        <div className="rounded-lg p-3 space-y-1" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Monthly Difference</p>
+          <p className="text-lg font-bold tabular-nums" style={{ color: impactColor }}>
+            {isOverBudget ? '+' : ''}{formatCurrency(Math.abs(extraBurnPerMonth))}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="flex items-start gap-2 rounded-lg px-3 py-2.5"
+        style={{ background: isOverBudget ? 'color-mix(in srgb, var(--accent-red, #ef4444) 8%, var(--bg-card))' : 'color-mix(in srgb, var(--accent-emerald, #10b981) 8%, var(--bg-card))' }}
+      >
+        <ImpactIcon size={15} strokeWidth={1.75} style={{ color: impactColor, flexShrink: 0, marginTop: 1 }} />
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          {isOverBudget ? (
+            <>
+              Your actual spending is{' '}
+              <span className="font-semibold" style={{ color: impactColor }}>{formatCurrency(extraBurnPerMonth)}/mo</span>{' '}
+              more than budgeted. This shortens your runway by approximately{' '}
+              <span className="font-semibold" style={{ color: impactColor }}>
+                {runwayDelta > 0 ? `${runwayDelta.toFixed(1)} months` : 'less than 1 month'}
+              </span>
+              {adjustedRunway != null && (
+                <> (from {totalRunwayMonths?.toFixed(1)} to {adjustedRunway.toFixed(1)} months).</>
+              )}
+            </>
+          ) : (
+            <>
+              Your actual spending is{' '}
+              <span className="font-semibold" style={{ color: impactColor }}>{formatCurrency(Math.abs(extraBurnPerMonth))}/mo</span>{' '}
+              under budget. Great job staying within your spending plan.
+            </>
+          )}
+        </p>
+      </div>
     </div>
   )
 }
@@ -296,6 +600,9 @@ export default function BudgetPage({
   onCategoryBudgetsChange,
   allTransactions = [],
   transactionOverrides = {},
+  totalSavings,
+  currentNetBurn,
+  totalRunwayMonths,
 }) {
   const [selectedMonth, setSelectedMonth] = useState(null)
 
@@ -305,6 +612,8 @@ export default function BudgetPage({
     actualSpending,
     availableMonths,
     targetMonth,
+    alerts,
+    trendData,
   } = useBudget(categoryBudgets, allTransactions, transactionOverrides, selectedMonth)
 
   const [tab, setTab] = useState('dashboard')
@@ -392,6 +701,20 @@ export default function BudgetPage({
             <>
               <SummaryCards summary={summary} variance={variance} />
 
+              {/* Variance alerts */}
+              {alerts.length > 0 && <VarianceAlerts alerts={alerts} />}
+
+              {/* Budget vs Actual bar chart */}
+              <SectionCard title={`${monthLabel} \u2014 Budget vs. Actual`}>
+                {variance.length === 0 ? (
+                  <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
+                    No spending data found for {monthLabel}.
+                  </p>
+                ) : (
+                  <BudgetVsActualChart variance={variance} />
+                )}
+              </SectionCard>
+
               {/* Progress cards */}
               <SectionCard title={`${monthLabel} \u2014 Category Progress`}>
                 {variance.length === 0 ? (
@@ -403,6 +726,23 @@ export default function BudgetPage({
                     {variance.map(v => <BudgetCard key={v.categoryKey} item={v} />)}
                   </div>
                 )}
+              </SectionCard>
+
+              {/* Runway impact */}
+              {totalSavings != null && currentNetBurn != null && totalRunwayMonths != null && (
+                <SectionCard title="Runway Impact">
+                  <RunwayImpact
+                    summary={summary}
+                    totalSavings={totalSavings}
+                    currentNetBurn={currentNetBurn}
+                    totalRunwayMonths={totalRunwayMonths}
+                  />
+                </SectionCard>
+              )}
+
+              {/* Month-over-month trend chart */}
+              <SectionCard title="Month-over-Month Budget Adherence">
+                <TrendChart trendData={trendData} />
               </SectionCard>
 
               {/* Variance report table */}

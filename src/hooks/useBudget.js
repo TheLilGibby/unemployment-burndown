@@ -81,6 +81,62 @@ export function useBudget(categoryBudgets = {}, transactions = [], transactionOv
     return [...months].sort().reverse()
   }, [transactions])
 
+  /**
+   * Alerts: categories exceeding budget by >10%
+   */
+  const alerts = useMemo(() => {
+    return variance.filter(v => v.monthlyLimit > 0 && v.actual > v.monthlyLimit * 1.10)
+  }, [variance])
+
+  /**
+   * Multi-month trend data \u2014 up to last 6 available months with budget data.
+   * Returns array of { month, label, totalBudget, totalActual, adherencePct }
+   */
+  const trendData = useMemo(() => {
+    const enabledCategories = STATEMENT_CATEGORIES.filter(cat => categoryBudgets[cat.key]?.enabled)
+    if (enabledCategories.length === 0) return []
+
+    // Build spending map keyed by month then category
+    const spendingByMonth = {}
+    for (const txn of transactions) {
+      if (!txn.date || txn.amount == null) continue
+      const amount = Number(txn.amount) || 0
+      if (amount <= 0) continue
+
+      const override = transactionOverrides[txn.id]
+      const rawCategory = override?.category || txn.category
+      if (!rawCategory) continue
+
+      const parentKey = getParentCategoryKey(rawCategory)
+      const m = txn.date.slice(0, 7)
+      if (!spendingByMonth[m]) spendingByMonth[m] = {}
+      spendingByMonth[m][parentKey] = (spendingByMonth[m][parentKey] || 0) + amount
+    }
+
+    // Use the last 6 available months (or all months if fewer)
+    const months = [...availableMonths].slice(0, 6).reverse()
+
+    return months.map(m => {
+      const monthSpending = spendingByMonth[m] || {}
+      let totalBudget = 0
+      let totalActual = 0
+      for (const cat of enabledCategories) {
+        const limit = Number(categoryBudgets[cat.key]?.monthlyLimit) || 0
+        const actual = monthSpending[cat.key] || 0
+        totalBudget += limit
+        totalActual += actual
+      }
+      const adherencePct = totalBudget > 0 ? Math.round((totalActual / totalBudget) * 100) : 0
+      return {
+        month: m,
+        label: dayjs(m + '-01').format('MMM YY'),
+        totalBudget,
+        totalActual,
+        adherencePct,
+      }
+    })
+  }, [categoryBudgets, transactions, transactionOverrides, availableMonths])
+
   const setBudget = useCallback((categoryKey, monthlyLimit, onChange) => {
     onChange(prev => ({
       ...prev,
@@ -112,6 +168,8 @@ export function useBudget(categoryBudgets = {}, transactions = [], transactionOv
     actualSpending,
     availableMonths,
     targetMonth,
+    alerts,
+    trendData,
     setBudget,
     removeBudget,
     toggleBudget,

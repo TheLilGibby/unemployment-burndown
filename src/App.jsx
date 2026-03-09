@@ -458,7 +458,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const [historicalDate, setHistoricalDate] = useState(null)
   const [historicalSnapshot, setHistoricalSnapshot] = useState(null)
 
-  // Plaid integration — auto-updates savings & credit card balances from bank data
+  // Plaid integration â€” auto-updates savings & credit card balances from bank data
   const handlePlaidSync = (updatedFullState) => {
     if (updatedFullState) {
       applySyncState(updatedFullState)
@@ -467,7 +467,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   }
   const plaid = usePlaid({ onSyncComplete: handlePlaidSync })
 
-  // SnapTrade integration — auto-updates investment holdings from brokerage data
+  // SnapTrade integration â€” auto-updates investment holdings from brokerage data
   const handleSnapTradeSync = (updatedFullState) => {
     if (updatedFullState) {
       applySyncState(updatedFullState)
@@ -610,7 +610,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     } else if (s3Storage.status === 'connected') {
       setDataReady(true)
     } else if (s3Storage.status === 'error') {
-      console.warn('[App] S3 storage failed to load — using local defaults')
+      console.warn('[App] S3 storage failed to load â€” using local defaults')
       setDataReady(true)
     }
   }, [s3Storage.restoreData, s3Storage.status]) // eslint-disable-line
@@ -623,7 +623,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       s3Storage.save(buildFullState())
-      snapshots.saveSnapshot(buildSnapshot()) // idempotent — server only writes once per day
+      snapshots.saveSnapshot(buildSnapshot()) // idempotent â€” server only writes once per day
       addEntry('save', `Auto-saved: ${[...dirtySections.current].join(', ')}`)
       dirtySections.current.clear()
     }, 3000)
@@ -640,7 +640,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   }
 
   // ---------------------------------------------------------------------------
-  // Summarizers — convert state to a short display string for before/after logs
+  // Summarizers â€” convert state to a short display string for before/after logs
   // ---------------------------------------------------------------------------
   const _fmtM = (n) => '$' + Math.round(Math.abs(n)).toLocaleString()
   const _activeSum = (arr, key) => _fmtM(arr.filter(a => a.active !== false).reduce((s, a) => s + (Number(a[key]) || 0), 0))
@@ -648,7 +648,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
 
   const summarizeSavings      = (v) => _activeSum(v, 'amount')
   const summarizeExpenses     = (v) => _allSum(v, 'monthlyAmount') + '/mo'
-  const summarizeUnemployment = (v) => `$${v.weeklyAmount || 0}/wk × ${v.durationWeeks || 0}wks`
+  const summarizeUnemployment = (v) => `$${v.weeklyAmount || 0}/wk Ã— ${v.durationWeeks || 0}wks`
   const summarizeFurlough     = (v) => v || 'not set'
   const summarizePeople       = (v) => `${v.length} person${v.length !== 1 ? 's' : ''}`
   const summarizeWhatIf       = (v) => {
@@ -660,9 +660,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     if (v.emergencyFloor)                                parts.push(`floor ${_fmtM(v.emergencyFloor)}`)
     return parts.length ? parts.join(', ') : 'baseline'
   }
-  const summarizeOneTimeExp   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
-  const summarizeOneTimePurch = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
-  const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
+  const summarizeOneTimeExp   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} Â· ${_allSum(v, 'amount')}`
+  const summarizeOneTimePurch = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} Â· ${_allSum(v, 'amount')}`
+  const summarizeOneTimeInc   = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} Â· ${_allSum(v, 'amount')}`
   const summarizeMonthlyInc   = (v) => _allSum(v, 'monthlyAmount') + '/mo'
   const summarizeJobs         = (v) => {
     const now = dayjs()
@@ -673,7 +673,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
     const active = v.filter(isActive).length
     const totalSalary = v.filter(isActive).reduce((s, j) => s + (Number(j.monthlySalary) || 0), 0)
-    return `${active} active · ${_fmtM(totalSalary)}/mo`
+    return `${active} active Â· ${_fmtM(totalSalary)}/mo`
   }
   const summarizeAssets       = (v) => `${v.length} asset${v.length !== 1 ? 's' : ''}`
   const summarizeInvestments  = (v) => _activeSum(v, 'monthlyAmount') + '/mo'
@@ -685,19 +685,19 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const summarizeAdvertisingRevenue = (v) => {
     const costTotal = (v?.costs || []).reduce((s, c) => s + (Number(c.monthlyAmount) || 0), 0)
     const revTotal  = (v?.revenue || []).reduce((s, r) => s + (Number(r.monthlyAmount) || 0), 0)
-    return `spend ${_fmtM(costTotal)}/mo · revenue ${_fmtM(revTotal)}/mo`
+    return `spend ${_fmtM(costTotal)}/mo Â· revenue ${_fmtM(revTotal)}/mo`
   }
   const summarizeJobScenarios = (v) => `${v.length} scenario${v.length !== 1 ? 's' : ''}`
   const summarizeProperties      = (v) => `${v.length} propert${v.length !== 1 ? 'ies' : 'y'}`
-  const summarizeHomeImprovements = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} · ${_allSum(v, 'amount')}`
+  const summarizeHomeImprovements = (v) => `${v.length} item${v.length !== 1 ? 's' : ''} Â· ${_allSum(v, 'amount')}`
   const summarizeRetirement = (v) => {
     const target = v.targetMode === 'income'
       ? Math.round((Number(v.desiredAnnualIncome) || 0) / ((Number(v.withdrawalRatePct) || 4) / 100))
       : Number(v.targetNestEgg) || 0
-    return `age ${v.currentAge}→${v.targetRetirementAge}, target ${_fmtM(target)}, ${_fmtM(v.monthlyContribution)}/mo`
+    return `age ${v.currentAge}â†’${v.targetRetirementAge}, target ${_fmtM(target)}, ${_fmtM(v.monthlyContribution)}/mo`
   }
 
-  // Tracked change handlers — capture before/after summary + granular diff details
+  // Tracked change handlers â€” capture before/after summary + granular diff details
   function track(getter, setter, label, summarize, diffFn) {
     return (v) => {
       try {
@@ -850,7 +850,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
   const expensesForBurndown = [...expensesWithSubs, ...adCostsAsExpenses]
   const monthlyIncomeForBurndown = [...monthlyIncome, ...(advertisingRevenue?.revenue ?? [])]
 
-  // Base calculation (no what-if, no asset sales) — used for delta display
+  // Base calculation (no what-if, no asset sales) â€” used for delta display
   const baseWhatIf = { ...DEFAULTS.whatIf }
   const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
 
@@ -1013,7 +1013,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     <ToastContainer />
     <SkeletonStyles />
     <div className="min-h-screen theme-page" style={{ color: 'var(--text-primary)' }}>
-      {/* Presentation overlay — rendered outside main layout so it fills the viewport */}
+      {/* Presentation overlay â€” rendered outside main layout so it fills the viewport */}
       {presentationMode && (
         <PresentationMode
           onClose={() => setPresentationMode(false)}
@@ -1100,7 +1100,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         }
       />
 
-      {/* Global accounts sidebar — visible on all pages */}
+      {/* Global accounts sidebar â€” visible on all pages */}
       <AccountsSidebar
         creditCards={creditCards}
         savingsAccounts={savingsAccounts}
@@ -1348,6 +1348,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
               onCategoryBudgetsChange={onCategoryBudgetsChange}
               allTransactions={effectiveTransactions}
               transactionOverrides={transactionOverrides}
+              totalSavings={totalSavings}
+              currentNetBurn={current.currentNetBurn}
+              totalRunwayMonths={current.totalRunwayMonths}
             />
           </ErrorBoundary>
         } />
