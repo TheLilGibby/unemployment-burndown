@@ -164,6 +164,10 @@ function statementKey(orgId, id) { return orgId ? `orgs/${orgId}/statements/${id
 function snapshotIndexKey(orgId) { return orgId ? `orgs/${orgId}/snapshots/index.json` : 'snapshots/index.json' }
 function snapshotKey(orgId, date) { return orgId ? `orgs/${orgId}/snapshots/${date}.json` : `snapshots/${date}.json` }
 
+function validateId(id) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw Object.assign(new Error('Invalid ID format'), { status: 400 })
+}
+
 async function s3Get(key) {
   if (USE_LOCAL_DATA) {
     const filePath = resolve(LOCAL_DATA_DIR, key)
@@ -2067,6 +2071,7 @@ app.get('/api/statements', orgMiddleware, async (req, res) => {
 // GET /api/statements/:id — single statement
 app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
   try {
+    validateId(req.params.id)
     const data = await s3Get(statementKey(req.user.orgId, req.params.id))
     res.json(data)
   } catch (err) {
@@ -2082,6 +2087,8 @@ app.get('/api/statements/:id', orgMiddleware, async (req, res) => {
 app.patch('/api/statements/:statementId/transactions/:transactionId', orgMiddleware, async (req, res) => {
   const orgId = req.user.orgId
   const { statementId, transactionId } = req.params
+  validateId(statementId)
+  validateId(transactionId)
   const allowedFields = ['category', 'isPayroll', 'payrollJobId']
   const updates = {}
   for (const field of allowedFields) {
