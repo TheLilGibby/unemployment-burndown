@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import goragLogo from '../../assets/gorag-logo.svg'
+import { validateEmail, validatePassword } from '../../utils/validation'
 
 export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancelMfa, onDevLogin, onForgotPassword, mfaPending, error }) {
   const [email, setEmail] = useState('')
@@ -10,6 +11,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
   const [confirmPassword, setConfirmPassword] = useState('')
   const [mfaCode, setMfaCode] = useState('')
   const [localError, setLocalError] = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
@@ -20,14 +22,28 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
   async function handleSubmit(e) {
     e.preventDefault()
     setLocalError(null)
+    setFieldErrors({})
     setSubmitting(true)
+
+    const errors = {}
+    const emailErr = validateEmail(email)
+    if (emailErr) errors.email = emailErr
+    const passErr = validatePassword(password, { isRegister })
+    if (passErr) errors.password = passErr
 
     if (isRegister) {
       if (password !== confirmPassword) {
-        setLocalError('Passwords do not match')
-        setSubmitting(false)
-        return
+        errors.confirmPassword = 'Passwords do not match'
       }
+    }
+
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors)
+      setSubmitting(false)
+      return
+    }
+
+    if (isRegister) {
       await onRegister(email, password)
     } else {
       await onLogin(email, password)
@@ -45,7 +61,14 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
   async function handleForgotSubmit(e) {
     e.preventDefault()
     setLocalError(null)
+    setFieldErrors({})
     setSubmitting(true)
+    const emailErr = validateEmail(forgotEmail)
+    if (emailErr) {
+      setFieldErrors({ forgotEmail: emailErr })
+      setSubmitting(false)
+      return
+    }
     const result = await onForgotPassword(forgotEmail)
     if (result) setForgotSubmitted(true)
     setSubmitting(false)
@@ -97,16 +120,19 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
                   type="email"
                   autoComplete="email"
                   value={forgotEmail}
-                  onChange={e => setForgotEmail(e.target.value)}
+                  onChange={e => { setForgotEmail(e.target.value); setFieldErrors(prev => ({ ...prev, forgotEmail: undefined })) }}
                   required
                   autoFocus
                   className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
                   style={{
                     background: 'var(--bg-input)',
-                    borderColor: 'var(--border-default)',
+                    borderColor: fieldErrors.forgotEmail ? 'var(--accent-red)' : 'var(--border-default)',
                     color: 'var(--text-primary)',
                   }}
                 />
+                {fieldErrors.forgotEmail && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--accent-red)' }}>{fieldErrors.forgotEmail}</p>
+                )}
               </div>
 
               {displayError && (
@@ -260,15 +286,18 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
               type="email"
               autoComplete="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })) }}
               required
               className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
               style={{
                 background: 'var(--bg-input)',
-                borderColor: 'var(--border-default)',
+                borderColor: fieldErrors.email ? 'var(--accent-red)' : 'var(--border-default)',
                 color: 'var(--text-primary)',
               }}
             />
+            {fieldErrors.email && (
+              <p className="text-xs mt-1" style={{ color: 'var(--accent-red)' }}>{fieldErrors.email}</p>
+            )}
           </div>
 
           <div>
@@ -285,13 +314,13 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
                 type={showPass ? 'text' : 'password'}
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })) }}
                 required
                 minLength={8}
                 className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1 pr-10"
                 style={{
                   background: 'var(--bg-input)',
-                  borderColor: 'var(--border-default)',
+                  borderColor: fieldErrors.password ? 'var(--accent-red)' : 'var(--border-default)',
                   color: 'var(--text-primary)',
                 }}
               />
@@ -314,6 +343,9 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
                 )}
               </button>
             </div>
+            {fieldErrors.password && (
+              <p className="text-xs mt-1" style={{ color: 'var(--accent-red)' }}>{fieldErrors.password}</p>
+            )}
           </div>
 
           {!isRegister && (
@@ -343,16 +375,19 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
                 type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
+                onChange={e => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, confirmPassword: undefined })) }}
                 required
                 minLength={8}
                 className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
                 style={{
                   background: 'var(--bg-input)',
-                  borderColor: 'var(--border-default)',
+                  borderColor: fieldErrors.confirmPassword ? 'var(--accent-red)' : 'var(--border-default)',
                   color: 'var(--text-primary)',
                 }}
               />
+              {fieldErrors.confirmPassword && (
+                <p className="text-xs mt-1" style={{ color: 'var(--accent-red)' }}>{fieldErrors.confirmPassword}</p>
+              )}
             </div>
           )}
 
@@ -381,6 +416,7 @@ export default function LoginScreen({ onLogin, onRegister, onVerifyMfa, onCancel
             onClick={() => {
               setIsRegister(v => !v)
               setLocalError(null)
+              setFieldErrors({})
             }}
             className="text-sm hover:underline"
             style={{ color: 'var(--accent-blue)' }}
