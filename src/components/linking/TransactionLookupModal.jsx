@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { X, Link2, Unlink, Search } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import { findMatchingTransactions } from '../../utils/transactionMatcher'
@@ -22,6 +22,10 @@ export default function TransactionLookupModal({
   const [search, setSearch] = useState('')
   const [dayRange, setDayRange] = useState(7)
   const [amountPct, setAmountPct] = useState(10)
+
+  useEffect(() => {
+    if (open) { setSearch(''); setDayRange(7); setAmountPct(10) }
+  }, [open])
 
   // Auto-matched transactions
   const matches = useMemo(() => {
