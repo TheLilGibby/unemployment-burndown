@@ -23,7 +23,7 @@ export function CommentsProvider({ children, comments, onCommentsChange, user })
   function addComment(itemId, text) {
     if (!text.trim() || !user) return
     const newComment = {
-      id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: crypto.randomUUID(),
       text: text.trim(),
       authorEmail: user.email,
       authorUserId: user.userId,
@@ -39,7 +39,7 @@ export function CommentsProvider({ children, comments, onCommentsChange, user })
   function addReply(itemId, commentId, text) {
     if (!text.trim() || !user) return
     const newReply = {
-      id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: crypto.randomUUID(),
       text: text.trim(),
       authorEmail: user.email,
       authorUserId: user.userId,
