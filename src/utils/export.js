@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { formatCurrency, formatDate } from './formatters'
+import { formatCurrency, formatDate, formatMonths } from './formatters'
 
 /**
  * Convert array of objects to CSV string
@@ -163,7 +163,7 @@ export function exportTransactionsCSV(transactions, filename = null) {
 export function exportAllData(data) {
   const timestamp = dayjs().format('YYYY-MM-DD_HHmmss')
   
-  if (data.burndown && data.burndown.timeline && data.burndown.timeline.length > 0) {
+  if (data.burndown && data.burndown.dataPoints && data.burndown.dataPoints.length > 0) {
     exportBurndownCSV(data.burndown, `burndown-${timestamp}.csv`)
   }
   

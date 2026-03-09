@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { apiFetch, getToken } from '../utils/apiClient'
+import { useToast } from '../context/ToastContext'
 
 export function useJobs() {
+  const toast = useToast()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -35,9 +37,10 @@ export function useJobs() {
       return data.job
     } catch (err) {
       setError(err.message)
+      toast.error('Create Job Failed', err.message)
       return null
     }
-  }, [])
+  }, [toast])
 
   const updateJob = useCallback(async (jobId, updates) => {
     setError(null)
@@ -50,9 +53,10 @@ export function useJobs() {
       return data.job
     } catch (err) {
       setError(err.message)
+      toast.error('Update Job Failed', err.message)
       return null
     }
-  }, [])
+  }, [toast])
 
   const deleteJob = useCallback(async (jobId) => {
     setError(null)
@@ -62,9 +66,10 @@ export function useJobs() {
       return true
     } catch (err) {
       setError(err.message)
+      toast.error('Delete Job Failed', err.message)
       return false
     }
-  }, [])
+  }, [toast])
 
   return { jobs, loading, error, fetchJobs, createJob, updateJob, deleteJob }
 }
