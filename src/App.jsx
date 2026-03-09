@@ -594,7 +594,10 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       s3Storage.clearRestoreData()
       addEntry('load', 'Data loaded from cloud')
       setDataReady(true)
-    } else if (s3Storage.status === 'connected' || s3Storage.status === 'error') {
+    } else if (s3Storage.status === 'connected') {
+      setDataReady(true)
+    } else if (s3Storage.status === 'error') {
+      console.warn('[App] S3 storage failed to load — using local defaults')
       setDataReady(true)
     }
   }, [s3Storage.restoreData, s3Storage.status]) // eslint-disable-line
