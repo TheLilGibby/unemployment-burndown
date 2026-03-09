@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { useChartColors } from '../../hooks/useChartColors'
 
 function CustomTooltip({ active, payload, c }) {
@@ -83,7 +83,7 @@ export default function CashFlowSummaryChart({ dataPoints, months = 12 }) {
           />
           <YAxis
             tick={{ fill: c.tick, fontSize: 11 }}
-            tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={formatAxisValue}
             tickLine={false}
             axisLine={false}
             domain={[0, maxVal * 1.1]}

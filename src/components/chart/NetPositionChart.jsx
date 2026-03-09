@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
@@ -130,7 +130,7 @@ export default function NetPositionChart({ dataPoints }) {
           />
           <YAxis
             tick={{ fill: c.tick, fontSize: 11 }}
-            tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={formatAxisValue}
             tickLine={false}
             axisLine={false}
             domain={[minVal < 0 ? minVal * 1.1 : 0, maxVal * 1.05]}

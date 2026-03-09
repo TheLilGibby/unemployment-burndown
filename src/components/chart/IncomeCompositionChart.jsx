@@ -3,7 +3,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
@@ -148,7 +148,7 @@ export default function IncomeCompositionChart({ dataPoints, monthlyBenefits }) 
               interval="preserveStartEnd"
             />
             <YAxis
-              tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+              tickFormatter={formatAxisValue}
               tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}

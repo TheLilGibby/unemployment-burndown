@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { useChartColors } from '../../hooks/useChartColors'
 
 function CustomTooltip({ active, payload, c }) {
@@ -83,7 +83,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
           />
 
           <YAxis
-            tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+            tickFormatter={formatAxisValue}
             tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}

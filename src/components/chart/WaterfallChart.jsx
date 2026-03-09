@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { computeAllocationAmount } from '../../utils/stateTaxRates'
 import { useChartColors } from '../../hooks/useChartColors'
 
@@ -98,7 +98,7 @@ export default function WaterfallChart({ scenarios }) {
               axisLine={false}
             />
             <YAxis
-              tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+              tickFormatter={formatAxisValue}
               tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
