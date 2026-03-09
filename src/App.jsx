@@ -274,9 +274,18 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
   }
 
   const currentInBenefit = today.isAfter(benefitStart) && today.isBefore(benefitEnd)
+  const activeMonthlyIncomeNow = monthlyIncome
+    .filter(src => {
+      if (!src.monthlyAmount) return false
+      if (src.startDate && dayjs(src.startDate).isAfter(today)) return false
+      if (src.endDate && dayjs(src.endDate).isBefore(today)) return false
+      return true
+    })
+    .reduce((s, src) => s + (Number(src.monthlyAmount) || 0), 0)
   const currentJobIncome = jobIncomeForDate(today)
+  const partnerActiveNow = partnerStartDate && !today.isBefore(partnerStartDate)
   const jobOfferActiveNow = jobStartDate && !today.isBefore(jobStartDate)
-  let currentIncome = currentInBenefit ? monthlyBenefits : 0
+  let currentIncome = (currentInBenefit ? monthlyBenefits : 0) + activeMonthlyIncomeNow
   if (currentJobIncome > 0) currentIncome += currentJobIncome
   if (jobOfferActiveNow) {
     if (jobAnnualRaisePct > 0 && jobStartDate) {
@@ -289,6 +298,7 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     if (jobOfferEquityAnnual > 0) currentIncome += jobOfferEquityAnnual / 12
   }
   if (currentJobIncome === 0 && !jobOfferActiveNow) currentIncome += sideIncome
+  if (partnerActiveNow) currentIncome += partnerIncome
   let currentEffExpenses = effectiveExpenses
   if (jobOfferActiveNow) {
     if (jobOfferBenefitsOffset > 0) currentEffExpenses = Math.max(0, currentEffExpenses - jobOfferBenefitsOffset)
