@@ -54,10 +54,13 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       // Open SnapTrade portal in a popup
       const popup = window.open(portalUrl, 'snaptrade-connect', 'width=500,height=700')
 
+      const expectedOrigin = new URL(portalUrl).origin
+
       return new Promise((resolve, reject) => {
         let resolved = false
 
         const handleMessage = (event) => {
+          if (event.origin !== expectedOrigin) return
           // SnapTrade portal sends postMessage on success
           if (event.data?.status === 'SUCCESS' && event.data?.authorizationId) {
             resolved = true
@@ -124,11 +127,13 @@ export function useSnapTrade({ onSyncComplete } = {}) {
       if (!portalUrl) throw new Error('No portal URL returned')
 
       const popup = window.open(portalUrl, 'snaptrade-reconnect', 'width=500,height=700')
+      const expectedOrigin = new URL(portalUrl).origin
 
       return new Promise((resolve, reject) => {
         let resolved = false
 
         const handleMessage = (event) => {
+          if (event.origin !== expectedOrigin) return
           if (event.data?.status === 'SUCCESS') {
             resolved = true
             window.removeEventListener('message', handleMessage)
