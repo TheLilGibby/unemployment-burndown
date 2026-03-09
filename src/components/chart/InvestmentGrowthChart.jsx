@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { computeAllocationAmount } from '../../utils/stateTaxRates'
 import { useChartColors } from '../../hooks/useChartColors'
 import dayjs from 'dayjs'
@@ -125,11 +125,7 @@ export default function InvestmentGrowthChart({ scenarios }) {
               interval="preserveStartEnd"
             />
             <YAxis
-              tickFormatter={v => {
-                if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M'
-                if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'k'
-                return '$' + v
-              }}
+              tickFormatter={formatAxisValue}
               tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}

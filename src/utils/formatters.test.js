@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrency, formatDate, formatMonths, formatDays } from './formatters'
+import { formatCurrency, formatDate, formatMonths, formatDays, formatAxisValue } from './formatters'
 
 describe('formatCurrency', () => {
   it('formats positive numbers with dollar sign and commas', () => {
@@ -81,6 +81,31 @@ describe('formatMonths', () => {
   it('handles null and undefined', () => {
     expect(formatMonths(null)).toBe('0 months')
     expect(formatMonths(undefined)).toBe('0 months')
+  })
+})
+
+describe('formatAxisValue', () => {
+  it('formats positive values under 1000', () => {
+    expect(formatAxisValue(0)).toBe('$0')
+    expect(formatAxisValue(500)).toBe('$500')
+    expect(formatAxisValue(999)).toBe('$999')
+  })
+
+  it('formats positive values in thousands', () => {
+    expect(formatAxisValue(1000)).toBe('$1k')
+    expect(formatAxisValue(5000)).toBe('$5k')
+    expect(formatAxisValue(25000)).toBe('$25k')
+  })
+
+  it('formats positive values in millions', () => {
+    expect(formatAxisValue(1000000)).toBe('$1.0M')
+    expect(formatAxisValue(2500000)).toBe('$2.5M')
+  })
+
+  it('formats negative values with sign before dollar sign', () => {
+    expect(formatAxisValue(-500)).toBe('-$500')
+    expect(formatAxisValue(-5000)).toBe('-$5k')
+    expect(formatAxisValue(-1000000)).toBe('-$1.0M')
   })
 })
 
