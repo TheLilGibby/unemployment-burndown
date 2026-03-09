@@ -65,3 +65,10 @@ describe('exportBurndownPDF', () => {
     await expect(exportBurndownPDF({ burndown: { dataPoints: [] } })).rejects.toThrow('No burndown data to export')
   })
 })
+
+describe('exportBurndownPDF', () => {
+  it('throws error when no burndown data provided', async () => {
+    await expect(exportBurndownPDF({ burndown: null })).rejects.toThrow('No burndown data to export')
+    await expect(exportBurndownPDF({ burndown: { dataPoints: [] } })).rejects.toThrow('No burndown data to export')
+  })
+})

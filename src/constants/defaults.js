@@ -14,6 +14,7 @@ export const DEFAULTS = {
     weeklyAmount: 450,
     durationWeeks: 26,
     assignedTo: null,
+    stateCode: '',
   },
   expenses: [
     { id: 1, category: 'Rent / Mortgage',    monthlyAmount: 1500, essential: true,  assignedTo: null, description: '' },

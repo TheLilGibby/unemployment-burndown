@@ -321,7 +321,7 @@ app.post('/api/auth/enable-mfa', authMiddleware, (req, res) => {
 })
 
 // POST /api/auth/dev-login — quick login for local development only
-if (USE_LOCAL_DATA) {
+if (USE_LOCAL_DATA && process.env.NODE_ENV !== 'production') {
   app.post('/api/auth/dev-login', async (req, res) => {
     try {
       const email = 'test@test.com'
@@ -2199,7 +2199,7 @@ function formatFeedbackBody(description, screenshotMd, metadata) {
 }
 
 // POST /api/feedback — create a GitHub issue from in-app feedback
-app.post('/api/feedback', async (req, res) => {
+app.post('/api/feedback', authMiddleware, async (req, res) => {
   try {
     const githubToken = process.env.GITHUB_TOKEN
     if (!githubToken) {
@@ -2209,6 +2209,12 @@ app.post('/api/feedback', async (req, res) => {
     const { category, description, screenshot, metadata } = req.body
     if (!description || !description.trim()) {
       return res.status(400).json({ error: 'Description is required' })
+    }
+
+    // Limit screenshot payload to 5 MB
+    const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024
+    if (screenshot && screenshot.length > MAX_SCREENSHOT_BYTES) {
+      return res.status(413).json({ error: 'Screenshot exceeds 5 MB limit' })
     }
 
     // Always tag as external; add category-specific label
