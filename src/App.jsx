@@ -245,8 +245,9 @@ function computeBurndown(savings, unemployment, expenses, whatIf, oneTimeExpense
     const effectiveBalance = balance - emergencyFloor
     const prevEffective = prevBalance - emergencyFloor
     if (effectiveBalance <= 0 && runoutDate === null) {
-      const safeDenom = netBurn === 0 ? 1 : netBurn
-      const fraction = Math.min(1, Math.max(0, prevEffective / safeDenom))
+      const fraction = netBurn > 0
+        ? Math.min(1, Math.max(0, prevEffective / netBurn))
+        : 0
       const crossoverDate = today.add(i - 1 + fraction, 'month')
       runoutDate = crossoverDate.toDate()
       runoutMonth = i - 1 + fraction
