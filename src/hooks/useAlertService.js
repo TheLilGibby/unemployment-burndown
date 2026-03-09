@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { API_BASE, authHeaders } from '../utils/apiClient'
 
 /**
@@ -9,6 +9,7 @@ import { API_BASE, authHeaders } from '../utils/apiClient'
  */
 export function useAlertService(preferences, onPreferencesChange) {
   const pendingRef = useRef(false)
+  const [error, setError] = useState(null)
 
   /**
    * Evaluate and send push alerts for active notifications + category thresholds.
@@ -64,7 +65,9 @@ export function useAlertService(preferences, onPreferencesChange) {
         }
       }
     } catch (err) {
-      console.warn('[useAlertService] evaluate error:', err.message)
+      const msg = err.message || 'Alert evaluation failed'
+      console.warn('[useAlertService] evaluate error:', msg)
+      setError(msg)
     } finally {
       pendingRef.current = false
     }
@@ -104,5 +107,6 @@ export function useAlertService(preferences, onPreferencesChange) {
     evaluateAlerts,
     sendTestAlert,
     resetSentAlerts,
+    error,
   }
 }

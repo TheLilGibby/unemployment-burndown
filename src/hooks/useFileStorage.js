@@ -138,7 +138,9 @@ export function useFileStorage() {
         return JSON.parse(await file.text())
       }
       return null
-    } catch {
+    } catch (e) {
+      setStatus('error')
+      setErrorMsg(e.message || 'Failed to reconnect to file')
       return null
     }
   }, [fileHandle])

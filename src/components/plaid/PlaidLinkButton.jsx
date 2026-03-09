@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import PlaidConsentModal from './PlaidConsentModal'
+import { useToast } from '../../context/ToastContext'
 
 /**
  * "Add Bank" button that opens the Plaid Link modal.
@@ -14,6 +15,7 @@ import PlaidConsentModal from './PlaidConsentModal'
  *   syncing         – boolean, true while a sync is in progress
  */
 export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAll, linkedCount = 0, syncing = false, variant = 'button' }) {
+  const toast = useToast()
   const [linkToken, setLinkToken] = useState(null)
   const [preparing, setPreparing] = useState(false)
   const [showConsent, setShowConsent] = useState(false)
@@ -30,11 +32,11 @@ export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAl
     try {
       const token = await createLinkToken()
       setLinkToken(token)
-    } catch {
-      // Error is surfaced via usePlaid's error state
+    } catch (e) {
+      toast.error('Bank Connection Failed', e.message || 'Could not create a link token. Please try again.')
     }
     setPreparing(false)
-  }, [createLinkToken])
+  }, [createLinkToken, toast])
 
   const handleConsentDecline = useCallback(() => {
     setShowConsent(false)
@@ -46,10 +48,10 @@ export default function PlaidLinkButton({ createLinkToken, exchangeToken, syncAl
     try {
       await exchangeToken(publicToken, metadata)
       await syncAll()
-    } catch {
-      // Errors surfaced by usePlaid
+    } catch (e) {
+      toast.error('Bank Linking Failed', e.message || 'Could not complete bank linking. Please try again.')
     }
-  }, [exchangeToken, syncAll])
+  }, [exchangeToken, syncAll, toast])
 
   const onExit = useCallback(() => {
     setLinkToken(null)

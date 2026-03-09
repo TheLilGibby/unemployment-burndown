@@ -47,8 +47,9 @@ export function useSnapshots() {
           [...new Set([...prev, data.date])].sort()
         )
       }
-    } catch {
+    } catch (e) {
       // Snapshot failure must never disrupt the primary auto-save
+      console.warn('[useSnapshots] saveSnapshot failed:', e.message)
     }
   }, [])
 
