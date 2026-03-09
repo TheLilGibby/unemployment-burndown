@@ -51,7 +51,7 @@ export function exportBurndownCSV(burndownData, filename = null) {
   
   const csvData = points.map(point => ({
     Date: point.dateLabel || formatDate(point.date),
-    Balance: point.balance.toFixed(2),
+    Balance: point.balance?.toFixed(2) || '0.00',
     'Monthly Income': point.income?.toFixed(2) || '0.00',
     'Net Burn': point.netBurn?.toFixed(2) || '0.00',
     'Total Debt': point.totalDebt?.toFixed(2) || '0.00',
@@ -300,7 +300,6 @@ export function exportSummaryJSON(data, filename = null) {
   downloadFile(json, fname, 'application/json')
 }
 
-
 /**
  * Export burndown report as PDF with summary stats, chart image, and expense breakdown
  */
@@ -308,45 +307,37 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
   if (!burndown || !burndown.dataPoints || burndown.dataPoints.length === 0) {
     throw new Error('No burndown data to export')
   }
-
   const { jsPDF } = await import('jspdf')
-
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 20
   const contentWidth = pageWidth - margin * 2
   let y = margin
-
   doc.setFontSize(22)
   doc.setFont('helvetica', 'bold')
   doc.text('Financial Runway Report', margin, y)
   y += 8
-
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
   doc.text(`Generated ${dayjs().format('MMMM D, YYYY [at] h:mm A')}`, margin, y)
   doc.setTextColor(0, 0, 0)
   y += 12
-
   const boxHeight = 32
   doc.setFillColor(245, 245, 250)
   doc.roundedRect(margin, y, contentWidth, boxHeight, 3, 3, 'F')
-
   const runoutDate = burndown.runoutDate
   const runwayMonths = burndown.totalRunwayMonths
   const netBurn = burndown.currentNetBurn
   const totalSavings = savingsAccounts
     ? savingsAccounts.reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
     : burndown.dataPoints[0]?.balance || 0
-
   const stats = [
     { label: 'Runway', value: runwayMonths === null ? 'Indefinite' : formatMonths(runwayMonths) },
     { label: 'Runout Date', value: runoutDate ? formatDate(runoutDate) : 'None' },
     { label: 'Balance', value: formatCurrency(totalSavings) },
     { label: 'Net Burn / Mo', value: formatCurrency(Math.abs(netBurn)) },
   ]
-
   const statWidth = contentWidth / stats.length
   stats.forEach((stat, i) => {
     const x = margin + statWidth * i + statWidth / 2
@@ -360,16 +351,13 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
     doc.text(stat.value, x, y + 20, { align: 'center' })
   })
   y += boxHeight + 10
-
   if (chartElement) {
     try {
       const html2canvas = (await import('html2canvas')).default
       const canvas = await html2canvas(chartElement, { backgroundColor: '#ffffff', scale: 2, logging: false })
       const imgData = canvas.toDataURL('image/png')
-      const aspectRatio = canvas.height / canvas.width
       const imgWidth = contentWidth
-      const imgHeight = imgWidth * aspectRatio
-
+      const imgHeight = imgWidth * (canvas.height / canvas.width)
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0)
@@ -385,13 +373,11 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
       y += 8
     }
   }
-
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
   doc.text('Monthly Projections', margin, y)
   y += 6
-
   const cols = ['Date', 'Balance', 'Income', 'Net Burn', 'Debt', 'Net Position']
   const colWidths = [30, 28, 25, 25, 25, 30]
   doc.setFontSize(8)
@@ -403,32 +389,17 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
     doc.text(col, x + 2, y + 1)
   })
   y += 7
-
   doc.setFont('helvetica', 'normal')
   const maxRows = 24
   const points = burndown.dataPoints.slice(0, maxRows)
   points.forEach((point, idx) => {
     if (y > 270) { doc.addPage(); y = margin }
-    if (idx % 2 === 0) {
-      doc.setFillColor(248, 248, 252)
-      doc.rect(margin, y - 3, contentWidth, 6, 'F')
-    }
-    const row = [
-      point.dateLabel || '',
-      formatCurrency(point.balance),
-      formatCurrency(point.income || 0),
-      formatCurrency(point.netBurn || 0),
-      formatCurrency(point.totalDebt || 0),
-      formatCurrency(point.netPosition || 0),
-    ]
+    if (idx % 2 === 0) { doc.setFillColor(248, 248, 252); doc.rect(margin, y - 3, contentWidth, 6, 'F') }
+    const row = [point.dateLabel || '', formatCurrency(point.balance), formatCurrency(point.income || 0), formatCurrency(point.netBurn || 0), formatCurrency(point.totalDebt || 0), formatCurrency(point.netPosition || 0)]
     doc.setTextColor(30, 30, 30)
-    row.forEach((val, i) => {
-      const x = margin + colWidths.slice(0, i).reduce((a, b) => a + b, 0)
-      doc.text(val, x + 2, y + 1)
-    })
+    row.forEach((val, i) => { const x = margin + colWidths.slice(0, i).reduce((a, b) => a + b, 0); doc.text(val, x + 2, y + 1) })
     y += 6
   })
-
   if (burndown.dataPoints.length > maxRows) {
     doc.setFontSize(8)
     doc.setTextColor(120, 120, 120)
@@ -437,7 +408,6 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
     y += 8
   }
   y += 6
-
   if (expenses && expenses.length > 0) {
     if (y > 240) { doc.addPage(); y = margin }
     doc.setFontSize(12)
@@ -445,47 +415,30 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
     doc.setTextColor(0, 0, 0)
     doc.text('Monthly Expenses', margin, y)
     y += 6
-
     const expCols = ['Expense', 'Amount', 'Essential']
     const expColWidths = [80, 40, 30]
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     doc.setFillColor(230, 230, 235)
     doc.rect(margin, y - 3, contentWidth, 7, 'F')
-    expCols.forEach((col, i) => {
-      const x = margin + expColWidths.slice(0, i).reduce((a, b) => a + b, 0)
-      doc.text(col, x + 2, y + 1)
-    })
+    expCols.forEach((col, i) => { const x = margin + expColWidths.slice(0, i).reduce((a, b) => a + b, 0); doc.text(col, x + 2, y + 1) })
     y += 7
-
     doc.setFont('helvetica', 'normal')
-    const sortedExpenses = [...expenses].sort((a, b) => (b.monthlyAmount || 0) - (a.monthlyAmount || 0))
-    sortedExpenses.forEach((exp, idx) => {
+    const sorted = [...expenses].sort((a, b) => (b.monthlyAmount || 0) - (a.monthlyAmount || 0))
+    sorted.forEach((exp, idx) => {
       if (y > 270) { doc.addPage(); y = margin }
-      if (idx % 2 === 0) {
-        doc.setFillColor(248, 248, 252)
-        doc.rect(margin, y - 3, contentWidth, 6, 'F')
-      }
-      const row = [
-        (exp.name || exp.label || '').substring(0, 40),
-        formatCurrency(exp.monthlyAmount || exp.amount || 0),
-        exp.essential ? 'Yes' : 'No',
-      ]
+      if (idx % 2 === 0) { doc.setFillColor(248, 248, 252); doc.rect(margin, y - 3, contentWidth, 6, 'F') }
+      const row = [(exp.name || exp.label || '').substring(0, 40), formatCurrency(exp.monthlyAmount || exp.amount || 0), exp.essential ? 'Yes' : 'No']
       doc.setTextColor(30, 30, 30)
-      row.forEach((val, i) => {
-        const x = margin + expColWidths.slice(0, i).reduce((a, b) => a + b, 0)
-        doc.text(val, x + 2, y + 1)
-      })
+      row.forEach((val, i) => { const x = margin + expColWidths.slice(0, i).reduce((a, b) => a + b, 0); doc.text(val, x + 2, y + 1) })
       y += 6
     })
-
-    const totalExpenses = expenses.reduce((s, e) => s + (Number(e.monthlyAmount) || Number(e.amount) || 0), 0)
+    const total = expenses.reduce((s, e) => s + (Number(e.monthlyAmount) || Number(e.amount) || 0), 0)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
     doc.text('Total:', margin + 2, y + 2)
-    doc.text(formatCurrency(totalExpenses), margin + expColWidths[0] + 2, y + 2)
+    doc.text(formatCurrency(total), margin + expColWidths[0] + 2, y + 2)
   }
-
   const pageCount = doc.getNumberOfPages()
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p)
@@ -494,7 +447,6 @@ export async function exportBurndownPDF({ burndown, expenses, savingsAccounts, c
     doc.text('Unemployment Burndown \u2014 Financial Runway Report', margin, doc.internal.pageSize.getHeight() - 10)
     doc.text(`Page ${p} of ${pageCount}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' })
   }
-
   const fname = filename || `burndown-report-${dayjs().format('YYYY-MM-DD')}.pdf`
   doc.save(fname)
 }
