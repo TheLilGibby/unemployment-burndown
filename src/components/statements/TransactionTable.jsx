@@ -587,18 +587,20 @@ export default function TransactionTable({
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr style={{ background: 'var(--bg-subtle, var(--bg-card))', borderBottom: '1px solid var(--border-subtle)' }}>
               <th
-                className="text-left px-3 py-2 cursor-pointer select-none"
+                className="text-left px-3 py-2"
                 style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}
-                onClick={() => toggleSort('date')}
               >
-                Date <SortIcon field="date" />
+                <button type="button" onClick={() => toggleSort('date')} className="cursor-pointer select-none" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit' }}>
+                  Date <SortIcon field="date" />
+                </button>
               </th>
               <th
-                className="text-left px-3 py-2 cursor-pointer select-none"
+                className="text-left px-3 py-2"
                 style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                onClick={() => toggleSort('merchant')}
               >
-                Merchant <SortIcon field="merchant" />
+                <button type="button" onClick={() => toggleSort('merchant')} className="cursor-pointer select-none" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit' }}>
+                  Merchant <SortIcon field="merchant" />
+                </button>
               </th>
               <th
                 className="text-left px-3 py-2"
@@ -613,11 +615,12 @@ export default function TransactionTable({
                 Payment
               </th>
               <th
-                className="text-right px-3 py-2 cursor-pointer select-none"
+                className="text-right px-3 py-2"
                 style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '10%' }}
-                onClick={() => toggleSort('amount')}
               >
-                Amount <SortIcon field="amount" />
+                <button type="button" onClick={() => toggleSort('amount')} className="cursor-pointer select-none" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit' }}>
+                  Amount <SortIcon field="amount" />
+                </button>
               </th>
               {hasLinking && (
                 <th

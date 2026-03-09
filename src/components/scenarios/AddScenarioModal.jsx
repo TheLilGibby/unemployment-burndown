@@ -70,7 +70,7 @@ export default function AddScenarioModal({ onAdd, onClose }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" role="button" tabIndex={-1} aria-label="Close modal" onClick={onClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
