@@ -4,16 +4,9 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-const YEAR_COLORS = [
-  '#3b82f6', // blue
-  '#a855f7', // purple
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#ef4444', // red
-]
 
 const METRIC_OPTIONS = [
   { key: 'income',  label: 'Income' },
@@ -22,25 +15,28 @@ const METRIC_OPTIONS = [
   { key: 'balance', label: 'Balance' },
 ]
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-          <span style={{ color: p.color }} className="font-semibold">
-            {p.name}: {formatCurrency(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export default function YearOverYearChart({ dataPoints }) {
   const [metric, setMetric] = useState('net')
+  const c = useChartColors()
+
+  const YEAR_COLORS = [c.blue, c.purple, c.amber, c.emerald, c.red]
+
+  function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: c.bgCard, border: `1px solid ${c.borderDefault}` }}>
+        <p className="text-xs font-semibold" style={{ color: c.textMuted }}>{label}</p>
+        {payload.map(p => (
+          <div key={p.dataKey} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+            <span style={{ color: p.color }} className="font-semibold">
+              {p.name}: {formatCurrency(p.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const { chartData, years } = useMemo(() => {
     if (!dataPoints?.length) return { chartData: [], years: [] }
@@ -94,18 +90,18 @@ export default function YearOverYearChart({ dataPoints }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-sm font-semibold" style={{ color: c.textPrimary }}>
           Year-over-Year Comparison
         </h3>
-        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: 'var(--border-default)' }}>
+        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: c.borderDefault }}>
           {METRIC_OPTIONS.map(opt => (
             <button
               key={opt.key}
               onClick={() => setMetric(opt.key)}
               className="text-xs px-3 py-1 transition-colors"
               style={{
-                background: metric === opt.key ? 'var(--accent-blue)' + '20' : 'var(--bg-input)',
-                color: metric === opt.key ? 'var(--accent-blue)' : 'var(--text-faint)',
+                background: metric === opt.key ? c.withAlpha(c.blue, '20') : 'var(--bg-input)',
+                color: metric === opt.key ? c.blue : c.textFaint,
               }}
             >
               {opt.label}
@@ -117,10 +113,10 @@ export default function YearOverYearChart({ dataPoints }) {
       <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.borderSubtle} vertical={false} />
             <XAxis
               dataKey="month"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
             />
@@ -132,7 +128,7 @@ export default function YearOverYearChart({ dataPoints }) {
                 if (abs >= 1000) return sign + '$' + (abs / 1000).toFixed(0) + 'k'
                 return sign + '$' + abs
               }}
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={56}

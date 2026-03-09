@@ -4,6 +4,7 @@ import {
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
+import { useChartColors } from '../../hooks/useChartColors'
 
 /**
  * Build waterfall data showing the flow from income through expenses and CC payments
@@ -17,14 +18,14 @@ import { getEffectivePayment } from '../../utils/ccPayment'
  * @param {number} params.monthlyBenefits - UI benefits per month
  * @param {Array} params.ccTransactionsByCard - Map of cardId -> categorized transactions
  */
-function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard }) {
+function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard }, c) {
   const bars = []
   const totalIncome = monthlyIncome + monthlyBenefits
 
   // Start with income
   let running = totalIncome
   if (totalIncome > 0) {
-    bars.push({ label: 'Income', value: totalIncome, base: 0, fill: '#22c55e', isIncome: true })
+    bars.push({ label: 'Income', value: totalIncome, base: 0, fill: c.emerald, isIncome: true })
   }
 
   // Direct expenses (essential)
@@ -32,7 +33,7 @@ function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncom
   const essentialTotal = essentialExpenses.reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0)
   if (essentialTotal > 0) {
     running -= essentialTotal
-    bars.push({ label: 'Essential', value: essentialTotal, base: Math.max(0, running), fill: '#ef4444', isExpense: true,
+    bars.push({ label: 'Essential', value: essentialTotal, base: Math.max(0, running), fill: c.red, isExpense: true,
       detail: essentialExpenses.slice(0, 3).map(e => `${e.category}: ${formatCurrency(e.monthlyAmount)}`).join(', ') })
   }
 
@@ -41,7 +42,7 @@ function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncom
   const discTotal = discretionary.reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0)
   if (discTotal > 0) {
     running -= discTotal
-    bars.push({ label: 'Discretionary', value: discTotal, base: Math.max(0, running), fill: '#f97316', isExpense: true,
+    bars.push({ label: 'Discretionary', value: discTotal, base: Math.max(0, running), fill: c.orange, isExpense: true,
       detail: discretionary.slice(0, 3).map(e => `${e.category}: ${formatCurrency(e.monthlyAmount)}`).join(', ') })
   }
 
@@ -50,12 +51,12 @@ function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncom
   const subsTotal = activeSubs.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)
   if (subsTotal > 0) {
     running -= subsTotal
-    bars.push({ label: 'Subscriptions', value: subsTotal, base: Math.max(0, running), fill: '#a78bfa', isExpense: true,
+    bars.push({ label: 'Subscriptions', value: subsTotal, base: Math.max(0, running), fill: c.purple, isExpense: true,
       detail: activeSubs.slice(0, 3).map(s => `${s.name}: ${formatCurrency(s.monthlyAmount)}`).join(', ') })
   }
 
   // Credit card payments with optional category breakdown
-  const activeCards = (creditCards || []).filter(c => getEffectivePayment(c) > 0)
+  const activeCards = (creditCards || []).filter(cd => getEffectivePayment(cd) > 0)
   for (const card of activeCards) {
     const pmt = getEffectivePayment(card)
     running -= pmt
@@ -78,7 +79,7 @@ function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncom
       label: card.name || 'CC',
       value: pmt,
       base: Math.max(0, running),
-      fill: '#f59e0b',
+      fill: c.amber,
       isCC: true,
       detail,
       subItems: txns.length > 0 ? getCategoryBreakdown(txns) : null,
@@ -90,7 +91,7 @@ function buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncom
     label: 'Net',
     value: Math.abs(running),
     base: running >= 0 ? 0 : 0,
-    fill: running >= 0 ? '#10b981' : '#ef4444',
+    fill: running >= 0 ? c.emerald : c.red,
     isNet: true,
   })
 
@@ -109,24 +110,24 @@ function getCategoryBreakdown(txns) {
     .map(([category, amount]) => ({ category, amount }))
 }
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, colors }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
 
   return (
-    <div className="rounded-xl px-3 py-2.5 text-sm shadow-2xl" style={{ background: '#111827', border: '1px solid #374151' }}>
+    <div className="rounded-xl px-3 py-2.5 text-sm shadow-2xl" style={{ background: colors.tooltipBg, border: `1px solid ${colors.tooltipBorder}` }}>
       <p className="font-semibold text-xs text-white mb-1">{d.label}</p>
       <p className="font-bold" style={{ color: d.fill }}>
         {d.isIncome ? '+' : d.isNet && d.base === 0 ? '' : '−'}{formatCurrency(d.value)}/mo
       </p>
       {d.detail && (
-        <p className="text-xs mt-1 max-w-[220px]" style={{ color: '#9ca3af' }}>{d.detail}</p>
+        <p className="text-xs mt-1 max-w-[220px]" style={{ color: colors.textSecondary }}>{d.detail}</p>
       )}
       {d.subItems && (
-        <div className="mt-1.5 pt-1.5 space-y-0.5" style={{ borderTop: '1px solid #374151' }}>
+        <div className="mt-1.5 pt-1.5 space-y-0.5" style={{ borderTop: `1px solid ${colors.tooltipBorder}` }}>
           {d.subItems.map((item, i) => (
-            <div key={i} className="flex justify-between gap-3 text-xs" style={{ color: '#9ca3af' }}>
+            <div key={i} className="flex justify-between gap-3 text-xs" style={{ color: colors.textSecondary }}>
               <span className="truncate max-w-[120px]">{item.category}</span>
               <span>{formatCurrency(item.amount)}</span>
             </div>
@@ -145,14 +146,16 @@ export default function CashFlowWaterfallChart({
   monthlyBenefits = 0,
   ccTransactionsByCard = {},
 }) {
+  const c = useChartColors()
+
   const data = useMemo(() =>
-    buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard }),
-    [expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard]
+    buildWaterfallData({ expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard }, c),
+    [expenses, subscriptions, creditCards, monthlyIncome, monthlyBenefits, ccTransactionsByCard, c]
   )
 
   if (data.length <= 1) {
     return (
-      <div className="flex items-center justify-center text-sm" style={{ height: 260, color: '#6b7280' }}>
+      <div className="flex items-center justify-center text-sm" style={{ height: 260, color: c.tick }}>
         Add expenses and credit cards to see the cash flow breakdown.
       </div>
     )
@@ -164,7 +167,7 @@ export default function CashFlowWaterfallChart({
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
           <XAxis
             dataKey="label"
-            tick={{ fill: '#9ca3af', fontSize: 11 }}
+            tick={{ fill: c.textSecondary, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             interval={0}
@@ -174,13 +177,13 @@ export default function CashFlowWaterfallChart({
           />
           <YAxis
             tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={52}
           />
-          <Tooltip content={<CustomTooltip />} cursor={false} />
-          <ReferenceLine y={0} stroke="#374151" />
+          <Tooltip content={<CustomTooltip colors={c} />} cursor={false} />
+          <ReferenceLine y={0} stroke={c.tooltipBorder} />
 
           {/* Invisible base bar for waterfall effect */}
           <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />

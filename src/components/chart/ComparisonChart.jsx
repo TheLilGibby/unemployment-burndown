@@ -10,8 +10,9 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, c }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
@@ -42,6 +43,8 @@ function mergeDataPoints(pointsA, pointsB, labelA, labelB) {
 }
 
 export default function ComparisonChart({ scenarioA, scenarioB }) {
+  const c = useChartColors()
+
   if (!scenarioA || !scenarioB) return null
 
   const labelA = scenarioA.label || 'Scenario A'
@@ -62,11 +65,11 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
     <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.tooltipBorder} vertical={false} />
 
           <XAxis
             dataKey="dateLabel"
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
@@ -74,33 +77,33 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
 
           <YAxis
             tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={52}
             domain={[0, maxBalance * 1.05]}
           />
 
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip c={c} />} />
 
           <Legend
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={(value) => <span style={{ color: '#d1d5db' }}>{value}</span>}
+            formatter={(value) => <span style={{ color: c.textSecondary }}>{value}</span>}
           />
 
-          <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+          <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
           <ReferenceLine
             x="Feb 2026"
-            stroke="#f59e0b"
+            stroke={c.amber}
             strokeDasharray="4 2"
             strokeWidth={1.5}
-            label={{ value: 'Today', fill: '#f59e0b', fontSize: 11, position: 'top' }}
+            label={{ value: 'Today', fill: c.amber, fontSize: 11, position: 'top' }}
           />
 
           <Line
             type="monotone"
             dataKey={labelA}
-            stroke="#3b82f6"
+            stroke={c.blue}
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4, strokeWidth: 0 }}
@@ -108,7 +111,7 @@ export default function ComparisonChart({ scenarioA, scenarioB }) {
           <Line
             type="monotone"
             dataKey={labelB}
-            stroke="#a855f7"
+            stroke={c.purple}
             strokeWidth={2.5}
             dot={false}
             strokeDasharray="6 3"

@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '6M', months: 6 },
@@ -57,6 +58,7 @@ function mergeDataPoints(baselinePoints, scenarios, scenarioResults, maxMonths) 
 
 export default function JobScenariosChart({ scenarios, scenarioResults }) {
   const [zoom, setZoom] = useState(24)
+  const c = useChartColors()
   const baselineResult = scenarioResults['__baseline__']
   if (!baselineResult || scenarios.length === 0) return null
 
@@ -81,9 +83,9 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
             onClick={() => setZoom(opt.months)}
             className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
             style={{
-              borderColor: zoom === opt.months ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              background: zoom === opt.months ? 'var(--accent-blue)' + '20' : 'transparent',
-              color: zoom === opt.months ? 'var(--accent-blue)' : 'var(--text-faint)',
+              borderColor: zoom === opt.months ? c.blue : c.borderSubtle,
+              background: zoom === opt.months ? c.withAlpha(c.blue, '20') : 'transparent',
+              color: zoom === opt.months ? c.blue : c.textFaint,
             }}
           >
             {opt.label}
@@ -94,11 +96,11 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
     <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.tooltipBorder} vertical={false} />
 
           <XAxis
             dataKey="dateLabel"
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
@@ -106,7 +108,7 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
 
           <YAxis
             tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={52}
@@ -117,16 +119,16 @@ export default function JobScenariosChart({ scenarios, scenarioResults }) {
 
           <Legend
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={(value) => <span style={{ color: '#d1d5db' }}>{value}</span>}
+            formatter={(value) => <span style={{ color: c.textSecondary }}>{value}</span>}
           />
 
-          <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+          <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
 
           {/* Baseline (no job) — dashed gray */}
           <Line
             type="monotone"
             dataKey="No Job (Baseline)"
-            stroke="#6b7280"
+            stroke={c.tick}
             strokeWidth={2}
             strokeDasharray="6 3"
             dot={false}

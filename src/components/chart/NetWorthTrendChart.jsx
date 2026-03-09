@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '6M',  months: 6  },
@@ -20,39 +21,42 @@ const ZOOM_OPTIONS = [
   { label: 'All', months: Infinity },
 ]
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, c }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
 
   return (
-    <div className="bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-sm shadow-2xl min-w-[220px]">
-      <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wide">{d.dateLabel}</p>
+    <div
+      className="rounded-xl px-4 py-3 text-sm shadow-2xl min-w-[220px]"
+      style={{ background: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }}
+    >
+      <p className="text-xs mb-2 font-semibold uppercase tracking-wide" style={{ color: c.textSecondary }}>{d.dateLabel}</p>
 
       <div className="flex justify-between items-center mb-1">
-        <span className="text-gray-400 text-xs">Cash / Savings</span>
-        <span className="text-blue-300 font-bold">{formatCurrency(d.balance)}</span>
+        <span className="text-xs" style={{ color: c.textSecondary }}>Cash / Savings</span>
+        <span className="font-bold" style={{ color: c.blue }}>{formatCurrency(d.balance)}</span>
       </div>
 
       {d.assetValue > 0 && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-gray-400 text-xs">Assets</span>
-          <span className="text-purple-300 font-bold">{formatCurrency(d.assetValue)}</span>
+          <span className="text-xs" style={{ color: c.textSecondary }}>Assets</span>
+          <span className="font-bold" style={{ color: c.purple }}>{formatCurrency(d.assetValue)}</span>
         </div>
       )}
 
       <div className="flex justify-between items-center mb-1">
-        <span className="text-gray-400 text-xs">Total Debt</span>
-        <span className="text-red-400 font-bold">
+        <span className="text-xs" style={{ color: c.textSecondary }}>Total Debt</span>
+        <span className="font-bold" style={{ color: c.red }}>
           {d.totalDebt > 0 ? `−${formatCurrency(d.totalDebt)}` : formatCurrency(0)}
         </span>
       </div>
 
-      <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-700">
-        <span className="text-gray-400 text-xs font-semibold">Net Worth</span>
+      <div className="flex justify-between items-center mt-1 pt-1" style={{ borderTop: `1px solid ${c.tooltipBorder}` }}>
+        <span className="text-xs font-semibold" style={{ color: c.textSecondary }}>Net Worth</span>
         <span
           className="font-bold"
-          style={{ color: d.netWorth >= 0 ? '#34d399' : '#f87171' }}
+          style={{ color: d.netWorth >= 0 ? c.emerald : c.red }}
         >
           {d.netWorth >= 0 ? formatCurrency(d.netWorth) : `−${formatCurrency(Math.abs(d.netWorth))}`}
         </span>
@@ -62,6 +66,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
+  const c = useChartColors()
   const [zoom, setZoom] = useState(24)
 
   const data = useMemo(() => {
@@ -87,9 +92,9 @@ export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
             onClick={() => setZoom(opt.months)}
             className="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
             style={{
-              background: zoom === opt.months ? 'var(--accent-blue, #3b82f6)' : 'transparent',
-              color: zoom === opt.months ? '#fff' : 'var(--text-muted)',
-              border: zoom === opt.months ? 'none' : '1px solid var(--border-subtle)',
+              background: zoom === opt.months ? c.blue : 'transparent',
+              color: zoom === opt.months ? '#fff' : c.textMuted,
+              border: zoom === opt.months ? 'none' : `1px solid ${c.borderSubtle}`,
             }}
           >
             {opt.label}
@@ -101,25 +106,25 @@ export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
         <ComposedChart data={data} margin={{ top: 10, right: 15, left: 10, bottom: 5 }}>
           <defs>
             <linearGradient id="nwCashGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+              <stop offset="5%" stopColor={c.blue} stopOpacity={0.25} />
+              <stop offset="95%" stopColor={c.blue} stopOpacity={0.02} />
             </linearGradient>
             <linearGradient id="nwNetGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+              <stop offset="5%" stopColor={c.emerald} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={c.emerald} stopOpacity={0.02} />
             </linearGradient>
           </defs>
 
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.4} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} opacity={0.4} />
           <XAxis
             dataKey="dateLabel"
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: '#374151' }}
+            axisLine={{ stroke: c.grid }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickFormatter={v => {
               const abs = Math.abs(v)
               if (abs >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
@@ -129,41 +134,41 @@ export default function NetWorthTrendChart({ dataPoints, assetTotal = 0 }) {
             axisLine={false}
             domain={[minVal < 0 ? minVal * 1.1 : 0, maxVal * 1.05]}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip c={c} />} />
 
           <Area
             type="monotone"
             dataKey="balance"
-            stroke="#3b82f6"
+            stroke={c.blue}
             strokeWidth={1.5}
             fill="url(#nwCashGrad)"
             name="Cash"
             dot={false}
-            activeDot={{ r: 3, stroke: '#3b82f6', strokeWidth: 2, fill: '#1e3a5f' }}
+            activeDot={{ r: 3, stroke: c.blue, strokeWidth: 2, fill: '#1e3a5f' }}
           />
 
           <Line
             type="monotone"
             dataKey="netWorth"
-            stroke="#10b981"
+            stroke={c.emerald}
             strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#064e3b' }}
+            activeDot={{ r: 5, stroke: c.emerald, strokeWidth: 2, fill: '#064e3b' }}
             name="Net Worth"
           />
 
-          <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="4 2" opacity={0.6} />
+          <ReferenceLine y={0} stroke={c.tick} strokeDasharray="4 2" opacity={0.6} />
         </ComposedChart>
       </ResponsiveContainer>
 
       <div className="flex items-center justify-center gap-6 mt-3 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#3b82f6' }} />
-          <span style={{ color: 'var(--text-muted)' }}>Cash / Savings</span>
+          <span className="inline-block w-3 h-0.5 rounded" style={{ background: c.blue }} />
+          <span style={{ color: c.textMuted }}>Cash / Savings</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#10b981', height: 3 }} />
-          <span style={{ color: 'var(--text-muted)' }}>Net Worth</span>
+          <span className="inline-block w-3 h-0.5 rounded" style={{ background: c.emerald, height: 3 }} />
+          <span style={{ color: c.textMuted }}>Net Worth</span>
         </div>
       </div>
     </div>

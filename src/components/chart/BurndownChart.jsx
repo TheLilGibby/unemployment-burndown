@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 // ─── Zoom windows ────────────────────────────────────────────────────────────
 const ZOOM_OPTIONS = [
@@ -21,53 +22,54 @@ const ZOOM_OPTIONS = [
 ]
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
-function zoneColor(balance, maxBalance) {
-  if (maxBalance <= 0) return '#22c55e'
+function zoneColor(balance, maxBalance, c) {
+  if (maxBalance <= 0) return c.emerald
   const pct = balance / maxBalance
-  if (pct > 0.5) return '#22c55e'   // green  >50%
-  if (pct > 0.25) return '#f59e0b'  // yellow 25-50%
-  return '#ef4444'                   // red    <25%
+  if (pct > 0.5) return c.emerald   // green  >50%
+  if (pct > 0.25) return c.amber    // yellow 25-50%
+  return c.red                       // red    <25%
 }
 
 // ─── Rich tooltip ─────────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, emergencyFloor, hasBaseline }) {
+function CustomTooltip({ active, payload, emergencyFloor, hasBaseline, c }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
 
   const burn = d.netBurn
-  const burnColor = burn > 0 ? '#ef4444' : '#22c55e'
+  const burnColor = burn > 0 ? c.red : c.emerald
   const burnLabel = burn > 0 ? `−${formatCurrency(burn)}/mo` : `+${formatCurrency(Math.abs(burn))}/mo`
 
   const burnEssential = d.netBurnEssentialOnly
-  const burnEssentialColor = burnEssential > 0 ? '#ef4444' : '#22c55e'
+  const burnEssentialColor = burnEssential > 0 ? c.red : c.emerald
   const burnEssentialLabel = burnEssential > 0
     ? `−${formatCurrency(burnEssential)}/mo`
     : `+${formatCurrency(Math.abs(burnEssential))}/mo`
 
   return (
-    <div className="bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-sm shadow-2xl min-w-[200px]">
-      <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wide">{d.dateLabel}</p>
+    <div className="bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-sm shadow-2xl min-w-[200px]"
+         style={{ backgroundColor: c.tooltipBg, borderColor: c.tooltipBorder }}>
+      <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wide" style={{ color: c.textSecondary }}>{d.dateLabel}</p>
 
       {/* Balance — full spend */}
       <div className="flex justify-between items-center mb-1">
-        <span className="text-gray-400 text-xs">Balance (all expenses)</span>
-        <span className="text-blue-300 font-bold">{formatCurrency(d.balance)}</span>
+        <span className="text-gray-400 text-xs" style={{ color: c.textSecondary }}>Balance (all expenses)</span>
+        <span className="font-bold" style={{ color: c.blue }}>{formatCurrency(d.balance)}</span>
       </div>
 
       {/* Balance — essentials only */}
       {d.balanceEssentialOnly != null && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-gray-400 text-xs">Balance (essentials only)</span>
-          <span className="font-bold" style={{ color: '#a78bfa' }}>{formatCurrency(d.balanceEssentialOnly)}</span>
+          <span className="text-gray-400 text-xs" style={{ color: c.textSecondary }}>Balance (essentials only)</span>
+          <span className="font-bold" style={{ color: c.purple }}>{formatCurrency(d.balanceEssentialOnly)}</span>
         </div>
       )}
 
       {/* Baseline comparison */}
       {hasBaseline && d.baseline != null && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-gray-500 text-xs">Baseline</span>
-          <span className="text-gray-400 text-xs">{formatCurrency(d.baseline)}</span>
+          <span className="text-xs" style={{ color: c.textSecondary }}>Baseline</span>
+          <span className="text-xs" style={{ color: c.textSecondary }}>{formatCurrency(d.baseline)}</span>
         </div>
       )}
 
@@ -75,12 +77,12 @@ function CustomTooltip({ active, payload, emergencyFloor, hasBaseline }) {
       {d.month > 0 && (
         <>
           <div className="flex justify-between items-center mb-1 mt-1 pt-1 border-t border-gray-700">
-            <span className="text-gray-400 text-xs">Burn (all)</span>
+            <span className="text-gray-400 text-xs" style={{ color: c.textSecondary }}>Burn (all)</span>
             <span className="text-xs font-semibold" style={{ color: burnColor }}>{burnLabel}</span>
           </div>
           {burnEssential != null && (
             <div className="flex justify-between items-center mb-1">
-              <span className="text-gray-400 text-xs">Burn (essentials)</span>
+              <span className="text-gray-400 text-xs" style={{ color: c.textSecondary }}>Burn (essentials)</span>
               <span className="text-xs font-semibold" style={{ color: burnEssentialColor }}>{burnEssentialLabel}</span>
             </div>
           )}
@@ -90,30 +92,30 @@ function CustomTooltip({ active, payload, emergencyFloor, hasBaseline }) {
       {/* Income */}
       {d.income > 0 && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-gray-400 text-xs">Income</span>
-          <span className="text-emerald-400 text-xs">{formatCurrency(d.income)}</span>
+          <span className="text-gray-400 text-xs" style={{ color: c.textSecondary }}>Income</span>
+          <span className="text-xs" style={{ color: c.emerald }}>{formatCurrency(d.income)}</span>
         </div>
       )}
 
       {/* One-time spike */}
       {d.oneTimeCost && (
         <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-700">
-          <span className="text-orange-400 text-xs">One-time expense</span>
-          <span className="text-orange-400 text-xs font-bold">−{formatCurrency(d.oneTimeCost)}</span>
+          <span className="text-xs" style={{ color: c.orange }}>One-time expense</span>
+          <span className="text-xs font-bold" style={{ color: c.orange }}>−{formatCurrency(d.oneTimeCost)}</span>
         </div>
       )}
 
       {/* One-time income injection */}
       {d.oneTimeIncome && (
         <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-700">
-          <span className="text-emerald-400 text-xs">One-time income</span>
-          <span className="text-emerald-400 text-xs font-bold">+{formatCurrency(d.oneTimeIncome)}</span>
+          <span className="text-xs" style={{ color: c.emerald }}>One-time income</span>
+          <span className="text-xs font-bold" style={{ color: c.emerald }}>+{formatCurrency(d.oneTimeIncome)}</span>
         </div>
       )}
 
       {/* Floor note */}
       {emergencyFloor > 0 && (
-        <div className="text-xs text-amber-500 mt-1 pt-1 border-t border-gray-700">
+        <div className="text-xs mt-1 pt-1 border-t border-gray-700" style={{ color: c.amber }}>
           Floor: {formatCurrency(emergencyFloor)} protected
         </div>
       )}
@@ -138,21 +140,21 @@ function CustomTooltip({ active, payload, emergencyFloor, hasBaseline }) {
 }
 
 // ─── One-time event dots rendered via Area's dot prop ────────────────────────
-function renderDot(props) {
+function renderDot(props, c) {
   const { cx, cy, payload } = props
   if (!payload?.oneTimeCost && !payload?.oneTimeIncome) return null
   if (payload.oneTimeCost) {
     return (
       <g key={`dot-exp-${cx}-${cy}`}>
-        <circle cx={cx} cy={cy} r={10} fill="#f97316" opacity={0.15} />
-        <circle cx={cx} cy={cy} r={6} fill="#f97316" stroke="#7c2d12" strokeWidth={1.5} opacity={0.9} />
+        <circle cx={cx} cy={cy} r={10} fill={c.orange} opacity={0.15} />
+        <circle cx={cx} cy={cy} r={6} fill={c.orange} stroke="#7c2d12" strokeWidth={1.5} opacity={0.9} />
       </g>
     )
   }
   return (
     <g key={`dot-inc-${cx}-${cy}`}>
-      <circle cx={cx} cy={cy} r={10} fill="#22c55e" opacity={0.15} />
-      <circle cx={cx} cy={cy} r={6} fill="#22c55e" stroke="#14532d" strokeWidth={1.5} opacity={0.9} />
+      <circle cx={cx} cy={cy} r={10} fill={c.emerald} opacity={0.15} />
+      <circle cx={cx} cy={cy} r={6} fill={c.emerald} stroke="#14532d" strokeWidth={1.5} opacity={0.9} />
     </g>
   )
 }
@@ -169,6 +171,7 @@ export default function BurndownChart({
   showEssentials = true,// whether to render the essentials-only line
   showBaseline   = true,// whether to render the baseline ghost line
 }) {
+  const c = useChartColors()
   const [zoom, setZoom] = useState('All')
 
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
@@ -239,13 +242,13 @@ export default function BurndownChart({
           </span>
           {showEssentials && (
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-4" style={{ height: 2, background: '#a78bfa' }} />
+              <span className="inline-block w-4" style={{ height: 2, background: c.purple }} />
               Essentials only
             </span>
           )}
           {showBaseline && hasBaseline && (
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-4" style={{ height: 2, background: 'repeating-linear-gradient(90deg,#6b7280 0,#6b7280 4px,transparent 4px,transparent 8px)' }} />
+              <span className="inline-block w-4" style={{ height: 2, background: `repeating-linear-gradient(90deg,${c.tick} 0,${c.tick} 4px,transparent 4px,transparent 8px)` }} />
               {baselineLabel}
             </span>
           )}
@@ -269,7 +272,7 @@ export default function BurndownChart({
           )}
           {emergencyFloor > 0 && (
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-4" style={{ height: 2, background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 3px,transparent 3px,transparent 6px)' }} />
+              <span className="inline-block w-4" style={{ height: 2, background: `repeating-linear-gradient(90deg,${c.amber} 0,${c.amber} 3px,transparent 3px,transparent 6px)` }} />
               Floor ({formatCurrency(emergencyFloor)})
             </span>
           )}
@@ -300,30 +303,30 @@ export default function BurndownChart({
             <defs>
               {/* Dynamic tri-colour gradient */}
               <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#22c55e" stopOpacity={0.35} />
-                <stop offset={`${pct50 * 100}%`} stopColor="#f59e0b" stopOpacity={0.25} />
-                <stop offset={`${pct75 * 100}%`} stopColor="#ef4444" stopOpacity={0.20} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.03} />
+                <stop offset="0%"   stopColor={c.emerald} stopOpacity={0.35} />
+                <stop offset={`${pct50 * 100}%`} stopColor={c.amber} stopOpacity={0.25} />
+                <stop offset={`${pct75 * 100}%`} stopColor={c.red} stopOpacity={0.20} />
+                <stop offset="100%" stopColor={c.red} stopOpacity={0.03} />
               </linearGradient>
 
               {/* Subtle gradient for baseline ghost */}
               <linearGradient id="baselineGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#6b7280" stopOpacity={0.12} />
-                <stop offset="95%" stopColor="#6b7280" stopOpacity={0.01} />
+                <stop offset="5%"  stopColor={c.tick} stopOpacity={0.12} />
+                <stop offset="95%" stopColor={c.tick} stopOpacity={0.01} />
               </linearGradient>
 
               {/* Gradient for essentials-only line */}
               <linearGradient id="essentialGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#a78bfa" stopOpacity={0.18} />
-                <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.02} />
+                <stop offset="5%"  stopColor={c.purple} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={c.purple} stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} vertical={false} />
 
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
@@ -331,7 +334,7 @@ export default function BurndownChart({
 
             <YAxis
               tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={45}
@@ -343,6 +346,7 @@ export default function BurndownChart({
                 <CustomTooltip
                   emergencyFloor={emergencyFloor}
                   hasBaseline={hasBaseline}
+                  c={c}
                 />
               }
             />
@@ -352,9 +356,9 @@ export default function BurndownChart({
               <ReferenceArea
                 x1={benefitStartLabel}
                 x2={benefitEndLabel}
-                fill="#22c55e"
+                fill={c.emerald}
                 fillOpacity={0.06}
-                stroke="#22c55e"
+                stroke={c.emerald}
                 strokeOpacity={0.2}
                 strokeWidth={1}
               />
@@ -364,23 +368,23 @@ export default function BurndownChart({
             {emergencyFloor > 0 && (
               <ReferenceLine
                 y={emergencyFloor}
-                stroke="#f59e0b"
+                stroke={c.amber}
                 strokeDasharray="5 3"
                 strokeWidth={1.5}
-                label={{ value: `Floor ${formatCurrency(emergencyFloor)}`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight', dy: -4 }}
+                label={{ value: `Floor ${formatCurrency(emergencyFloor)}`, fill: c.amber, fontSize: 10, position: 'insideTopRight', dy: -4 }}
               />
             )}
 
             {/* ── Zero line ── */}
-            <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+            <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
 
             {/* ── Today marker ── */}
             <ReferenceLine
               x={todayLabel}
-              stroke="#f59e0b"
+              stroke={c.amber}
               strokeDasharray="4 2"
               strokeWidth={1.5}
-              label={{ value: 'Today', fill: '#f59e0b', fontSize: 11, position: 'top' }}
+              label={{ value: 'Today', fill: c.amber, fontSize: 11, position: 'top' }}
             />
 
             {/* ── Baseline ghost area (rendered first / behind) ── */}
@@ -388,7 +392,7 @@ export default function BurndownChart({
               <Area
                 type="monotone"
                 dataKey="baseline"
-                stroke="#4b5563"
+                stroke={c.tooltipBorder}
                 strokeWidth={1.5}
                 strokeDasharray="6 4"
                 fill="url(#baselineGradient)"
@@ -403,12 +407,12 @@ export default function BurndownChart({
               <Area
                 type="monotone"
                 dataKey="balanceEssentialOnly"
-                stroke="#a78bfa"
+                stroke={c.purple}
                 strokeWidth={2}
                 strokeDasharray="5 3"
                 fill="url(#essentialGradient)"
                 dot={false}
-                activeDot={{ r: 4, fill: '#a78bfa', stroke: '#4c1d95', strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: c.purple, stroke: '#4c1d95', strokeWidth: 2 }}
                 connectNulls
               />
             )}
@@ -417,11 +421,11 @@ export default function BurndownChart({
             <Area
               type="monotone"
               dataKey="balance"
-              stroke="#3b82f6"
+              stroke={c.blue}
               strokeWidth={2.5}
               fill="url(#balanceGradient)"
-              dot={renderDot}
-              activeDot={{ r: 5, fill: '#3b82f6', stroke: '#1e3a5f', strokeWidth: 2 }}
+              dot={(props) => renderDot(props, c)}
+              activeDot={{ r: 5, fill: c.blue, stroke: '#1e3a5f', strokeWidth: 2 }}
             />
           </ComposedChart>
         </ResponsiveContainer>

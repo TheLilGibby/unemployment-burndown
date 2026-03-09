@@ -4,6 +4,7 @@ import {
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { computeMonthlyTakeHome } from '../../utils/stateTaxRates'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '1Y', years: 1 },
@@ -13,27 +14,28 @@ const ZOOM_OPTIONS = [
   { label: '20Y', years: 20 },
 ]
 
-function CustomTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0]?.payload
-  return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Year {d?.year}</p>
-      {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-          <span style={{ color: p.color }} className="font-semibold">
-            {p.name}: {formatCurrency(p.value)}/yr
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) {
+  const c = useChartColors()
   const [zoom, setZoom] = useState(5)
   const [mode, setMode] = useState('gross') // 'gross' | 'takeHome' | 'totalComp'
+
+  function CustomTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null
+    const d = payload[0]?.payload
+    return (
+      <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: c.bgCard, border: `1px solid ${c.borderDefault}` }}>
+        <p className="text-xs font-semibold" style={{ color: c.textMuted }}>Year {d?.year}</p>
+        {payload.map(p => (
+          <div key={p.dataKey} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+            <span style={{ color: p.color }} className="font-semibold">
+              {p.name}: {formatCurrency(p.value)}/yr
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const chartData = useMemo(() => {
     if (!scenarios.length) return []
@@ -85,22 +87,22 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
               onClick={() => setZoom(opt.years)}
               className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
               style={{
-                borderColor: zoom === opt.years ? 'var(--accent-blue)' : 'var(--border-subtle)',
-                background: zoom === opt.years ? 'var(--accent-blue)' + '20' : 'transparent',
-                color: zoom === opt.years ? 'var(--accent-blue)' : 'var(--text-faint)',
+                borderColor: zoom === opt.years ? c.blue : c.borderSubtle,
+                background: zoom === opt.years ? c.withAlpha(c.blue, '20') : 'transparent',
+                color: zoom === opt.years ? c.blue : c.textFaint,
               }}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: 'var(--border-default)' }}>
+        <div className="flex rounded-md overflow-hidden border" style={{ borderColor: c.borderDefault }}>
           <button
             onClick={() => setMode('gross')}
             className="text-xs px-3 py-1 transition-colors"
             style={{
-              background: mode === 'gross' ? 'var(--accent-blue)' + '20' : 'var(--bg-input)',
-              color: mode === 'gross' ? 'var(--accent-blue)' : 'var(--text-faint)',
+              background: mode === 'gross' ? c.withAlpha(c.blue, '20') : 'var(--bg-input)',
+              color: mode === 'gross' ? c.blue : c.textFaint,
             }}
           >
             Gross
@@ -109,8 +111,8 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
             onClick={() => setMode('takeHome')}
             className="text-xs px-3 py-1 transition-colors"
             style={{
-              background: mode === 'takeHome' ? 'var(--accent-emerald)' + '20' : 'var(--bg-input)',
-              color: mode === 'takeHome' ? 'var(--accent-emerald)' : 'var(--text-faint)',
+              background: mode === 'takeHome' ? c.withAlpha(c.emerald, '20') : 'var(--bg-input)',
+              color: mode === 'takeHome' ? c.emerald : c.textFaint,
             }}
           >
             Take-Home
@@ -119,8 +121,8 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
             onClick={() => setMode('totalComp')}
             className="text-xs px-3 py-1 transition-colors"
             style={{
-              background: mode === 'totalComp' ? '#a855f7' + '20' : 'var(--bg-input)',
-              color: mode === 'totalComp' ? '#a855f7' : 'var(--text-faint)',
+              background: mode === 'totalComp' ? c.withAlpha(c.purple, '20') : 'var(--bg-input)',
+              color: mode === 'totalComp' ? c.purple : c.textFaint,
             }}
           >
             Total Comp
@@ -131,10 +133,10 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
       <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.borderSubtle} vertical={false} />
             <XAxis
               dataKey="yearLabel"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
             />
@@ -144,7 +146,7 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
                 if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'k'
                 return '$' + v
               }}
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={60}
@@ -158,7 +160,7 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
               <Line
                 type="monotone"
                 dataKey="Annual Expenses"
-                stroke="#ef4444"
+                stroke={c.red}
                 strokeWidth={1.5}
                 strokeDasharray="6 3"
                 dot={false}
@@ -184,7 +186,7 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr style={{ color: 'var(--text-muted)' }}>
+            <tr style={{ color: c.textMuted }}>
               <th className="text-left py-1 pr-3 font-medium">Scenario</th>
               <th className="text-right py-1 px-2 font-medium">Raise</th>
               <th className="text-right py-1 px-2 font-medium">Year 1</th>
@@ -214,31 +216,31 @@ export default function SalaryGrowthChart({ scenarios, effectiveExpenses = 0 }) 
                 : baseEarned
 
               return (
-                <tr key={s.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={s.id} className="border-t" style={{ borderColor: c.borderSubtle }}>
                   <td className="py-1.5 pr-3 font-medium" style={{ color: s.color }}>
                     <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: s.color }} />
                     {s.name}
                   </td>
-                  <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="text-right py-1.5 px-2" style={{ color: c.textSecondary }}>
                     {s.annualRaisePct ?? 0}%
                   </td>
-                  <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                  <td className="text-right py-1.5 px-2" style={{ color: c.textPrimary }}>
                     {formatCurrency(yr(1))}
                   </td>
-                  <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                  <td className="text-right py-1.5 px-2" style={{ color: c.textPrimary }}>
                     {formatCurrency(yr(2))}
                   </td>
                   {zoom >= 5 && (
-                    <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                    <td className="text-right py-1.5 px-2" style={{ color: c.textPrimary }}>
                       {formatCurrency(yr(5))}
                     </td>
                   )}
                   {zoom >= 10 && (
-                    <td className="text-right py-1.5 px-2" style={{ color: 'var(--text-primary)' }}>
+                    <td className="text-right py-1.5 px-2" style={{ color: c.textPrimary }}>
                       {formatCurrency(yr(10))}
                     </td>
                   )}
-                  <td className="text-right py-1.5 pl-2 font-semibold" style={{ color: 'var(--accent-emerald)' }}>
+                  <td className="text-right py-1.5 pl-2 font-semibold" style={{ color: c.emerald }}>
                     {formatCurrency(totalEarned)}
                   </td>
                 </tr>
