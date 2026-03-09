@@ -948,10 +948,26 @@ app.put('/api/admin/snaptrade-limits', superAdminMiddleware, (req, res) => {
     maxMonthlyCalls: ST_MAX_MONTHLY_CALLS,
   }
   const { monthlyBudget, estCostPerCall, maxSyncPages, syncCooldownSeconds } = req.body
-  if (monthlyBudget !== undefined) ST_MONTHLY_BUDGET = parseFloat(monthlyBudget)
-  if (estCostPerCall !== undefined) ST_EST_COST_PER_CALL = parseFloat(estCostPerCall)
-  if (maxSyncPages !== undefined) ST_MAX_SYNC_PAGES = parseInt(maxSyncPages, 10)
-  if (syncCooldownSeconds !== undefined) ST_SYNC_COOLDOWN_MS = parseInt(syncCooldownSeconds, 10) * 1000
+  if (monthlyBudget !== undefined) {
+    const val = parseFloat(monthlyBudget)
+    if (isNaN(val) || val < 0 || val > 10000) return res.status(400).json({ error: 'monthlyBudget must be between 0 and 10000' })
+    ST_MONTHLY_BUDGET = val
+  }
+  if (estCostPerCall !== undefined) {
+    const val = parseFloat(estCostPerCall)
+    if (isNaN(val) || val <= 0 || val > 100) return res.status(400).json({ error: 'estCostPerCall must be between 0.01 and 100' })
+    ST_EST_COST_PER_CALL = val
+  }
+  if (maxSyncPages !== undefined) {
+    const val = parseInt(maxSyncPages, 10)
+    if (isNaN(val) || val < 1 || val > 100) return res.status(400).json({ error: 'maxSyncPages must be between 1 and 100' })
+    ST_MAX_SYNC_PAGES = val
+  }
+  if (syncCooldownSeconds !== undefined) {
+    const val = parseInt(syncCooldownSeconds, 10)
+    if (isNaN(val) || val < 0 || val > 86400) return res.status(400).json({ error: 'syncCooldownSeconds must be between 0 and 86400' })
+    ST_SYNC_COOLDOWN_MS = val * 1000
+  }
   ST_MAX_MONTHLY_CALLS = Math.floor(ST_MONTHLY_BUDGET / ST_EST_COST_PER_CALL)
   const after = {
     monthlyBudget: ST_MONTHLY_BUDGET,
