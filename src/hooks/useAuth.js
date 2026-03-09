@@ -299,10 +299,41 @@ export function useAuth() {
     setMfaPending(false)
     setTempToken(null)
     setImpersonating(false)
+    // Notify other tabs
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const ch = new BroadcastChannel('burndown_auth')
+        ch.postMessage({ type: 'logout' })
+        ch.close()
+      }
+    } catch { /* BroadcastChannel not supported */ }
   }, [])
 
   // Keep logoutRef in sync so the proactive timer can trigger logout
   useEffect(() => { logoutRef.current = logout }, [logout])
+
+  // Sync logout across tabs via BroadcastChannel
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel('burndown_auth')
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'logout') {
+        // Another tab logged out — clear local state without re-broadcasting
+        if (_refreshTimer) {
+          clearTimeout(_refreshTimer)
+          _refreshTimer = null
+        }
+        clearToken()
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+        setAuthed(false)
+        setUser(null)
+        setMfaPending(false)
+        setTempToken(null)
+        setImpersonating(false)
+      }
+    }
+    return () => channel.close()
+  }, [])
 
   const cancelMfa = useCallback(() => {
     setMfaPending(false)
