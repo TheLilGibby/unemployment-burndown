@@ -26,31 +26,9 @@ import PropertyLocationSettings from '../components/settings/PropertyLocationSet
 import JobsPanel from '../components/finances/JobsPanel'
 
 import { API_BASE, authHeaders } from '../utils/apiClient'
+import { compressImage } from '../utils/imageUtils'
 
 const COLOR_KEYS = Object.keys(PROFILE_COLORS)
-
-async function compressImage(file, maxPx = 200) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
-        const w = Math.round(img.width * scale)
-        const h = Math.round(img.height * scale)
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-        resolve(canvas.toDataURL('image/jpeg', 0.75))
-      }
-      img.onerror = reject
-      img.src = e.target.result
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
 
 const SNOOZE_OPTIONS = [
   { label: '1 hour', ms: 60 * 60 * 1000 },
@@ -123,7 +101,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
         try { return JSON.parse(text) } catch { return null }
       })
       .then(data => { if (data) setOrg(data) })
-      .catch(() => {})
+      .catch(err => console.warn('Failed to fetch org details:', err.message))
   }, [user?.orgId])
 
   async function handleFileChange(e) {

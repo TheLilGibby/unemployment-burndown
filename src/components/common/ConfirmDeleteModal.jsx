@@ -18,7 +18,7 @@ export default function ConfirmDeleteModal({ itemName, onConfirm, onCancel }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" role="button" tabIndex={-1} aria-label="Close modal" onClick={onCancel} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
