@@ -1,7 +1,7 @@
 import { formatCurrency, formatMonths } from '../../utils/formatters'
 import dayjs from 'dayjs'
 
-const today = dayjs('2026-02-21')
+const today = dayjs()
 
 const DEFAULT_TIERS = [
   { monthOffset: 0, monthlyAmount: 0 },

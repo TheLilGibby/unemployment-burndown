@@ -84,7 +84,7 @@ export function useStatementStorage() {
             ...prev,
             [statementId]: {
               ...stmt,
-              transactions: stmt.transactions.map(t =>
+              transactions: (stmt.transactions || []).map(t =>
                 t.id === transactionId ? { ...t, ...data.transaction } : t
               ),
             },

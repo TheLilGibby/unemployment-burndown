@@ -50,7 +50,7 @@ export function exportBurndownCSV(burndownData, filename = null) {
   
   const csvData = burndownData.timeline.map(point => ({
     Date: formatDate(point.date),
-    Balance: point.balance.toFixed(2),
+    Balance: point.balance?.toFixed(2) || '0.00',
     'Monthly Expenses': point.expenses?.toFixed(2) || '0.00',
     'Monthly Income': point.income?.toFixed(2) || '0.00',
     'Net Burn': point.netBurn?.toFixed(2) || '0.00',
