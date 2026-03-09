@@ -4,6 +4,7 @@ import {
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { computeAllocationAmount } from '../../utils/stateTaxRates'
+import { useChartColors } from '../../hooks/useChartColors'
 import dayjs from 'dayjs'
 
 const ANNUAL_RETURN = 0.07
@@ -18,23 +19,24 @@ const ZOOM_OPTIONS = [
   { label: '30Y', months: 360 },
 ]
 
-function CustomTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0]?.payload
-  return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d?.dateLabel}</p>
-      {payload.map(p => (
-        <p key={p.dataKey} style={{ color: p.color }} className="font-semibold">
-          {p.name}: {formatCurrency(p.value)}
-        </p>
-      ))}
-    </div>
-  )
-}
-
 export default function InvestmentGrowthChart({ scenarios }) {
+  const c = useChartColors()
   const [zoom, setZoom] = useState(120)
+
+  function CustomTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null
+    const d = payload[0]?.payload
+    return (
+      <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: c.bgCard, border: `1px solid ${c.borderDefault}` }}>
+        <p className="text-xs" style={{ color: c.textMuted }}>{d?.dateLabel}</p>
+        {payload.map(p => (
+          <p key={p.dataKey} style={{ color: p.color }} className="font-semibold">
+            {p.name}: {formatCurrency(p.value)}
+          </p>
+        ))}
+      </div>
+    )
+  }
 
   const chartData = useMemo(() => {
     if (!scenarios.length) return []
@@ -92,25 +94,25 @@ export default function InvestmentGrowthChart({ scenarios }) {
               onClick={() => setZoom(opt.months)}
               className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
               style={{
-                borderColor: zoom === opt.months ? 'var(--accent-blue)' : 'var(--border-subtle)',
-                background: zoom === opt.months ? 'var(--accent-blue)' + '20' : 'transparent',
-                color: zoom === opt.months ? 'var(--accent-blue)' : 'var(--text-faint)',
+                borderColor: zoom === opt.months ? c.blue : c.borderSubtle,
+                background: zoom === opt.months ? c.withAlpha(c.blue, '20') : 'transparent',
+                color: zoom === opt.months ? c.blue : c.textFaint,
               }}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>7% annual return assumed</span>
+        <span className="text-xs" style={{ color: c.textFaint }}>7% annual return assumed</span>
       </div>
 
       <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={thinned} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.borderSubtle} vertical={false} />
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
@@ -121,7 +123,7 @@ export default function InvestmentGrowthChart({ scenarios }) {
                 if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'k'
                 return '$' + v
               }}
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={60}

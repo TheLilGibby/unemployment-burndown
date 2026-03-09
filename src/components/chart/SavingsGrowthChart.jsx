@@ -3,6 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '6M', months: 6 },
@@ -29,23 +30,24 @@ function mergeDataPoints(baselinePoints, scenarios, scenarioResults, maxMonths) 
   return Object.values(map).sort((a, b) => a.month - b.month)
 }
 
-function CustomTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0]?.payload
-  return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d?.dateLabel}</p>
-      {payload.map(p => (
-        <p key={p.dataKey} style={{ color: p.color }} className="font-semibold">
-          {p.name}: {formatCurrency(p.value)}
-        </p>
-      ))}
-    </div>
-  )
-}
-
 export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
   const [zoom, setZoom] = useState(60)
+  const c = useChartColors()
+
+  function CustomTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null
+    const d = payload[0]?.payload
+    return (
+      <div className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1" style={{ background: c.bgCard, border: `1px solid ${c.borderDefault}` }}>
+        <p className="text-xs" style={{ color: c.textMuted }}>{d?.dateLabel}</p>
+        {payload.map(p => (
+          <p key={p.dataKey} style={{ color: p.color }} className="font-semibold">
+            {p.name}: {formatCurrency(p.value)}
+          </p>
+        ))}
+      </div>
+    )
+  }
   const baselineResult = scenarioResults['__baseline__']
   if (!baselineResult || scenarios.length === 0) return null
 
@@ -66,9 +68,9 @@ export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
             onClick={() => setZoom(opt.months)}
             className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
             style={{
-              borderColor: zoom === opt.months ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              background: zoom === opt.months ? 'var(--accent-blue)' + '20' : 'transparent',
-              color: zoom === opt.months ? 'var(--accent-blue)' : 'var(--text-faint)',
+              borderColor: zoom === opt.months ? c.blue : c.borderSubtle,
+              background: zoom === opt.months ? c.withAlpha(c.blue, '20') : 'transparent',
+              color: zoom === opt.months ? c.blue : c.textFaint,
             }}
           >
             {opt.label}
@@ -79,17 +81,17 @@ export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
       <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.borderSubtle} vertical={false} />
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
             />
             <YAxis
               tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={52}
@@ -97,21 +99,21 @@ export default function SavingsGrowthChart({ scenarios, scenarioResults }) {
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-            <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+            <ReferenceLine y={0} stroke={c.red} strokeDasharray="4 2" strokeWidth={1.5} />
 
             {/* Year markers */}
             {[12, 24, 36, 48, 60, 72, 84, 96, 108, 120].filter(m => m <= zoom).map(m => (
-              <ReferenceLine key={m} x={chartData.find(d => d.month === m)?.dateLabel} stroke="var(--border-subtle)" strokeDasharray="2 4" />
+              <ReferenceLine key={m} x={chartData.find(d => d.month === m)?.dateLabel} stroke={c.borderSubtle} strokeDasharray="2 4" />
             ))}
 
             {/* Baseline */}
             <Area
               type="monotone"
               dataKey="No Job (Baseline)"
-              stroke="#6b7280"
+              stroke={c.tick}
               strokeWidth={2}
               strokeDasharray="6 3"
-              fill="#6b7280"
+              fill={c.tick}
               fillOpacity={0.05}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}

@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '6M',  months: 6  },
@@ -20,7 +21,7 @@ const ZOOM_OPTIONS = [
   { label: 'All', months: Infinity },
 ]
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, colors }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
@@ -45,7 +46,7 @@ function CustomTooltip({ active, payload }) {
         <span className="text-gray-400 text-xs font-semibold">Net Position</span>
         <span
           className="font-bold"
-          style={{ color: d.netPosition >= 0 ? '#34d399' : '#f87171' }}
+          style={{ color: d.netPosition >= 0 ? colors.emerald : colors.red }}
         >
           {d.netPosition >= 0 ? formatCurrency(d.netPosition) : `−${formatCurrency(Math.abs(d.netPosition))}`}
         </span>
@@ -56,6 +57,7 @@ function CustomTooltip({ active, payload }) {
 
 export default function NetPositionChart({ dataPoints }) {
   const [zoom, setZoom] = useState(12)
+  const c = useChartColors()
 
   const data = useMemo(() => {
     if (zoom === Infinity) return dataPoints
@@ -79,9 +81,9 @@ export default function NetPositionChart({ dataPoints }) {
             onClick={() => setZoom(opt.months)}
             className="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
             style={{
-              background: zoom === opt.months ? 'var(--accent-blue, #3b82f6)' : 'transparent',
-              color: zoom === opt.months ? '#fff' : 'var(--text-muted)',
-              border: zoom === opt.months ? 'none' : '1px solid var(--border-subtle)',
+              background: zoom === opt.months ? c.blue : 'transparent',
+              color: zoom === opt.months ? '#fff' : c.textMuted,
+              border: zoom === opt.months ? 'none' : `1px solid ${c.borderSubtle}`,
             }}
           >
             {opt.label}
@@ -94,46 +96,46 @@ export default function NetPositionChart({ dataPoints }) {
         <ComposedChart data={data} margin={{ top: 10, right: 15, left: 10, bottom: 5 }}>
           <defs>
             <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+              <stop offset="5%" stopColor={c.blue} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={c.blue} stopOpacity={0.02} />
             </linearGradient>
             <linearGradient id="debtGradient" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+              <stop offset="5%" stopColor={c.red} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={c.red} stopOpacity={0.02} />
             </linearGradient>
             <linearGradient id="netGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+              <stop offset="5%" stopColor={c.emerald} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={c.emerald} stopOpacity={0.02} />
             </linearGradient>
           </defs>
 
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.4} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.tooltipBorder} opacity={0.4} />
           <XAxis
             dataKey="dateLabel"
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: '#374151' }}
+            axisLine={{ stroke: c.tooltipBorder }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: '#6b7280', fontSize: 11 }}
+            tick={{ fill: c.tick, fontSize: 11 }}
             tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
             tickLine={false}
             axisLine={false}
             domain={[minVal < 0 ? minVal * 1.1 : 0, maxVal * 1.05]}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip colors={c} />} />
 
           {/* Cash/savings area */}
           <Area
             type="monotone"
             dataKey="balance"
-            stroke="#3b82f6"
+            stroke={c.blue}
             strokeWidth={2}
             fill="url(#cashGradient)"
             name="Cash / Savings"
             dot={false}
-            activeDot={{ r: 4, stroke: '#3b82f6', strokeWidth: 2, fill: '#1e3a5f' }}
+            activeDot={{ r: 4, stroke: c.blue, strokeWidth: 2, fill: '#1e3a5f' }}
           />
 
           {/* Debt area (shown as negative) */}
@@ -141,12 +143,12 @@ export default function NetPositionChart({ dataPoints }) {
             <Area
               type="monotone"
               dataKey={d => d.totalDebt > 0 ? -d.totalDebt : 0}
-              stroke="#ef4444"
+              stroke={c.red}
               strokeWidth={1.5}
               fill="url(#debtGradient)"
               name="Credit Card Debt"
               dot={false}
-              activeDot={{ r: 4, stroke: '#ef4444', strokeWidth: 2, fill: '#5f1e1e' }}
+              activeDot={{ r: 4, stroke: c.red, strokeWidth: 2, fill: '#5f1e1e' }}
             />
           )}
 
@@ -154,15 +156,15 @@ export default function NetPositionChart({ dataPoints }) {
           <Line
             type="monotone"
             dataKey="netPosition"
-            stroke="#10b981"
+            stroke={c.emerald}
             strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#064e3b' }}
+            activeDot={{ r: 5, stroke: c.emerald, strokeWidth: 2, fill: '#064e3b' }}
             name="Net Position"
           />
 
           {/* Zero line */}
-          <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="4 2" opacity={0.6} />
+          <ReferenceLine y={0} stroke={c.tick} strokeDasharray="4 2" opacity={0.6} />
         </ComposedChart>
       </ResponsiveContainer>
       </div>
@@ -170,17 +172,17 @@ export default function NetPositionChart({ dataPoints }) {
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-3 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#3b82f6' }} />
+          <span className="inline-block w-3 h-0.5 rounded" style={{ background: c.blue }} />
           <span style={{ color: 'var(--text-muted)' }}>Cash / Savings</span>
         </div>
         {hasDebt && (
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#ef4444' }} />
+            <span className="inline-block w-3 h-0.5 rounded" style={{ background: c.red }} />
             <span style={{ color: 'var(--text-muted)' }}>Credit Card Debt</span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#10b981', height: 3 }} />
+          <span className="inline-block w-3 h-0.5 rounded" style={{ background: c.emerald, height: 3 }} />
           <span style={{ color: 'var(--text-muted)' }}>Net Position</span>
         </div>
       </div>

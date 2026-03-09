@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
+import { useChartColors } from '../../hooks/useChartColors'
 
-function ScoreGauge({ score, size = 160 }) {
+function ScoreGauge({ score, size = 160, chartColors }) {
   const radius = (size - 20) / 2
   const circumference = Math.PI * radius // semicircle
   const progress = (score / 100) * circumference
 
-  const color = score >= 80 ? '#10b981' : score >= 60 ? '#3b82f6' : score >= 40 ? '#f59e0b' : '#ef4444'
+  const color = score >= 80 ? chartColors.emerald : score >= 60 ? chartColors.blue : score >= 40 ? chartColors.amber : chartColors.red
   const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs Work'
 
   return (
@@ -15,7 +16,7 @@ function ScoreGauge({ score, size = 160 }) {
         <path
           d={`M 10 ${size / 2 + 10} A ${radius} ${radius} 0 0 1 ${size - 10} ${size / 2 + 10}`}
           fill="none"
-          stroke="var(--border-subtle, #374151)"
+          stroke={chartColors.borderSubtle}
           strokeWidth="10"
           strokeLinecap="round"
         />
@@ -44,7 +45,7 @@ function ScoreGauge({ score, size = 160 }) {
           x={size / 2}
           y={size / 2 + 18}
           textAnchor="middle"
-          fill="var(--text-muted, #6b7280)"
+          fill={chartColors.textMuted}
           fontSize="12"
         >
           {label}
@@ -54,12 +55,12 @@ function ScoreGauge({ score, size = 160 }) {
   )
 }
 
-function RatioRow({ label, value, status, detail }) {
+function RatioRow({ label, value, status, detail, chartColors }) {
   const colors = {
-    good: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    neutral: 'var(--text-secondary)',
+    good: chartColors.emerald,
+    warning: chartColors.amber,
+    danger: chartColors.red,
+    neutral: chartColors.textSecondary,
   }
   return (
     <div className="flex items-center justify-between py-2.5 px-1">
@@ -84,6 +85,8 @@ export default function FinancialHealthScore({
   monthlyInvestments = 0,
   assetTotal = 0,
 }) {
+  const c = useChartColors()
+
   const metrics = useMemo(() => {
     // Emergency fund months
     const emergencyMonths = monthlyExpenses > 0
@@ -143,26 +146,29 @@ export default function FinancialHealthScore({
 
   return (
     <div>
-      <ScoreGauge score={metrics.score} />
+      <ScoreGauge score={metrics.score} chartColors={c} />
 
-      <div className="mt-4 divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="mt-4 divide-y" style={{ borderColor: c.borderSubtle }}>
         <RatioRow
           label="Emergency Fund"
           value={metrics.emergencyMonths >= 99 ? '99+ mo' : `${metrics.emergencyMonths.toFixed(1)} mo`}
           status={metrics.emergencyMonths >= 6 ? 'good' : metrics.emergencyMonths >= 3 ? 'warning' : 'danger'}
           detail={metrics.emergencyMonths >= 6 ? '6+ months ideal' : 'Target: 6 months'}
+          chartColors={c}
         />
         <RatioRow
           label="Savings Rate"
           value={`${metrics.savingsRate.toFixed(1)}%`}
           status={metrics.savingsRate >= 20 ? 'good' : metrics.savingsRate >= 10 ? 'warning' : 'danger'}
           detail={metrics.savingsRate >= 20 ? 'On track' : 'Target: 20%'}
+          chartColors={c}
         />
         <RatioRow
           label="Debt-to-Income"
           value={metrics.debtToIncome > 100 ? '>100%' : `${metrics.debtToIncome.toFixed(1)}%`}
           status={metrics.debtToIncome <= 20 ? 'good' : metrics.debtToIncome <= 40 ? 'warning' : 'danger'}
           detail={metrics.debtToIncome <= 20 ? 'Healthy' : 'Target: <20%'}
+          chartColors={c}
         />
       </div>
     </div>

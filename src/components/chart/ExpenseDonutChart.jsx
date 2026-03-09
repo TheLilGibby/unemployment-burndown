@@ -2,35 +2,36 @@ import { useMemo, useState, useCallback } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
 import { getEffectivePayment } from '../../utils/ccPayment'
+import { useChartColors } from '../../hooks/useChartColors'
 
-const SLICE_CONFIG = [
-  { key: 'essential',     label: 'Essential',     color: '#3b82f6' },
-  { key: 'discretionary', label: 'Discretionary', color: '#f97316' },
-  { key: 'subscriptions', label: 'Subscriptions', color: '#a78bfa' },
-  { key: 'ccPayments',    label: 'CC Payments',   color: '#f59e0b' },
-  { key: 'investments',   label: 'Investments',   color: '#14b8a6' },
+const SLICE_KEYS = [
+  { key: 'essential',     label: 'Essential'     },
+  { key: 'discretionary', label: 'Discretionary' },
+  { key: 'subscriptions', label: 'Subscriptions' },
+  { key: 'ccPayments',    label: 'CC Payments'   },
+  { key: 'investments',   label: 'Investments'   },
 ]
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, sliceConfig }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
-  const cfg = SLICE_CONFIG.find(c => c.key === d.key)
+  const cfg = sliceConfig.find(c => c.key === d.key)
   return (
     <div
       className="rounded-xl px-3 py-2.5 shadow-2xl"
-      style={{ background: '#111827', border: '1px solid #374151' }}
+      style={{ background: cfg?._colors?.tooltipBg, border: `1px solid ${cfg?._colors?.tooltipBorder}` }}
     >
       <p className="text-sm font-semibold text-white mb-0.5">{d.label}</p>
-      <p className="text-sm font-bold" style={{ color: cfg?.color ?? '#fff' }}>
+      <p className="text-sm font-bold" style={{ color: cfg?.color ?? cfg?._colors?.textPrimary }}>
         {formatCurrency(d.value)}<span className="text-xs font-normal opacity-60">/mo</span>
       </p>
-      <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>
+      <p className="text-xs mt-0.5" style={{ color: cfg?._colors?.tick }}>
         {Math.round(d.pct)}% of total
       </p>
       {d.topItems?.length > 0 && (
-        <div className="mt-1.5 pt-1.5 space-y-0.5" style={{ borderTop: '1px solid #374151' }}>
+        <div className="mt-1.5 pt-1.5 space-y-0.5" style={{ borderTop: `1px solid ${cfg?._colors?.tooltipBorder}` }}>
           {d.topItems.map((item, i) => (
-            <div key={i} className="flex justify-between gap-3 text-xs" style={{ color: '#9ca3af' }}>
+            <div key={i} className="flex justify-between gap-3 text-xs" style={{ color: cfg?._colors?.textSecondary }}>
               <span className="truncate max-w-[120px]">{item.name}</span>
               <span>{formatCurrency(item.amount)}</span>
             </div>
@@ -42,12 +43,12 @@ function CustomTooltip({ active, payload }) {
 }
 
 /** Percentage label rendered on each donut slice */
-function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, pct, key }) {
+function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, pct, key, sliceConfig }) {
   const RADIAN = Math.PI / 180
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
-  const cfg = SLICE_CONFIG.find(c => c.key === key)
+  const cfg = sliceConfig.find(c => c.key === key)
 
   if (pct < 5) return null // don't render labels for tiny slices
 
@@ -60,7 +61,7 @@ function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, pct, key
       style={{
         fontSize: 11,
         fontWeight: 700,
-        fill: '#fff',
+        fill: cfg?._colors?.textPrimary,
         textShadow: `0 1px 3px ${cfg?.color ?? '#000'}`,
         pointerEvents: 'none',
       }}
@@ -71,7 +72,7 @@ function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, pct, key
 }
 
 /** iOS-style mini toggle */
-function Toggle({ checked, onChange, size = 'sm' }) {
+function Toggle({ checked, onChange, size = 'sm', colors }) {
   const w = size === 'sm' ? 'w-7' : 'w-9'
   const h = size === 'sm' ? 'h-4' : 'h-5'
   const dot = size === 'sm' ? 'h-2.5 w-2.5' : 'h-3.5 w-3.5'
@@ -84,7 +85,7 @@ function Toggle({ checked, onChange, size = 'sm' }) {
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex ${h} ${w} shrink-0 items-center rounded-full transition-colors duration-200`}
-      style={{ background: checked ? 'var(--accent-blue, #3b82f6)' : '#374151' }}
+      style={{ background: checked ? colors.blue : colors.tooltipBorder }}
     >
       <span
         className={`inline-block ${dot} rounded-full bg-white shadow-sm transition-transform duration-200`}
@@ -95,10 +96,26 @@ function Toggle({ checked, onChange, size = 'sm' }) {
 }
 
 export default function ExpenseDonutChart({ expenses = [], subscriptions = [], creditCards = [], investments = [] }) {
+  const c = useChartColors()
   const [active, setActive] = useState(null)
   const [animDone, setAnimDone] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
   const [hiddenKeys, setHiddenKeys] = useState(new Set())
+
+  const SLICE_CONFIG = useMemo(() => {
+    const colorMap = {
+      essential:     c.blue,
+      discretionary: c.orange,
+      subscriptions: c.purple,
+      ccPayments:    c.amber,
+      investments:   c.teal,
+    }
+    return SLICE_KEYS.map(s => ({
+      ...s,
+      color: colorMap[s.key],
+      _colors: c,
+    }))
+  }, [c])
 
   const toggleCategory = useCallback((key) => {
     setHiddenKeys(prev => {
@@ -165,11 +182,15 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
   const total = slices.reduce((s, x) => s + x.value, 0)
   const hasHidden = hiddenKeys.size > 0
 
+  const labelRenderer = useCallback((props) => {
+    return renderSliceLabel({ ...props, sliceConfig: SLICE_CONFIG })
+  }, [SLICE_CONFIG])
+
   if (allSlices.length === 0) {
     return (
       <div
         className="flex items-center justify-center text-sm"
-        style={{ height: 260, color: '#6b7280' }}
+        style={{ height: 260, color: c.tick }}
       >
         No expense data to display yet.
       </div>
@@ -182,26 +203,26 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
       {/* ── Feature toggles toolbar ── */}
       <div
         className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle, #1f2937)' }}
+        style={{ background: c.withAlpha(c.textPrimary, '08'), border: `1px solid ${c.borderSubtle}` }}
       >
         {/* Show % on chart toggle */}
         <div className="flex items-center gap-2">
-          <Toggle checked={showLabels} onChange={() => setShowLabels(v => !v)} />
-          <span className="text-xs" style={{ color: showLabels ? 'var(--text-primary, #f9fafb)' : 'var(--text-muted, #6b7280)' }}>
+          <Toggle checked={showLabels} onChange={() => setShowLabels(v => !v)} colors={c} />
+          <span className="text-xs" style={{ color: showLabels ? c.textPrimary : c.textMuted }}>
             Show %
           </span>
         </div>
 
         {/* Divider */}
-        <div className="w-px h-4" style={{ background: 'var(--border-subtle, #374151)' }} />
+        <div className="w-px h-4" style={{ background: c.borderSubtle }} />
 
         {/* Category visibility pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wider mr-1" style={{ color: 'var(--text-muted, #6b7280)' }}>
+          <span className="text-[10px] uppercase tracking-wider mr-1" style={{ color: c.textMuted }}>
             Categories
           </span>
           {allSlices.map(slice => {
-            const cfg = SLICE_CONFIG.find(c => c.key === slice.key)
+            const cfg = SLICE_CONFIG.find(sc => sc.key === slice.key)
             const isHidden = hiddenKeys.has(slice.key)
             return (
               <button
@@ -209,9 +230,9 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                 onClick={() => toggleCategory(slice.key)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all duration-150"
                 style={{
-                  background: isHidden ? 'transparent' : `${cfg?.color ?? '#6b7280'}18`,
-                  border: `1px solid ${isHidden ? '#374151' : (cfg?.color ?? '#6b7280')}`,
-                  color: isHidden ? '#4b5563' : (cfg?.color ?? '#6b7280'),
+                  background: isHidden ? 'transparent' : `${cfg?.color ?? c.tick}18`,
+                  border: `1px solid ${isHidden ? c.tooltipBorder : (cfg?.color ?? c.tick)}`,
+                  color: isHidden ? c.tooltipBorder : (cfg?.color ?? c.tick),
                   opacity: isHidden ? 0.5 : 1,
                   textDecoration: isHidden ? 'line-through' : 'none',
                 }}
@@ -221,7 +242,7 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                   className="inline-block rounded-full shrink-0"
                   style={{
                     width: 6, height: 6,
-                    background: isHidden ? '#4b5563' : (cfg?.color ?? '#6b7280'),
+                    background: isHidden ? c.tooltipBorder : (cfg?.color ?? c.tick),
                   }}
                 />
                 {slice.label}
@@ -232,7 +253,7 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
             <button
               onClick={() => setHiddenKeys(new Set())}
               className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-              style={{ color: 'var(--accent-blue, #3b82f6)' }}
+              style={{ color: c.blue }}
               onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
               onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
             >
@@ -261,21 +282,21 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                 onMouseEnter={(_, idx) => animDone && setActive(idx)}
                 onMouseLeave={() => animDone && setActive(null)}
                 onAnimationEnd={() => setAnimDone(true)}
-                label={showLabels ? renderSliceLabel : false}
+                label={showLabels ? labelRenderer : false}
                 labelLine={false}
               >
                 {slices.map((s, i) => {
-                  const cfg = SLICE_CONFIG.find(c => c.key === s.key)
+                  const cfg = SLICE_CONFIG.find(sc => sc.key === s.key)
                   return (
                     <Cell
                       key={s.key}
-                      fill={cfg?.color ?? '#6b7280'}
+                      fill={cfg?.color ?? c.tick}
                       opacity={active === null || active === i ? 1 : 0.45}
                     />
                   )
                 })}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip sliceConfig={SLICE_CONFIG} />} />
             </PieChart>
           </ResponsiveContainer>
 
@@ -290,7 +311,7 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
             }}
           >
             <p className="text-lg font-bold text-white leading-tight">{formatCurrency(total)}</p>
-            <p className="text-xs" style={{ color: '#6b7280' }}>
+            <p className="text-xs" style={{ color: c.tick }}>
               {hasHidden ? 'visible/mo' : '/month'}
             </p>
           </div>
@@ -299,7 +320,7 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
         {/* ── Legend breakdown ── */}
         <div className="flex-1 min-w-0 space-y-3 w-full">
           {slices.map((slice, i) => {
-            const cfg = SLICE_CONFIG.find(c => c.key === slice.key)
+            const cfg = SLICE_CONFIG.find(sc => sc.key === slice.key)
             const isHovered = active === i
             return (
               <div
@@ -315,24 +336,24 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                       className="inline-block rounded-full flex-shrink-0 transition-transform"
                       style={{
                         width: 8, height: 8,
-                        background: cfg?.color ?? '#6b7280',
+                        background: cfg?.color ?? c.tick,
                         transform: isHovered ? 'scale(1.3)' : 'scale(1)',
                       }}
                     />
                     <span
                       className="text-sm font-medium"
-                      style={{ color: isHovered ? '#f9fafb' : '#d1d5db' }}
+                      style={{ color: isHovered ? c.textPrimary : c.textSecondary }}
                     >
                       {slice.label}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs tabular-nums" style={{ color: '#6b7280' }}>
+                    <span className="text-xs tabular-nums" style={{ color: c.tick }}>
                       {Math.round(slice.pct)}%
                     </span>
                     <span
                       className="text-sm font-semibold tabular-nums"
-                      style={{ color: isHovered ? (cfg?.color ?? '#fff') : '#e5e7eb' }}
+                      style={{ color: isHovered ? (cfg?.color ?? c.textPrimary) : c.textSecondary }}
                     >
                       {formatCurrency(slice.value)}
                     </span>
@@ -340,12 +361,12 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1f2937' }}>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.grid }}>
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
                       width: `${slice.pct}%`,
-                      background: cfg?.color ?? '#6b7280',
+                      background: cfg?.color ?? c.tick,
                       opacity: isHovered ? 1 : 0.7,
                     }}
                   />
@@ -362,7 +383,7 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
                     }}
                   >
                     {slice.topItems.map((item, j) => (
-                      <div key={j} className="flex justify-between text-xs" style={{ color: '#6b7280' }}>
+                      <div key={j} className="flex justify-between text-xs" style={{ color: c.tick }}>
                         <span className="truncate mr-2 max-w-[55%]">{item.name}</span>
                         <span className="tabular-nums">{formatCurrency(item.amount)}/mo</span>
                       </div>
@@ -375,14 +396,14 @@ export default function ExpenseDonutChart({ expenses = [], subscriptions = [], c
 
           {/* Indicator when categories are hidden */}
           {hasHidden && (
-            <div className="pt-2" style={{ borderTop: '1px solid #1f2937' }}>
-              <p className="text-[11px]" style={{ color: '#6b7280' }}>
+            <div className="pt-2" style={{ borderTop: `1px solid ${c.grid}` }}>
+              <p className="text-[11px]" style={{ color: c.tick }}>
                 {hiddenKeys.size} {hiddenKeys.size === 1 ? 'category' : 'categories'} hidden
                 {' — '}
                 <button
                   onClick={() => setHiddenKeys(new Set())}
                   className="transition-colors"
-                  style={{ color: 'var(--accent-blue, #3b82f6)' }}
+                  style={{ color: c.blue }}
                   onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
                   onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
                 >

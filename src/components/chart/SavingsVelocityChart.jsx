@@ -4,6 +4,7 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer, Cell,
 } from 'recharts'
 import { formatCurrency } from '../../utils/formatters'
+import { useChartColors } from '../../hooks/useChartColors'
 
 const ZOOM_OPTIONS = [
   { label: '6M', months: 6 },
@@ -12,39 +13,39 @@ const ZOOM_OPTIONS = [
   { label: 'All', months: Infinity },
 ]
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, c }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
     <div
       className="rounded-xl px-3 py-2.5 text-sm shadow-2xl min-w-[200px]"
-      style={{ background: '#111827', border: '1px solid #374151' }}
+      style={{ background: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }}
     >
-      <p className="text-xs font-semibold mb-2" style={{ color: '#9ca3af' }}>{d.dateLabel}</p>
+      <p className="text-xs font-semibold mb-2" style={{ color: c.textSecondary }}>{d.dateLabel}</p>
       <div className="space-y-1">
         <div className="flex justify-between gap-6">
-          <span className="text-xs" style={{ color: '#9ca3af' }}>Balance Change</span>
+          <span className="text-xs" style={{ color: c.textSecondary }}>Balance Change</span>
           <span
             className="font-semibold text-xs"
-            style={{ color: d.balanceChange >= 0 ? '#34d399' : '#f87171' }}
+            style={{ color: d.balanceChange >= 0 ? c.emerald : c.red }}
           >
             {d.balanceChange >= 0 ? '+' : ''}{formatCurrency(d.balanceChange)}
           </span>
         </div>
         <div className="flex justify-between gap-6">
-          <span className="text-xs" style={{ color: '#9ca3af' }}>Savings Rate</span>
+          <span className="text-xs" style={{ color: c.textSecondary }}>Savings Rate</span>
           <span
             className="font-semibold text-xs"
-            style={{ color: d.savingsRate >= 0 ? '#34d399' : '#f87171' }}
+            style={{ color: d.savingsRate >= 0 ? c.emerald : c.red }}
           >
             {d.savingsRate >= 0 ? '+' : ''}{d.savingsRate.toFixed(1)}%
           </span>
         </div>
-        <div className="flex justify-between gap-6 pt-1 mt-1" style={{ borderTop: '1px solid #374151' }}>
-          <span className="text-xs" style={{ color: '#9ca3af' }}>Cumulative</span>
+        <div className="flex justify-between gap-6 pt-1 mt-1" style={{ borderTop: `1px solid ${c.tooltipBorder}` }}>
+          <span className="text-xs" style={{ color: c.textSecondary }}>Cumulative</span>
           <span
             className="font-bold text-xs"
-            style={{ color: d.cumulativeChange >= 0 ? '#34d399' : '#f87171' }}
+            style={{ color: d.cumulativeChange >= 0 ? c.emerald : c.red }}
           >
             {d.cumulativeChange >= 0 ? '+' : ''}{formatCurrency(d.cumulativeChange)}
           </span>
@@ -55,6 +56,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function SavingsVelocityChart({ dataPoints }) {
+  const c = useChartColors()
   const [zoom, setZoom] = useState('1Y')
   const zoomMonths = ZOOM_OPTIONS.find(z => z.label === zoom)?.months ?? Infinity
 
@@ -94,17 +96,17 @@ export default function SavingsVelocityChart({ dataPoints }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-4 text-xs" style={{ color: '#6b7280' }}>
+        <div className="flex items-center gap-4 text-xs" style={{ color: c.tick }}>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#22c55ebb' }} />
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: c.withAlpha(c.emerald, 'bb') }} />
             Saved
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#ef4444bb' }} />
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: c.withAlpha(c.red, 'bb') }} />
             Drawn down
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ background: '#f59e0b' }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ background: c.amber }} />
             Cumulative
           </span>
         </div>
@@ -129,10 +131,10 @@ export default function SavingsVelocityChart({ dataPoints }) {
       <div className="sensitive-chart" style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} vertical={false} />
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
@@ -144,7 +146,7 @@ export default function SavingsVelocityChart({ dataPoints }) {
                 const prefix = v < 0 ? '-' : ''
                 return prefix + '$' + (a >= 1000 ? (a / 1000).toFixed(0) + 'k' : a)
               }}
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: c.tick, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={52}
@@ -158,17 +160,17 @@ export default function SavingsVelocityChart({ dataPoints }) {
                 const prefix = v < 0 ? '-' : ''
                 return prefix + '$' + (a >= 1000 ? (a / 1000).toFixed(0) + 'k' : a)
               }}
-              tick={{ fill: '#f59e0b', fontSize: 10 }}
+              tick={{ fill: c.amber, fontSize: 10 }}
               tickLine={false}
               axisLine={false}
               width={52}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine yAxisId="change" y={0} stroke="#374151" strokeWidth={1.5} />
+            <Tooltip content={<CustomTooltip c={c} />} />
+            <ReferenceLine yAxisId="change" y={0} stroke={c.tooltipBorder} strokeWidth={1.5} />
 
             <Bar yAxisId="change" dataKey="balanceChange" radius={[2, 2, 0, 0]} maxBarSize={18}>
               {chartData.map((entry, i) => (
-                <Cell key={i} fill={entry.balanceChange >= 0 ? '#22c55ebb' : '#ef4444bb'} />
+                <Cell key={i} fill={entry.balanceChange >= 0 ? c.withAlpha(c.emerald, 'bb') : c.withAlpha(c.red, 'bb')} />
               ))}
             </Bar>
 
@@ -176,7 +178,7 @@ export default function SavingsVelocityChart({ dataPoints }) {
               yAxisId="cumulative"
               type="monotone"
               dataKey="cumulativeChange"
-              stroke="#f59e0b"
+              stroke={c.amber}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}
