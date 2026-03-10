@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { CreditCard, Landmark, TrendingUp, X } from 'lucide-react'
 import { usePlaidLink } from 'react-plaid-link'
 import PlaidConsentModal from '../plaid/PlaidConsentModal'
@@ -21,6 +21,7 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
   const [plaidLinkToken, setPlaidLinkToken] = useState(null)
   const [connectingSnapTrade, setConnectingSnapTrade] = useState(false)
   const [snapTradeError, setSnapTradeError] = useState(null)
+  const pollTimerRef = useRef(null)
 
   // ── Plaid flow (Credit Cards & Bank Accounts) ──
 
@@ -75,14 +76,15 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
       const redirectUrl = await snapTrade.generateConnectUrl('FIDELITY')
       const popup = window.open(redirectUrl, '_blank', 'width=800,height=700,scrollbars=yes')
       if (popup) {
-        const pollTimer = setInterval(() => {
+        pollTimerRef.current = setInterval(() => {
           if (popup.closed) {
-            clearInterval(pollTimer)
+            clearInterval(pollTimerRef.current)
+            pollTimerRef.current = null
             setConnectingSnapTrade(false)
             onClose()
             if (snapTrade.fetchAccounts) snapTrade.fetchAccounts()
           }
-        }, 1000)
+        }, 500)
       } else {
         // Popup blocked
         setConnectingSnapTrade(false)
@@ -95,9 +97,13 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
     }
   }, [snapTrade, onClose])
 
-  // Reset state when modal closes
+  // Reset state and clear poll interval when modal closes
   useEffect(() => {
     if (!open) {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
       setShowConsent(false)
       setPreparingPlaid(false)
       setPlaidLinkToken(null)

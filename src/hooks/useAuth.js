@@ -80,9 +80,11 @@ export function useAuth() {
     if (sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
       setImpersonating(true)
     }
+    const ac = new AbortController()
     // Validate token by calling /me
     fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: ac.signal,
     })
       .then(async res => {
         if (!res.ok) throw new Error('Token invalid')
@@ -94,7 +96,8 @@ export function useAuth() {
         setLoading(false)
         scheduleRefresh(token)
       })
-      .catch(() => {
+      .catch((e) => {
+        if (e.name === 'AbortError') return
         clearToken()
         sessionStorage.removeItem(ADMIN_TOKEN_KEY)
         setImpersonating(false)
@@ -102,6 +105,7 @@ export function useAuth() {
       })
 
     return () => {
+      ac.abort()
       if (_refreshTimer) {
         clearTimeout(_refreshTimer)
         _refreshTimer = null
