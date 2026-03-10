@@ -206,7 +206,7 @@ export default function BurndownPage({
           <p className="text-xs text-faint mt-0.5">
             until {(() => {
               const d = current.benefitEnd
-              return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'â€”'
+              return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'â€"'
             })()}
           </p>
         </div>
@@ -230,14 +230,14 @@ export default function BurndownPage({
         )}
       </div>
 
-      {/* Subscriptions â€” full width */}
+      {/* Subscriptions â€" full width */}
       {viewSettings.sections.subscriptions && (
         <SectionCard id="sec-subscriptions" title="Subscriptions" className="scroll-mt-20">
           <SubscriptionsPanel subscriptions={subscriptions} onChange={onSubsChange} people={people} />
         </SectionCard>
       )}
 
-      {/* Credit cards / outstanding debt â€” full width */}
+      {/* Credit cards / outstanding debt â€" full width */}
       {viewSettings.sections.creditCards && (
         <SectionCard id="sec-creditcards" title="Credit Cards / Outstanding Debt" className="scroll-mt-20">
           <CreditCardsPanel cards={creditCards} onChange={onCreditCardsChange} people={people} />
@@ -246,12 +246,12 @@ export default function BurndownPage({
 
       {/* Premium gate fallback for bank sync */}
       {viewSettings.sections.plaidAccounts && HAS_API && !plaid && (
-        <SectionCard id=”sec-plaid” title=”Connected Bank Accounts” className=”scroll-mt-20”>
+        <SectionCard id="sec-plaid" title="Connected Bank Accounts" className="scroll-mt-20">
           <PremiumGate><></></PremiumGate>
         </SectionCard>
       )}
 
-      {/* Connected bank accounts via Plaid â€” full width */}
+      {/* Connected bank accounts via Plaid -- full width */}
       {viewSettings.sections.plaidAccounts && HAS_API && plaid && (
         <SectionCard id="sec-plaid" title="Connected Bank Accounts" className="scroll-mt-20">
           <ConnectedAccountsPanel
@@ -271,12 +271,12 @@ export default function BurndownPage({
 
       {/* Premium gate fallback for brokerage sync */}
       {HAS_API && !snapTrade && (
-        <SectionCard id=”sec-snaptrade” title=”Connected Brokerages” className=”scroll-mt-20”>
+        <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
           <PremiumGate><></></PremiumGate>
         </SectionCard>
       )}
 
-      {/* Connected brokerage accounts via SnapTrade â€” full width */}
+      {/* Connected brokerage accounts via SnapTrade -- full width */}
       {HAS_API && snapTrade && (
         <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
           <ConnectedBrokeragesPanel
@@ -294,12 +294,12 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Monthly expense breakdown â€” full width */}
+      {/* Monthly expense breakdown â€" full width */}
       <SectionCard id="sec-expenses" title="Monthly Expenses" className="scroll-mt-20">
         <ExpensePanel expenses={expenses} onChange={onExpensesChange} people={people} loading={loading} />
       </SectionCard>
 
-      {/* Monthly investments â€” full width */}
+      {/* Monthly investments â€" full width */}
       {viewSettings.sections.investments && (
         <SectionCard id="sec-investments" title="Monthly Investments" className="scroll-mt-20">
           <InvestmentsPanel investments={investments} onChange={onInvestmentsChange} people={people} loading={loading} />
@@ -307,7 +307,7 @@ export default function BurndownPage({
       )}
 
 
-      {/* One-time expenses â€” full width */}
+      {/* One-time expenses â€" full width */}
       {viewSettings.sections.onetimes && (
         <SectionCard id="sec-onetimes" title="One-Time Expenses" className="scroll-mt-20">
           <OneTimeExpensePanel
@@ -321,7 +321,7 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* One-time purchases (losses) â€” full width */}
+      {/* One-time purchases (losses) â€" full width */}
       {viewSettings.sections.onetimePurchases && (
         <SectionCard id="sec-onetimepurchases" title="One-Time Purchases" className="scroll-mt-20">
           <OneTimePurchasePanel
@@ -335,7 +335,7 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* One-time income injections â€” full width */}
+      {/* One-time income injections â€" full width */}
       {viewSettings.sections.onetimeIncome && (
         <SectionCard id="sec-onetimeincome" title="One-Time Income Injections" className="scroll-mt-20">
           <OneTimeIncomePanel
@@ -349,35 +349,35 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Monthly income â€” full width */}
+      {/* Monthly income â€" full width */}
       {viewSettings.sections.monthlyIncome && (
         <SectionCard id="sec-monthlyincome" title="Monthly Income" className="scroll-mt-20">
           <MonthlyIncomePanel items={monthlyIncome} onChange={onMonthlyIncChange} people={people} />
         </SectionCard>
       )}
 
-      {/* Advertising vs Ad Revenue â€” full width */}
+      {/* Advertising vs Ad Revenue â€" full width */}
       {viewSettings.sections.advertisingRevenue && (
         <SectionCard id="sec-advertisingrevenue" title="Advertising vs Ad Revenue" className="scroll-mt-20">
           <AdvertisingRevenuePanel value={advertisingRevenue} onChange={onAdvertisingRevenueChange} people={people} />
         </SectionCard>
       )}
 
-      {/* Sellable assets â€” full width */}
+      {/* Sellable assets â€" full width */}
       {viewSettings.sections.assets && (
         <SectionCard id="sec-assets" title="Sellable Assets" className="scroll-mt-20">
           <AssetsPanel assets={assets} onChange={onAssetsChange} people={people} />
         </SectionCard>
       )}
 
-      {/* Properties â€” full width */}
+      {/* Properties â€" full width */}
       {viewSettings.sections.properties && (
         <SectionCard id="sec-properties" title="Properties" className="scroll-mt-20">
           <PropertyPanel properties={properties} onChange={onPropertiesChange} />
         </SectionCard>
       )}
 
-      {/* Home Improvements â€” full width */}
+      {/* Home Improvements â€" full width */}
       {viewSettings.sections.homeImprovements && (
         <SectionCard id="sec-homeimprovements" title="Home Improvements" className="scroll-mt-20">
           <HomeImprovementPanel
