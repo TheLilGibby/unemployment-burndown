@@ -99,7 +99,7 @@ export function detectTransferPairs(statements, opts = {}) {
   // 3. Group candidates by absolute amount for efficient pairing
   const byAmount = new Map()
   for (const txn of candidates) {
-    const key = Math.abs(txn.amount).toFixed(2)
+    const key = String(Math.round(Math.abs(txn.amount) * 100))
     if (!byAmount.has(key)) byAmount.set(key, [])
     byAmount.get(key).push(txn)
   }
