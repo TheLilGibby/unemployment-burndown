@@ -35,7 +35,7 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
       style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="theme-card rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border"
+      <div role="dialog" aria-modal="true" className="theme-card rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border"
         style={{ borderColor: 'var(--border-default)' }}>
         <div className="px-6 pt-6 pb-4">
           <div className="flex items-center gap-3 mb-4">

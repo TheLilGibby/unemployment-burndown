@@ -223,7 +223,7 @@ export default function AccountCustomizeModal({
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="relative w-full max-w-lg mx-4 rounded-xl overflow-hidden"
+        role="dialog" aria-modal="true" className="relative w-full max-w-lg mx-4 rounded-xl overflow-hidden"
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border-default)',

@@ -58,7 +58,7 @@ export default function TransactionLookupModal({
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-md h-full flex flex-col shadow-2xl border-l"
+        role="dialog" aria-modal="true" className="relative w-full max-w-md h-full flex flex-col shadow-2xl border-l"
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
         onClick={e => e.stopPropagation()}
       >
