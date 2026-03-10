@@ -19,6 +19,7 @@ import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
+import PremiumGate from '../components/common/PremiumGate'
 import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 import ExportMenu from '../components/export/ExportMenu'
 
@@ -242,6 +243,13 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
+      {/* Premium gate fallback for bank sync */}
+      {viewSettings.sections.plaidAccounts && import.meta.env.VITE_PLAID_API_URL && !plaid && (
+        <SectionCard id=”sec-plaid” title=”Connected Bank Accounts” className=”scroll-mt-20”>
+          <PremiumGate><></></PremiumGate>
+        </SectionCard>
+      )}
+
       {/* Connected bank accounts via Plaid â€” full width */}
       {viewSettings.sections.plaidAccounts && import.meta.env.VITE_PLAID_API_URL && plaid && (
         <SectionCard id="sec-plaid" title="Connected Bank Accounts" className="scroll-mt-20">
@@ -257,6 +265,13 @@ export default function BurndownPage({
             hasFetched={plaid.hasFetched}
             createUpdateLinkToken={plaid.createUpdateLinkToken}
           />
+        </SectionCard>
+      )}
+
+      {/* Premium gate fallback for brokerage sync */}
+      {import.meta.env.VITE_PLAID_API_URL && !snapTrade && (
+        <SectionCard id=”sec-snaptrade” title=”Connected Brokerages” className=”scroll-mt-20”>
+          <PremiumGate><></></PremiumGate>
         </SectionCard>
       )}
 

@@ -89,7 +89,7 @@ export async function handler(event) {
     const phoneVerificationRequired = !!inviteToken
 
     // mfaVerified: true for non-invite users (no MFA), false for invite users (need phone verification)
-    const token = signToken(userId, { mfaVerified: !phoneVerificationRequired, orgId: null, orgRole: null })
+    const token = signToken(userId, { mfaVerified: !phoneVerificationRequired, orgId: null, orgRole: null, tier: 'free' })
 
     return ok({
       token,
@@ -101,6 +101,7 @@ export async function handler(event) {
         phoneVerified: false,
         orgId: null,
         orgRole: null,
+        tier: 'free',
       },
       phoneVerificationRequired,
     })

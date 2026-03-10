@@ -18,8 +18,8 @@ export function isEnvSuperAdmin(email) {
 /**
  * Create a signed JWT for a user.
  */
-export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null, expiresIn = JWT_EXPIRES_IN } = {}) {
-  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
+export function signToken(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, tier = 'free', impersonatedBy = null, expiresIn = JWT_EXPIRES_IN } = {}) {
+  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin, tier }
   if (impersonatedBy) payload.impersonatedBy = impersonatedBy
   return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
@@ -94,6 +94,21 @@ export function requireSuperAdmin(event) {
 
   if (!result.user.isSuperAdmin && !isEnvSuperAdmin(result.user.sub)) {
     return { error: { statusCode: 403, message: 'Superadmin access required' } }
+  }
+
+  return result
+}
+
+/**
+ * Auth middleware that requires the user to have a premium tier.
+ * Returns { user } with tier guaranteed to be 'premium', or { error }.
+ */
+export function requirePremium(event) {
+  const result = requireAuth(event)
+  if (result.error) return result
+
+  if (result.user.tier !== 'premium') {
+    return { error: { statusCode: 403, message: 'Premium subscription required' } }
   }
 
   return result

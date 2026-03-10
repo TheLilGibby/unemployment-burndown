@@ -39,6 +39,7 @@ import { validateSyncState } from './utils/validateSyncState'
 import { getEffectivePayment } from './utils/ccPayment'
 import { isCCPayment } from './utils/ccPaymentDetector'
 import { CommentsProvider } from './context/CommentsContext'
+import { TierProvider } from './context/TierContext'
 import CommentsPanel from './components/comments/CommentsPanel'
 import ConnectedAccountsPanel from './components/plaid/ConnectedAccountsPanel'
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
@@ -475,6 +476,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     }
   }
   const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
+  const tierGatedPlaid = user?.tier === 'premium' ? plaid : null
+  const tierGatedSnapTrade = user?.tier === 'premium' ? snapTrade : null
   const { membersByUserId } = useOrgMembers(user)
   const { index: statementIndex, statements: appStatements, loading: statementsLoading, error: statementsError, loadStatement: appLoadStatement, refreshIndex: refreshStatementIndex } = useStatementStorage()
 
@@ -1008,6 +1011,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       onCommentsChange={setComments}
       user={user}
     >
+    <TierProvider user={user}>
     <CommentsPanel />
     <NotificationPanel />
     <ToastContainer />
@@ -1107,7 +1111,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         statementIndex={statementIndex}
         selectedCardId={globalSelectedCardId}
         onSelectCard={setGlobalSelectedCardId}
-        plaid={plaid}
+        plaid={tierGatedPlaid}
         onSync={handleGlobalSync}
         people={people}
         user={user}
@@ -1120,7 +1124,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
         onAccountCustomizationsChange={setAccountCustomizations}
         collapsed={globalSidebarCollapsed}
         onCollapsedChange={setGlobalSidebarCollapsed}
-        snapTrade={snapTrade}
+        snapTrade={tierGatedSnapTrade}
       />
 
       {!dataReady ? <BurndownPageSkeleton /> :
@@ -1208,8 +1212,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 templates={templates}
                 templateResults={templateResults}
                 jobScenarioResults={jobScenarioResults}
-                plaid={plaid}
-              snapTrade={snapTrade}
+                plaid={tierGatedPlaid}
+              snapTrade={tierGatedSnapTrade}
                 filterPersonId={filterPersonId}
                 onFilterPersonChange={setFilterPersonId}
                 retirement={retirement}
@@ -1240,7 +1244,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
           <CreditCardHubPage
             creditCards={creditCards}
             people={people}
-            plaid={plaid}
+            plaid={tierGatedPlaid}
             savingsAccounts={savingsAccounts}
             onCreditCardsChange={onCreditCardsChange}
             onSavingsChange={onSavingsChange}
@@ -1395,6 +1399,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       </Suspense>
       </div>}
     </div>
+    </TierProvider>
     </CommentsProvider>
     </NotificationsProvider>
     </ToastProvider>

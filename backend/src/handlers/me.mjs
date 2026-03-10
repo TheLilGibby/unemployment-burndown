@@ -29,6 +29,7 @@ export async function handler(event) {
       profileColor: user.profileColor || 'blue',
       avatarDataUrl: user.avatarDataUrl || null,
       createdAt: user.createdAt,
+      tier: user.tier || 'free',
       isSuperAdmin: isEnvSuperAdmin(user.email),
       impersonatedBy: tokenUser.impersonatedBy || null,
     })
