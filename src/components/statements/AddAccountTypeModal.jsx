@@ -126,7 +126,7 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
       >
         {/* Modal */}
         <div
-          className="w-full max-w-md rounded-xl border shadow-2xl"
+          role="dialog" aria-modal="true" className="w-full max-w-md rounded-xl border shadow-2xl"
           style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)' }}
           onClick={e => e.stopPropagation()}
         >

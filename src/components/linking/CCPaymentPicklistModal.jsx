@@ -59,7 +59,7 @@ export default function CCPaymentPicklistModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative rounded-xl border shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+        role="dialog" aria-modal="true" className="relative rounded-xl border shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
         onClick={e => e.stopPropagation()}
       >
