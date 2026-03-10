@@ -19,10 +19,12 @@ export function useS3Storage() {
 
   // Load existing data on mount via API
   useEffect(() => {
+    const ac = new AbortController()
     async function load() {
       try {
         const res = await fetch(`${API_BASE}/api/data`, {
           headers: { ...authHeaders() },
+          signal: ac.signal,
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await safeJson(res)
@@ -31,11 +33,13 @@ export function useS3Storage() {
         }
         setStatus('connected')
       } catch (e) {
+        if (e.name === 'AbortError') return
         setStatus('error')
         setErrorMsg(e.message)
       }
     }
     load()
+    return () => ac.abort()
   }, [])
 
   const clearRestoreData = useCallback(() => setRestoreData(null), [])
