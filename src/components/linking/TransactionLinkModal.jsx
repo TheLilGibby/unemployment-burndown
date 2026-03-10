@@ -1,17 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { X, Link2, Unlink } from 'lucide-react'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatShortDate } from '../../utils/formatters'
 import { findMatchingTransactions } from '../../utils/transactionMatcher'
 
 const TYPE_CONFIG = {
   otp: { label: 'Purchase', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
   ote: { label: 'Expense',  color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
   oti: { label: 'Income',   color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function TransactionLinkModal({
@@ -88,7 +83,7 @@ export default function TransactionLinkModal({
             </h3>
             <div className="mt-1.5 space-y-0.5">
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {formatDate(transaction.date)} &middot; {transaction.merchantName || transaction.description || '—'}
+                {formatShortDate(transaction.date)} &middot; {transaction.merchantName || transaction.description || '—'}
               </p>
               <p className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                 {formatCurrency(Math.abs(transaction.amount))}
@@ -171,7 +166,7 @@ export default function TransactionLinkModal({
                       {item.description || '—'}
                     </p>
                     <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {formatDate(item.date)} &middot; {formatCurrency(Math.abs(Number(item.amount) || 0))}
+                      {formatShortDate(item.date)} &middot; {formatCurrency(Math.abs(Number(item.amount) || 0))}
                       {item._isMatch && (
                         <span style={{ color: 'var(--accent-blue)' }}>
                           {' '}&middot; {item._dayDiff === 0 ? 'same day' : `${item._dayDiff}d off`}

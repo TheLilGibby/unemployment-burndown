@@ -1,12 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { X, Link2, Unlink, Search } from 'lucide-react'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatShortDate } from '../../utils/formatters'
 import { findMatchingTransactions } from '../../utils/transactionMatcher'
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function TransactionLookupModal({
   open,
@@ -73,7 +68,7 @@ export default function TransactionLookupModal({
                 {overviewItem.description || '—'}
               </p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {formatDate(overviewItem.date)} &middot; {formatCurrency(Math.abs(Number(overviewItem.amount) || 0))}
+                {formatShortDate(overviewItem.date)} &middot; {formatCurrency(Math.abs(Number(overviewItem.amount) || 0))}
               </p>
             </div>
           </div>
@@ -100,7 +95,7 @@ export default function TransactionLookupModal({
                     {link.merchantName || link.description || '—'}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    {formatDate(link.date)} &middot; {formatCurrency(Math.abs(link.amount))}
+                    {formatShortDate(link.date)} &middot; {formatCurrency(Math.abs(link.amount))}
                   </p>
                 </div>
                 <button
@@ -193,7 +188,7 @@ export default function TransactionLookupModal({
                       {txn.merchantName || txn.description || '—'}
                     </p>
                     <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {formatDate(txn.date)} &middot; {formatCurrency(Math.abs(txn.amount))}
+                      {formatShortDate(txn.date)} &middot; {formatCurrency(Math.abs(txn.amount))}
                       {txn._isMatch !== undefined && txn._dayDiff !== undefined && (
                         <span style={{ color: 'var(--accent-blue)' }}>
                           {' '}&middot; {txn._dayDiff === 0 ? 'same day' : `${txn._dayDiff}d off`}

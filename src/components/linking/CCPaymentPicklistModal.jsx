@@ -1,13 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { X, CreditCard, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatShortDate } from '../../utils/formatters'
 import { findCategory, resolveCategory } from '../../constants/categories'
 import { summarizePicklistByCategory } from '../../utils/ccStatementPicklist'
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 /**
  * Modal that shows the credit card statement transactions covered by a
@@ -93,7 +88,7 @@ export default function CCPaymentPicklistModal({
                 {formatCurrency(Math.abs(bankTxn.amount))}
               </p>
               <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
-                {formatDate(bankTxn.date)}
+                {formatShortDate(bankTxn.date)}
               </p>
             </div>
 
@@ -108,7 +103,7 @@ export default function CCPaymentPicklistModal({
               </p>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {coverage?.transactionCount || 0} transactions
-                {coverage?.closingDate && <> &middot; closed {formatDate(coverage.closingDate)}</>}
+                {coverage?.closingDate && <> &middot; closed {formatShortDate(coverage.closingDate)}</>}
               </p>
             </div>
           </div>
@@ -232,7 +227,7 @@ export default function CCPaymentPicklistModal({
                       {txn.merchantName || txn.description || '—'}
                     </p>
                     <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {formatDate(txn.date)}
+                      {formatShortDate(txn.date)}
                       {cat && <> &middot; {cat.label}</>}
                     </p>
                   </div>
