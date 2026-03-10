@@ -237,7 +237,9 @@ export default function CommentsPanel() {
 
   // Focus textarea when panel opens
   useEffect(() => {
-    if (open) setTimeout(() => textareaRef.current?.focus(), 80)
+    if (!open) return
+    const timer = setTimeout(() => textareaRef.current?.focus(), 80)
+    return () => clearTimeout(timer)
   }, [open, activeItem.id])
 
   // Reset text when switching items
