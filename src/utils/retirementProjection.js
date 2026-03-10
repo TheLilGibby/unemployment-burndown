@@ -1,3 +1,5 @@
+import { MAX_PROJECTION_AGE } from '../constants/financial'
+
 /**
  * Compute a month-by-month retirement projection.
  *
@@ -22,7 +24,7 @@ export function computeRetirementProjection({
 }) {
   const monthlyReturn = (annualReturnPct / 100) / 12
   const monthlyInflation = (inflationPct / 100) / 12
-  const totalMonths = Math.max(0, Math.ceil((100 - currentAge) * 12)) // project to age 100
+  const totalMonths = Math.max(0, Math.ceil((MAX_PROJECTION_AGE - currentAge) * 12)) // project to max age
   const retirementMonth = Math.max(0, (targetRetirementAge - currentAge) * 12)
 
   const now = new Date()

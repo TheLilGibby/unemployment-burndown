@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import { CC_PAYMENT_STATEMENT_TOLERANCE, CC_PAYMENT_BALANCE_TOLERANCE } from '../constants/financial'
 
 /**
  * Patterns that match credit card payment transactions in bank statements.
@@ -89,7 +90,7 @@ export function detectCCPayments(bankTransactions, creditCards, ccStatements = [
       const cardStatements = ccStatements.filter(s => s.cardId === card.id)
       for (const stmt of cardStatements) {
         const stmtBal = Math.abs(stmt.statementBalance || 0)
-        if (stmtBal > 0 && Math.abs(amount - stmtBal) / stmtBal < 0.02) {
+        if (stmtBal > 0 && Math.abs(amount - stmtBal) / stmtBal < CC_PAYMENT_STATEMENT_TOLERANCE) {
           confidence += 25
           // Date proximity to statement close
           const closingDate = dayjs(stmt.closingDate)
@@ -104,7 +105,7 @@ export function detectCCPayments(bankTransactions, creditCards, ccStatements = [
 
       // Balance proximity: does the amount roughly match current balance?
       const cardBal = Number(card.balance) || 0
-      if (cardBal > 0 && Math.abs(amount - cardBal) / cardBal < 0.05) {
+      if (cardBal > 0 && Math.abs(amount - cardBal) / cardBal < CC_PAYMENT_BALANCE_TOLERANCE) {
         confidence += 15
       }
 

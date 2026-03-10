@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import { isInternalTransfer } from './transferDetector'
+import { TRANSFER_MAX_DAY_GAP } from '../constants/financial'
 
 /**
  * Extended patterns for cross-institution and investment platform transfers.
@@ -76,7 +77,7 @@ export function isTransferCandidate(txn) {
  * @property {string} pairId - Unique identifier for this pair
  */
 export function detectTransferPairs(statements, opts = {}) {
-  const { maxDayGap = 2 } = opts
+  const { maxDayGap = TRANSFER_MAX_DAY_GAP } = opts
 
   // 1. Flatten all transactions, tagged with their statement context
   const allTxns = []
