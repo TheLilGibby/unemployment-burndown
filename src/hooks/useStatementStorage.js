@@ -10,7 +10,7 @@ export function useStatementStorage() {
   const [statements, setStatements] = useState({})
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
-  const inflightRef = useRef(new Set())
+  const inflightRef = useRef(new Map())
 
   // Load index on mount
   useEffect(() => {
@@ -36,24 +36,27 @@ export function useStatementStorage() {
     return () => ac.abort()
   }, [])
 
-  // Lazy-load a full statement by ID (guards against duplicate in-flight requests)
-  const loadStatement = useCallback(async (statementId) => {
-    if (inflightRef.current.has(statementId)) return null
-    inflightRef.current.add(statementId)
-    try {
-      const res = await fetch(`${API_BASE}/api/statements/${statementId}`, {
-        headers: { ...authHeaders() },
-      })
-      if (!res.ok) throw new Error(`Failed to load statement ${statementId}`)
-      const data = await safeJson(res)
-      setStatements(prev => ({ ...prev, [statementId]: data }))
-      return data
-    } catch (e) {
-      setError(e.message)
-      return null
-    } finally {
+  // Lazy-load a full statement by ID (deduplicates concurrent in-flight requests)
+  const loadStatement = useCallback((statementId) => {
+    if (inflightRef.current.has(statementId)) return inflightRef.current.get(statementId)
+    const promise = (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/statements/${statementId}`, {
+          headers: { ...authHeaders() },
+        })
+        if (!res.ok) throw new Error(`Failed to load statement ${statementId}`)
+        const data = await safeJson(res)
+        setStatements(prev => ({ ...prev, [statementId]: data }))
+        return data
+      } catch (e) {
+        setError(e.message)
+        return null
+      }
+    })().finally(() => {
       inflightRef.current.delete(statementId)
-    }
+    })
+    inflightRef.current.set(statementId, promise)
+    return promise
   }, [])
 
   // Re-fetch the index (after a new statement is parsed)
