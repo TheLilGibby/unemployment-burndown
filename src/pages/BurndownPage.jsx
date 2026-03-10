@@ -22,6 +22,7 @@ import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokerage
 import PremiumGate from '../components/common/PremiumGate'
 import TransactionLookupModal from '../components/linking/TransactionLookupModal'
 import ExportMenu from '../components/export/ExportMenu'
+import { HAS_API } from '../utils/env.js'
 
 export default function BurndownPage({
   current,
@@ -244,14 +245,14 @@ export default function BurndownPage({
       )}
 
       {/* Premium gate fallback for bank sync */}
-      {viewSettings.sections.plaidAccounts && import.meta.env.VITE_PLAID_API_URL && !plaid && (
+      {viewSettings.sections.plaidAccounts && HAS_API && !plaid && (
         <SectionCard id=”sec-plaid” title=”Connected Bank Accounts” className=”scroll-mt-20”>
           <PremiumGate><></></PremiumGate>
         </SectionCard>
       )}
 
       {/* Connected bank accounts via Plaid â€” full width */}
-      {viewSettings.sections.plaidAccounts && import.meta.env.VITE_PLAID_API_URL && plaid && (
+      {viewSettings.sections.plaidAccounts && HAS_API && plaid && (
         <SectionCard id="sec-plaid" title="Connected Bank Accounts" className="scroll-mt-20">
           <ConnectedAccountsPanel
             linkedItems={plaid.linkedItems}
@@ -269,14 +270,14 @@ export default function BurndownPage({
       )}
 
       {/* Premium gate fallback for brokerage sync */}
-      {import.meta.env.VITE_PLAID_API_URL && !snapTrade && (
+      {HAS_API && !snapTrade && (
         <SectionCard id=”sec-snaptrade” title=”Connected Brokerages” className=”scroll-mt-20”>
           <PremiumGate><></></PremiumGate>
         </SectionCard>
       )}
 
       {/* Connected brokerage accounts via SnapTrade â€” full width */}
-      {import.meta.env.VITE_PLAID_API_URL && snapTrade && (
+      {HAS_API && snapTrade && (
         <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
           <ConnectedBrokeragesPanel
             connections={snapTrade.connections}
