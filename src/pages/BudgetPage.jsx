@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, ComposedChart, Line, ReferenceLine,
 } from 'recharts'
-import { formatCurrency } from '../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../utils/formatters'
 import { useBudget } from '../hooks/useBudget'
 import { STATEMENT_CATEGORIES } from '../constants/categories'
 import SectionCard from '../components/layout/SectionCard'
@@ -176,7 +176,7 @@ function CustomChartTooltip({ active, payload, label }) {
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-lg space-y-1"
-      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+      style={{ background: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--text-primary)' }}
     >
       <p className="font-semibold mb-1">{label}</p>
       {payload.map(p => (
@@ -204,10 +204,10 @@ function BudgetVsActualChart({ variance }) {
     <div style={{ height: 280 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 40 }} barCategoryGap="30%">
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tick={{ fill: 'var(--chart-tick)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             angle={-35}
@@ -215,10 +215,10 @@ function BudgetVsActualChart({ variance }) {
             interval={0}
           />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tick={{ fill: 'var(--chart-tick)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+            tickFormatter={formatAxisValue}
           />
           <Tooltip content={<CustomChartTooltip />} />
           <Legend
@@ -245,7 +245,7 @@ function TrendTooltip({ active, payload, label }) {
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-lg space-y-1"
-      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+      style={{ background: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--text-primary)' }}
     >
       <p className="font-semibold mb-1">{label}</p>
       {payload.map(p => (
@@ -274,24 +274,24 @@ function TrendChart({ trendData }) {
     <div style={{ height: 260 }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={trendData} margin={{ top: 4, right: 32, left: 8, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tick={{ fill: 'var(--chart-tick)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             yAxisId="dollars"
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tick={{ fill: 'var(--chart-tick)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+            tickFormatter={formatAxisValue}
           />
           <YAxis
             yAxisId="pct"
             orientation="right"
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tick={{ fill: 'var(--chart-tick)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={v => `${v}%`}
