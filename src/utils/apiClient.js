@@ -6,7 +6,8 @@
  * re-declaring API_BASE, TOKEN_KEY, authHeaders(), or safeJson().
  */
 
-export const API_BASE = import.meta.env.VITE_PLAID_API_URL || ''
+export { API_BASE } from './env.js'
+import { API_BASE } from './env.js'
 export const TOKEN_KEY = 'burndown_token'
 
 // ── Token helpers ──
