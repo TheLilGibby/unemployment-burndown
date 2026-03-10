@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 
 const ToastContext = createContext(null)
 
@@ -7,10 +7,9 @@ const MAX_TOASTS = 3
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
-  const idCounter = useRef(0)
 
   const addToast = useCallback(({ title, message, severity = 'info', ttl = TOAST_TTL, action }) => {
-    const id = `toast_${Date.now()}_${++idCounter.current}`
+    const id = crypto.randomUUID()
     const toast = { id, title, message, severity, action }
     setToasts(prev => [...prev, toast].slice(-MAX_TOASTS))
     setTimeout(() => {
