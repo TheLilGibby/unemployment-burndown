@@ -54,6 +54,7 @@ import { FinancialDataProvider, useFinancialData } from './context/FinancialData
 const DEFAULT_VIEW = {
   chartLines: { allExpenses: true, essentialsOnly: true, baseline: true },
   sections: {
+    healthInsurance: true,
     whatif:        true,
     subscriptions: true,
     creditCards:   true,
@@ -380,6 +381,8 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 onPropertiesChange={fd.onPropertiesChange}
                 onHomeImprovementsChange={fd.onHomeImprovementsChange}
                 advertisingRevenue={fd.advertisingRevenue}
+                healthInsurance={fd.healthInsurance}
+                onHealthInsuranceChange={fd.onHealthInsuranceChange}
                 onAdvertisingRevenueChange={fd.onAdvertisingRevenueChange}
                 snapshots={fd.snapshots}
                 historicalDate={fd.historicalDate}

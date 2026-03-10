@@ -34,6 +34,7 @@ export function computeBurndown({
   jobs = [],
   oneTimePurchases = [],
   creditCards = [],
+  healthInsurance = [],
 } = {}) {
   const today = dayjs(startDate || new Date())
 
@@ -231,6 +232,13 @@ export function computeBurndown({
     const expReductionFactor = afterFreeze ? reductionFactor : 1
     let monthExpenses = (essentialTotal + nonEssentialTotal * expReductionFactor) * raiseFactor
 
+    for (const hi of healthInsurance) {
+      if (!hi.monthlyPremium) continue
+      if (hi.startDate && dayjs(hi.startDate).isAfter(currentDate)) continue
+      if (hi.endDate && dayjs(hi.endDate).isBefore(currentDate)) continue
+      monthExpenses += Number(hi.monthlyPremium) || 0
+    }
+
     if (jobOfferActive) {
       if (jobOfferBenefitsOffset > 0) monthExpenses = Math.max(0, monthExpenses - jobOfferBenefitsOffset)
       if (jobOfferCommuteMonthly > 0) monthExpenses += jobOfferCommuteMonthly
@@ -325,6 +333,15 @@ export function computeBurndown({
   }
   if (partnerActiveNow) currentIncome += partnerIncome
   let currentEffectiveExpenses = effectiveExpenses
+  let totalHealthInsurance = 0
+  for (const hi of healthInsurance) {
+    if (!hi.monthlyPremium) continue
+    if (hi.startDate && dayjs(hi.startDate).isAfter(today)) continue
+    if (hi.endDate && dayjs(hi.endDate).isBefore(today)) continue
+    const amt = Number(hi.monthlyPremium) || 0
+    currentEffectiveExpenses += amt
+    totalHealthInsurance += amt
+  }
   if (jobOfferActiveNow) {
     if (jobOfferBenefitsOffset > 0) currentEffectiveExpenses = Math.max(0, currentEffectiveExpenses - jobOfferBenefitsOffset)
     if (jobOfferCommuteMonthly > 0) currentEffectiveExpenses += jobOfferCommuteMonthly
@@ -346,5 +363,6 @@ export function computeBurndown({
     benefitEnd: benefitEnd.toDate(),
     benefitStart: benefitStart.toDate(),
     emergencyFloor,
+    totalHealthInsurance,
   }
 }

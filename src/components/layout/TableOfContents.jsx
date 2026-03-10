@@ -6,6 +6,7 @@ const ALL_SECTIONS = [
   { id: 'sec-savings',      label: 'Savings',       sectionKey: null },
   { id: 'sec-plaid',        label: 'Linked Accts',  sectionKey: 'plaidAccounts' },
   { id: 'sec-unemployment', label: 'Benefits',      sectionKey: null },
+  { id: 'sec-healthinsurance', label: 'Health Ins.', sectionKey: 'healthInsurance' },
   { id: 'sec-whatif',       label: 'What-If',       sectionKey: 'whatif' },
   { id: 'sec-subscriptions',label: 'Subscriptions', sectionKey: 'subscriptions' },
   { id: 'sec-creditcards',  label: 'Credit Cards',  sectionKey: 'creditCards' },

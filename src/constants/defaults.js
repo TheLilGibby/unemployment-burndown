@@ -43,6 +43,7 @@ export const DEFAULTS = {
   oneTimePurchases: [],
   oneTimeIncome: [],
   monthlyIncome: [],
+  healthInsurance: [],
   jobs: [],
   assets: [],
   investments: [],

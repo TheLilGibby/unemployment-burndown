@@ -16,6 +16,7 @@ import AssetsPanel from '../components/finances/AssetsPanel'
 import InvestmentsPanel from '../components/finances/InvestmentsPanel'
 import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
+import HealthInsurancePanel from '../components/finances/HealthInsurancePanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
@@ -67,6 +68,9 @@ export default function BurndownPage({
   homeImprovements,
   onPropertiesChange,
   onHomeImprovementsChange,
+  // Health insurance
+  healthInsurance,
+  onHealthInsuranceChange,
   // Advertising
   advertisingRevenue,
   onAdvertisingRevenueChange,
@@ -165,6 +169,12 @@ export default function BurndownPage({
       <SectionCard id="sec-unemployment" title="Unemployment Benefits" className="scroll-mt-20">
         <UnemploymentPanel value={unemployment} onChange={onUnemploymentChange} furloughDate={furloughDate} onFurloughDateChange={onFurloughChange} people={people} derivedStartDate={derivedStartDate} />
       </SectionCard>
+
+      {viewSettings.sections.healthInsurance && (
+        <SectionCard id="sec-healthinsurance" title="Health Insurance Coverage" className="scroll-mt-20">
+          <HealthInsurancePanel items={healthInsurance} onChange={onHealthInsuranceChange} people={people} expenses={expenses} />
+        </SectionCard>
+      )}
 
       {viewSettings.sections.whatif && (
         <SectionCard id="sec-whatif" title="What-If Scenarios" className="scroll-mt-20">

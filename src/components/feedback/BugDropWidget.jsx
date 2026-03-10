@@ -224,6 +224,13 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     if (textPos && textInputRef.current) textInputRef.current.focus()
   }, [textPos])
 
+  const handleUndo = useCallback(() => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx || historyRef.current.length === 0) return
+    ctx.putImageData(historyRef.current.pop(), 0, 0)
+  }, [])
+
   /* Keyboard shortcuts */
   useEffect(() => {
     const handler = (e) => {
@@ -314,13 +321,6 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     setTextPos(null)
     setTextInput('')
   }, [textPos, textInput])
-
-  const handleUndo = useCallback(() => {
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx || historyRef.current.length === 0) return
-    ctx.putImageData(historyRef.current.pop(), 0, 0)
-  }, [])
 
   const handleClear = useCallback(() => {
     const canvas = canvasRef.current

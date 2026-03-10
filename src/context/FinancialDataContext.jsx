@@ -73,6 +73,7 @@ export function FinancialDataProvider({ user, children }) {
   const [creditCards, setCreditCards] = useState(DEFAULTS.creditCards)
   const [oneTimeIncome, setOneTimeIncome] = useState(DEFAULTS.oneTimeIncome)
   const [monthlyIncome, setMonthlyIncome] = useState(DEFAULTS.monthlyIncome)
+  const [healthInsurance, setHealthInsurance] = useState(DEFAULTS.healthInsurance)
   const [jobs, setJobs] = useState(DEFAULTS.jobs)
   const [jobScenarios, setJobScenarios] = useState(DEFAULTS.jobScenarios)
   const [retirement, setRetirement] = useState(DEFAULTS.retirement)
@@ -121,6 +122,7 @@ export function FinancialDataProvider({ user, children }) {
     oneTimePurchases:   [oneTimePurchases, setOneTimePurchases],
     oneTimeIncome:      [oneTimeIncome, setOneTimeIncome],
     monthlyIncome:      [monthlyIncome, setMonthlyIncome],
+    healthInsurance:    [healthInsurance, setHealthInsurance],
     jobs:               [jobs, setJobs],
     assets:             [assets, setAssets],
     investments:        [investments, setInvestments],
@@ -163,6 +165,7 @@ export function FinancialDataProvider({ user, children }) {
   const onHomeImprovementsChange = tracked.homeImprovements
   const onGoalsChange = tracked.goals
   const onAdvertisingRevenueChange = tracked.advertisingRevenue
+  const onHealthInsuranceChange = tracked.healthInsurance
 
   function onCategoryBudgetsChange(updater) {
     const next = typeof updater === 'function' ? updater(categoryBudgets) : updater
@@ -201,7 +204,7 @@ export function FinancialDataProvider({ user, children }) {
   // Snapshot build / apply
   // ---------------------------------------------------------------------------
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
   }
 
   function applySnapshot(snapshot) {
@@ -216,6 +219,7 @@ export function FinancialDataProvider({ user, children }) {
     if (snapshot.oneTimePurchases) setOneTimePurchases(snapshot.oneTimePurchases)
     if (snapshot.oneTimeIncome) setOneTimeIncome(snapshot.oneTimeIncome)
     if (snapshot.monthlyIncome) setMonthlyIncome(snapshot.monthlyIncome)
+    if (snapshot.healthInsurance) setHealthInsurance(snapshot.healthInsurance)
     if (snapshot.jobs) setJobs(snapshot.jobs)
     if (snapshot.assets) setAssets(snapshot.assets)
     if (snapshot.investments) setInvestments(snapshot.investments)
@@ -372,7 +376,7 @@ export function FinancialDataProvider({ user, children }) {
       dirtySections.current.clear()
     }, 3000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Template handlers
@@ -443,8 +447,8 @@ export function FinancialDataProvider({ user, children }) {
   // Burndown calculations
   // ---------------------------------------------------------------------------
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
-  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards)
+  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance)
+  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance)
 
   // ---------------------------------------------------------------------------
   // Scenario computations (templates, job scenarios, historical)
@@ -507,7 +511,7 @@ export function FinancialDataProvider({ user, children }) {
     furloughDate, people, savingsAccounts, unemployment, expenses, whatIf,
     oneTimeExpenses, oneTimePurchases, assets, investments, child1Investments,
     child2Investments, subscriptions, creditCards, oneTimeIncome, monthlyIncome,
-    jobs, jobScenarios, retirement, properties, homeImprovements, goals,
+    healthInsurance, jobs, jobScenarios, retirement, properties, homeImprovements, goals,
     advertisingRevenue, comments, filterPersonId, notificationPreferences,
     transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets,
 
@@ -522,7 +526,7 @@ export function FinancialDataProvider({ user, children }) {
     onInvestmentsChange, onChild1InvestmentsChange, onChild2InvestmentsChange,
     onSubsChange, onCreditCardsChange, onJobScenariosChange, onRetirementChange,
     onPropertiesChange, onHomeImprovementsChange, onGoalsChange,
-    onAdvertisingRevenueChange, onCategoryBudgetsChange,
+    onAdvertisingRevenueChange, onHealthInsuranceChange, onCategoryBudgetsChange,
 
     // Transaction link handlers
     txnToOverviewMap, handleLinkTransaction, handleUnlinkTransaction, handleTransactionOverride,

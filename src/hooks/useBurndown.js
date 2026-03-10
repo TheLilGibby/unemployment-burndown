@@ -20,6 +20,7 @@ export function useBurndown(
   jobs,
   oneTimePurchases,
   creditCards,
+  healthInsurance,
 ) {
   return useMemo(
     () =>
@@ -37,12 +38,14 @@ export function useBurndown(
         jobs,
         oneTimePurchases,
         creditCards,
+        healthInsurance,
       }),
     [
       savings, unemployment, expenses, whatIf,
       oneTimeExpenses, extraCash, investments,
       oneTimeIncome, monthlyIncome, startDate,
       jobs, oneTimePurchases, creditCards,
+      healthInsurance,
     ],
   )
 }
