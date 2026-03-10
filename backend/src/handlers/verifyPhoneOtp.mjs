@@ -1,4 +1,4 @@
-import { requireAuth, signToken } from '../lib/auth.mjs'
+import { requireAuth, signToken, isEnvSuperAdmin } from '../lib/auth.mjs'
 import { getUser, setPhoneVerified, incrementOtpAttempts } from '../lib/users.mjs'
 import { hashOtp } from '../lib/sms.mjs'
 import { getInviteByToken, updateInviteStatus } from '../lib/invites.mjs'
@@ -109,10 +109,12 @@ export async function handler(event) {
     }
 
     // Issue new JWT with updated info
+    const isSuperAdmin = isEnvSuperAdmin(user.email)
     const token = signToken(user.userId, {
       mfaVerified: true,
       orgId,
       orgRole,
+      isSuperAdmin,
     })
 
     return ok({
