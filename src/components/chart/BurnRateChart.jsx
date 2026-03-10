@@ -33,13 +33,13 @@ function CustomTooltip({ active, payload }) {
       </p>
       <div className="flex flex-wrap gap-1 mt-1.5">
         {d.inBenefitWindow && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#065f46', color: c.emerald }}>UI active</span>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: c.withAlpha(c.emerald, 0.2), color: c.emerald }}>UI active</span>
         )}
         {d.jobActive && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#1e3a5f', color: c.blue }}>Employed</span>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: c.withAlpha(c.blue, 0.2), color: c.blue }}>Employed</span>
         )}
         {d.oneTimeCost && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#431407', color: c.orange }}>Big expense</span>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: c.withAlpha(c.orange, 0.2), color: c.orange }}>Big expense</span>
         )}
       </div>
     </div>
