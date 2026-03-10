@@ -30,7 +30,7 @@ export default function OneTimeExpensePanel({ expenses, onChange, people = [], f
   function addExpense() {
     onChange([
       ...expenses,
-      { id: crypto.randomUUID(), description: 'New Expense', date: '2026-03-01', amount: 0, assignedTo: null },
+      { id: crypto.randomUUID(), description: 'New Expense', date: new Date().toISOString().slice(0, 10), amount: 0, assignedTo: null },
     ])
   }
 
