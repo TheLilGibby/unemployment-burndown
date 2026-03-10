@@ -14,22 +14,26 @@ export function useStatementStorage() {
 
   // Load index on mount
   useEffect(() => {
+    const ac = new AbortController()
     async function loadIndex() {
       try {
         const res = await fetch(`${API_BASE}/api/statements`, {
           headers: { ...authHeaders() },
+          signal: ac.signal,
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await safeJson(res)
         setIndex(data)
         setLoading(false)
       } catch (e) {
+        if (e.name === 'AbortError') return
         setError(e.message)
         setIndex({ version: 1, lastUpdated: null, statements: [] })
         setLoading(false)
       }
     }
     loadIndex()
+    return () => ac.abort()
   }, [])
 
   // Lazy-load a full statement by ID (guards against duplicate in-flight requests)

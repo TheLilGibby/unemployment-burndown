@@ -16,19 +16,22 @@ export function useSnapshots() {
 
   // Load snapshot index on mount
   useEffect(() => {
+    const ac = new AbortController()
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/api/snapshots`, { headers: authHeaders() })
+        const res = await fetch(`${API_BASE}/api/snapshots`, { headers: authHeaders(), signal: ac.signal })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await safeJson(res)
         setAvailableDates(Array.isArray(data?.dates) ? data.dates : [])
       } catch (e) {
+        if (e.name === 'AbortError') return
         setError(e.message)
       } finally {
         setIndexLoading(false)
       }
     }
     load()
+    return () => ac.abort()
   }, [])
 
   // Save a snapshot for today — idempotent (server only writes once per calendar day)

@@ -10,22 +10,28 @@ import { API_BASE, getToken, authHeaders } from '../utils/apiClient'
 export function useOrgMembers(user) {
   const [members, setMembers] = useState([])
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (signal) => {
     if (!user?.orgId) return
     if (!getToken()) return
     try {
       const res = await fetch(`${API_BASE}/api/org`, {
         headers: authHeaders(),
+        signal,
       })
       if (!res.ok) return
       const data = await res.json()
       setMembers(data.members || [])
-    } catch {
+    } catch (e) {
+      if (e.name === 'AbortError') return
       // Non-critical — silently fail
     }
   }, [user?.orgId])
 
-  useEffect(() => { fetchMembers() }, [fetchMembers])
+  useEffect(() => {
+    const ac = new AbortController()
+    fetchMembers(ac.signal)
+    return () => ac.abort()
+  }, [fetchMembers])
 
   // Build a lookup map: userId → member profile
   const membersByUserId = {}
