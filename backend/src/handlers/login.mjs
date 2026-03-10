@@ -75,7 +75,7 @@ export async function handler(event) {
     }
 
     const isSuperAdmin = isEnvSuperAdmin(user.email)
-    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin }
+    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin, tier: user.tier || 'free' }
 
     // If MFA is enabled, return a temporary token that requires MFA verification
     if (user.mfaEnabled) {
@@ -99,6 +99,7 @@ export async function handler(event) {
         orgId: user.orgId || null,
         orgRole: user.orgRole || null,
         isSuperAdmin,
+        tier: user.tier || 'free',
       },
     })
   } catch (error) {

@@ -22,6 +22,7 @@ export async function createUser({ userId, email, passwordHash, phoneNumber, inv
     phoneNumber: phoneNumber || null,
     phoneVerified: false,
     mfaMethod: null,
+    tier: 'free',
     inviteToken: inviteToken || null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -143,6 +144,18 @@ export async function updateUserOrg(userId, orgId, orgRole) {
     ExpressionAttributeValues: {
       ':oid': orgId,
       ':role': orgRole,
+      ':u': new Date().toISOString(),
+    },
+  }))
+}
+
+export async function updateUserTier(userId, tier) {
+  await doc().send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { userId },
+    UpdateExpression: 'SET tier = :t, updatedAt = :u',
+    ExpressionAttributeValues: {
+      ':t': tier,
       ':u': new Date().toISOString(),
     },
   }))
@@ -350,7 +363,7 @@ export async function deleteUser(userId) {
 export async function listAllUsers({ limit, exclusiveStartKey } = {}) {
   const params = {
     TableName: TABLE,
-    ProjectionExpression: 'userId, email, orgId, orgRole, mfaEnabled, createdAt, updatedAt',
+    ProjectionExpression: 'userId, email, orgId, orgRole, mfaEnabled, tier, createdAt, updatedAt',
   }
   if (limit) params.Limit = limit
   if (exclusiveStartKey) params.ExclusiveStartKey = exclusiveStartKey

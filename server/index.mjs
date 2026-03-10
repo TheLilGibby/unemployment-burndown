@@ -112,8 +112,8 @@ const users = new Map()  // userId -> { userId, email, passwordHash, mfaEnabled,
 const orgs = new Map()   // orgId -> { orgId, name, joinCode, ownerId, createdAt }
 const orgMembers = new Map() // orgId -> [{ userId, role, joinedAt }]
 
-function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, impersonatedBy = null, expiresIn = '24h' } = {}) {
-  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin }
+function signJwt(userId, { mfaVerified = false, orgId = null, orgRole = null, isSuperAdmin = false, tier = 'free', impersonatedBy = null, expiresIn = '24h' } = {}) {
+  const payload = { sub: userId, mfaVerified, orgId, orgRole, isSuperAdmin, tier }
   if (impersonatedBy) payload.impersonatedBy = impersonatedBy
   return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
@@ -140,6 +140,13 @@ function authMiddleware(req, res, next) {
 function orgMiddleware(req, res, next) {
   authMiddleware(req, res, () => {
     if (!req.user.orgId) return res.status(403).json({ error: 'Organization membership required' })
+    next()
+  })
+}
+
+function premiumMiddleware(req, res, next) {
+  authMiddleware(req, res, () => {
+    if (req.user.tier !== 'premium') return res.status(403).json({ error: 'Premium subscription required' })
     next()
   })
 }
@@ -276,9 +283,9 @@ app.post('/api/auth/register', async (req, res) => {
     const userId = email.toLowerCase()
     if (users.has(userId)) return res.status(409).json({ error: 'An account with this email already exists' })
     const passwordHash = await bcrypt.hash(password, 12)
-    users.set(userId, { userId, email: userId, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null })
-    const token = signJwt(userId, { mfaVerified: false, orgId: null, orgRole: null })
-    res.json({ token, user: { userId, email: userId, mfaEnabled: false, orgId: null, orgRole: null } })
+    users.set(userId, { userId, email: userId, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null, tier: 'free' })
+    const token = signJwt(userId, { mfaVerified: false, orgId: null, orgRole: null, tier: 'free' })
+    res.json({ token, user: { userId, email: userId, mfaEnabled: false, orgId: null, orgRole: null, tier: 'free' } })
   } catch (err) {
     req.log.error({ err }, 'registration failed')
     res.status(500).json({ error: 'Registration failed' })
@@ -297,7 +304,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' })
 
     const isSuperAdmin = isSuperAdminEmail(user.email)
-    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin }
+    const orgOpts = { orgId: user.orgId || null, orgRole: user.orgRole || null, isSuperAdmin, tier: user.tier || 'free' }
 
     if (user.mfaEnabled) {
       const tempToken = signJwt(userId, { mfaVerified: false, ...orgOpts })
@@ -357,12 +364,12 @@ if (USE_LOCAL_DATA && process.env.NODE_ENV !== 'production') {
       // Auto-register if user doesn't exist
       if (!users.has(userId)) {
         const passwordHash = await bcrypt.hash(password, 12)
-        users.set(userId, { userId, email, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null })
+        users.set(userId, { userId, email, passwordHash, mfaEnabled: false, mfaSecret: null, orgId: null, orgRole: null, tier: 'free' })
       }
 
       const user = users.get(userId)
-      const token = signJwt(userId, { mfaVerified: true, orgId: user.orgId || null, orgRole: user.orgRole || null })
-      res.json({ token, user: { userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null } })
+      const token = signJwt(userId, { mfaVerified: true, orgId: user.orgId || null, orgRole: user.orgRole || null, tier: user.tier || 'free' })
+      res.json({ token, user: { userId, email: user.email, mfaEnabled: user.mfaEnabled, orgId: user.orgId || null, orgRole: user.orgRole || null, tier: user.tier || 'free' } })
     } catch (err) {
       req.log.error({ err }, 'dev-login failed')
       res.status(500).json({ error: 'Dev login failed' })
@@ -382,9 +389,26 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
     orgRole: user.orgRole || null,
     profileColor: user.profileColor || 'blue',
     avatarDataUrl: user.avatarDataUrl || null,
+    tier: user.tier || 'free',
     isSuperAdmin: isSuperAdminEmail(user.email),
     impersonatedBy: req.user.impersonatedBy || null,
   })
+})
+
+// POST /api/auth/upgrade — upgrade user to premium tier
+app.post('/api/auth/upgrade', authMiddleware, (req, res) => {
+  const user = users.get(req.user.sub)
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  user.tier = 'premium'
+  const token = signJwt(req.user.sub, {
+    mfaVerified: req.user.mfaVerified,
+    orgId: user.orgId || null,
+    orgRole: user.orgRole || null,
+    isSuperAdmin: isSuperAdminEmail(user.email),
+    tier: 'premium',
+    impersonatedBy: req.user.impersonatedBy || null,
+  })
+  res.json({ token, tier: 'premium' })
 })
 
 // POST /api/auth/refresh — issue a fresh JWT using current valid token
@@ -1209,8 +1233,8 @@ const handleCreateLinkToken = async (req, res) => {
     res.status(500).json({ error: err.response?.data || err.message })
   }
 }
-app.post('/api/plaid/create-link-token', orgMiddleware, handleCreateLinkToken)
-app.post('/api/plaid/link-token', orgMiddleware, handleCreateLinkToken)
+app.post('/api/plaid/create-link-token', premiumMiddleware, handleCreateLinkToken)
+app.post('/api/plaid/link-token', premiumMiddleware, handleCreateLinkToken)
 
 // Exchange public_token for access_token and get accounts
 const handleExchangeToken = async (req, res) => {
@@ -1281,8 +1305,8 @@ const handleExchangeToken = async (req, res) => {
     res.status(500).json({ error: err.response?.data || err.message })
   }
 }
-app.post('/api/plaid/exchange-token', orgMiddleware, handleExchangeToken)
-app.post('/api/plaid/exchange', orgMiddleware, handleExchangeToken)
+app.post('/api/plaid/exchange-token', premiumMiddleware, handleExchangeToken)
+app.post('/api/plaid/exchange', premiumMiddleware, handleExchangeToken)
 
 
 // Budget status endpoint (dev server)
@@ -1299,7 +1323,7 @@ app.get('/api/plaid/budget', authMiddleware, (req, res) => {
 })
 
 // ── GET /api/plaid/accounts — list connected items with current account data ──
-app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
+app.get('/api/plaid/accounts', premiumMiddleware, async (req, res) => {
   try {
     const orgId = req.user.orgId
     const orgItems = plaidItems.get(orgId)
@@ -1354,7 +1378,7 @@ app.get('/api/plaid/accounts', orgMiddleware, async (req, res) => {
 })
 
 // ── POST /api/plaid/sync — sync transactions + balances, persist as hub statements ──
-app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
+app.post('/api/plaid/sync', premiumMiddleware, async (req, res) => {
   try {
     const orgId = req.user.orgId
     const { itemId: requestedItemId } = req.body || {}
@@ -1543,7 +1567,7 @@ app.post('/api/plaid/sync', orgMiddleware, async (req, res) => {
 })
 
 // ── POST /api/plaid/disconnect — remove a linked item ──
-app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
+app.post('/api/plaid/disconnect', premiumMiddleware, async (req, res) => {
   try {
     const { itemId } = req.body
     if (!itemId) return res.status(400).json({ error: 'itemId is required' })
@@ -1574,7 +1598,7 @@ app.post('/api/plaid/disconnect', orgMiddleware, async (req, res) => {
 const snaptradeConnections = new Map() // orgId -> Map<connectionId, connectionData>
 
 // POST /api/snaptrade/connect — generate mock redirect URL for brokerage connection
-app.post('/api/snaptrade/connect', orgMiddleware, (req, res) => {
+app.post('/api/snaptrade/connect', premiumMiddleware, (req, res) => {
   const { broker } = req.body
   const mockRedirectUrl = `https://app.snaptrade.com/connect?broker=${broker || 'FIDELITY'}&userId=${req.user.orgId}&dev=true`
   res.json({
@@ -1584,7 +1608,7 @@ app.post('/api/snaptrade/connect', orgMiddleware, (req, res) => {
 })
 
 // POST /api/snaptrade/callback — handle mock callback after brokerage connection
-app.post('/api/snaptrade/callback', orgMiddleware, (req, res) => {
+app.post('/api/snaptrade/callback', premiumMiddleware, (req, res) => {
   const { authorizationId } = req.body
   if (!authorizationId) return res.status(400).json({ error: 'authorizationId is required' })
 
@@ -1649,7 +1673,7 @@ app.post('/api/snaptrade/callback', orgMiddleware, (req, res) => {
 })
 
 // GET /api/snaptrade/accounts — list connected investment accounts
-app.get('/api/snaptrade/accounts', orgMiddleware, (req, res) => {
+app.get('/api/snaptrade/accounts', premiumMiddleware, (req, res) => {
   const orgConns = snaptradeConnections.get(req.user.orgId)
   if (!orgConns || orgConns.size === 0) {
     return res.json({ accounts: [], fromCache: false })
@@ -1697,7 +1721,7 @@ app.get('/api/snaptrade/accounts', orgMiddleware, (req, res) => {
 })
 
 // POST /api/snaptrade/sync — sync investment holdings
-app.post('/api/snaptrade/sync', orgMiddleware, (req, res) => {
+app.post('/api/snaptrade/sync', premiumMiddleware, (req, res) => {
   stCallCounter.count++
 
   const mockAccounts = [
@@ -1751,7 +1775,7 @@ app.post('/api/snaptrade/sync', orgMiddleware, (req, res) => {
 })
 
 // DELETE /api/snaptrade/connections/:connectionId — disconnect a brokerage
-app.delete('/api/snaptrade/connections/:connectionId', orgMiddleware, (req, res) => {
+app.delete('/api/snaptrade/connections/:connectionId', premiumMiddleware, (req, res) => {
   const orgConns = snaptradeConnections.get(req.user.orgId)
   if (orgConns) orgConns.delete(req.params.connectionId)
   res.json({ disconnected: true, connectionId: req.params.connectionId })
