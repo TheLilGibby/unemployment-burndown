@@ -104,7 +104,7 @@ Parameters:
   SuperAdmins:
     Type: String
     Description: Comma-separated list of superadmin email addresses
-    Default: ''
+    Default: 'goragconsulting@gmail.com'
 
 Globals:
   Function:
