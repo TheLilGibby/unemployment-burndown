@@ -28,7 +28,7 @@ export default function MonthlyIncomePanel({ items, onChange, people = [], filte
   function addItem() {
     onChange([
       ...items,
-      { id: Date.now(), description: 'Part-Time Job', monthlyAmount: 0, startDate: '', endDate: '', assignedTo: null },
+      { id: crypto.randomUUID(), description: 'Part-Time Job', monthlyAmount: 0, startDate: '', endDate: '', assignedTo: null },
     ])
   }
 

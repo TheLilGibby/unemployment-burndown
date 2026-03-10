@@ -29,7 +29,7 @@ export default function HomeImprovementPanel({ improvements, onChange, propertie
     onChange([
       ...improvements,
       {
-        id: Date.now(),
+        id: crypto.randomUUID(),
         description: 'New Improvement',
         date: new Date().toISOString().slice(0, 10),
         amount: 0,

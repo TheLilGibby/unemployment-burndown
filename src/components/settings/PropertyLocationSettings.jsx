@@ -26,7 +26,7 @@ export default function PropertyLocationSettings({ properties = [], onChange }) 
   function addProperty() {
     onChange([
       ...properties,
-      { id: Date.now(), address: '', parcelNumber: '', status: '', description: '' },
+      { id: crypto.randomUUID(), address: '', parcelNumber: '', status: '', description: '' },
     ])
   }
 

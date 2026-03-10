@@ -44,7 +44,7 @@ export default function EnhancedJobScenariosForm({ scenarios, onChange, scenario
   function addScenario(data) {
     const colorIndex = scenarios.length % SCENARIO_COLORS.length
     const newScenario = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       ...data,
       color: SCENARIO_COLORS[colorIndex],
     }

@@ -58,7 +58,7 @@ export default function PeopleManager({ people, onChange }) {
   function addPerson() {
     const usedColors = people.map(p => p.color)
     const nextColor = COLORS.find(c => !usedColors.includes(c)) ?? COLORS[people.length % COLORS.length]
-    onChange([...people, { id: Date.now(), name: 'New Person', color: nextColor }])
+    onChange([...people, { id: crypto.randomUUID(), name: 'New Person', color: nextColor }])
   }
 
   return (

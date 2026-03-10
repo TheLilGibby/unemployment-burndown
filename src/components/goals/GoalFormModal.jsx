@@ -49,7 +49,7 @@ const DATA_SOURCE_TYPES = [
 
 function makeDefault() {
   return {
-    id: Date.now(),
+    id: crypto.randomUUID(),
     name: '',
     icon: 'piggy',
     targetAmount: 0,

@@ -29,7 +29,7 @@ export default function OneTimeIncomePanel({ items, onChange, people = [], filte
   function addItem() {
     onChange([
       ...items,
-      { id: Date.now(), description: 'Tax Refund', date: '2026-04-01', amount: 0, assignedTo: null },
+      { id: crypto.randomUUID(), description: 'Tax Refund', date: '2026-04-01', amount: 0, assignedTo: null },
     ])
   }
 
