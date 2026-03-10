@@ -112,6 +112,12 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
     }
   }, [open])
 
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   if (!open) return null
 
   const isLoading = preparingPlaid || connectingSnapTrade || plaid?.syncing
