@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { getUserByEmail, updatePassword, clearResetToken } from '../lib/users.mjs'
+import { getUserByEmail, getUserByResetTokenHash, updatePassword, clearResetToken } from '../lib/users.mjs'
 import { ok, err, rateLimited } from '../lib/response.mjs'
 import { createRequestLogger, createAuditLogger } from '../lib/logger.mjs'
 import { checkRateLimit, getClientIp } from '../lib/rateLimit.mjs'
