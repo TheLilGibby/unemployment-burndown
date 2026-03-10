@@ -26,8 +26,9 @@ export default function PlaidConsentModal({ onAccept, onDecline }) {
           }),
         })
       }
-    } catch {
+    } catch (err) {
       // Don't block the flow if consent recording fails — proceed with link
+      console.warn('Failed to record consent:', err)
     }
     onAccept()
   }
