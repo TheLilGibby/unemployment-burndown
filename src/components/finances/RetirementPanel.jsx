@@ -3,7 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { formatCurrency } from '../../utils/formatters'
+import { formatCurrency, formatAxisValue } from '../../utils/formatters'
 import { computeRetirementProjection } from '../../utils/retirementProjection'
 import CurrencyInput from './CurrencyInput'
 import AssigneeSelect from '../people/AssigneeSelect'
@@ -22,7 +22,7 @@ function CustomTooltip({ active, payload }) {
   return (
     <div
       className="rounded-lg px-3 py-2 text-sm shadow-xl space-y-1"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+      style={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)' }}
     >
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
         {d?.dateLabel} (age {Math.floor(d?.age ?? 0)})
@@ -359,21 +359,17 @@ export default function RetirementPanel({ data, onChange, people = [] }) {
         <div style={{ width: '100%', height: 320 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
               <XAxis
                 dataKey="dateLabel"
-                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tickFormatter={v => {
-                  if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M'
-                  if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'k'
-                  return '$' + v
-                }}
-                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                tickFormatter={formatAxisValue}
+                tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 width={60}
