@@ -1378,7 +1378,7 @@ app.get('/api/plaid/accounts', premiumMiddleware, async (req, res) => {
 })
 
 // ── POST /api/plaid/sync — sync transactions + balances, persist as hub statements ──
-app.post('/api/plaid/sync', premiumMiddleware, async (req, res) => {
+async function handlePlaidSync(req, res) {
   try {
     const orgId = req.user.orgId
     const { itemId: requestedItemId } = req.body || {}
@@ -1564,7 +1564,8 @@ app.post('/api/plaid/sync', premiumMiddleware, async (req, res) => {
     req.log.error({ err, plaidError: err.response?.data }, 'sync failed')
     res.status(500).json({ error: err.response?.data?.error_message || err.message })
   }
-})
+}
+app.post('/api/plaid/sync', premiumMiddleware, handlePlaidSync)
 
 // ── POST /api/plaid/disconnect — remove a linked item ──
 app.post('/api/plaid/disconnect', premiumMiddleware, async (req, res) => {
@@ -1588,6 +1589,125 @@ app.post('/api/plaid/disconnect', premiumMiddleware, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, 'disconnect failed')
     res.status(500).json({ error: err.message })
+  }
+})
+
+// ── POST /api/plaid/webhook — receive Plaid webhook events (no auth, public endpoint) ──
+app.post('/api/plaid/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  // Always respond 200 to prevent Plaid from retrying
+  try {
+    const rawBody = req.body // Buffer from express.raw
+    let body
+    try {
+      body = JSON.parse(rawBody.toString('utf8'))
+    } catch {
+      log.warn('[webhook] failed to parse request body as JSON')
+      return res.sendStatus(200)
+    }
+
+    // ── Webhook signature verification ──
+    if (process.env.PLAID_SKIP_WEBHOOK_VERIFICATION !== 'true') {
+      const verificationHeader = req.headers['plaid-verification']
+      if (!verificationHeader) {
+        log.warn('[webhook] missing Plaid-Verification header')
+        return res.sendStatus(200)
+      }
+
+      try {
+        // Decode JWT header to get kid
+        const [headerB64, payloadB64, signatureB64] = verificationHeader.split('.')
+        if (!headerB64 || !payloadB64 || !signatureB64) {
+          throw new Error('malformed JWT')
+        }
+
+        const jwtHeader = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'))
+        const kid = jwtHeader.kid
+        if (!kid) throw new Error('missing kid in JWT header')
+
+        // Fetch the verification key from Plaid
+        const keyRes = await plaidClient.webhookVerificationKeyGet({ key_id: kid })
+        const jwk = keyRes.data.key
+
+        // Import key and verify ES256 signature
+        const keyObj = crypto.createPublicKey({ key: jwk, format: 'jwk' })
+        const signingInput = `${headerB64}.${payloadB64}`
+        const signatureBytes = Buffer.from(signatureB64, 'base64url')
+        const verify = crypto.createVerify('SHA256')
+        verify.update(signingInput)
+        const valid = verify.verify(keyObj, signatureBytes)
+        if (!valid) throw new Error('invalid signature')
+
+        // Decode payload and validate claims
+        const jwtPayload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'))
+
+        // Check JWT age (iat must be < 5 minutes old)
+        const iatMs = jwtPayload.iat * 1000
+        if (Date.now() - iatMs > 5 * 60 * 1000) {
+          throw new Error('JWT too old')
+        }
+
+        // Check body hash
+        const bodyHash = crypto.createHash('sha256').update(rawBody).digest('hex')
+        if (bodyHash !== jwtPayload.request_body_sha256) {
+          throw new Error('body hash mismatch')
+        }
+      } catch (verifyErr) {
+        log.warn({ err: verifyErr }, '[webhook] verification failed — ignoring event')
+        return res.sendStatus(200)
+      }
+    }
+
+    const { webhook_type, webhook_code, item_id } = body
+    log.info({ webhook_type, webhook_code, item_id }, '[webhook] received')
+
+    // ── Handle TRANSACTIONS webhooks ──
+    const TRANSACTIONS_CODES = new Set([
+      'SYNC_UPDATES_AVAILABLE',
+      'DEFAULT_UPDATE',
+      'INITIAL_UPDATE',
+      'HISTORICAL_UPDATE',
+      'TRANSACTIONS_REMOVED',
+    ])
+
+    if (webhook_type === 'TRANSACTIONS' && TRANSACTIONS_CODES.has(webhook_code) && item_id) {
+      // Find which org owns this item
+      let targetOrgId = null
+      let targetItem = null
+      for (const [orgId, orgItems] of plaidItems) {
+        if (orgItems.has(item_id)) {
+          targetOrgId = orgId
+          targetItem = orgItems.get(item_id)
+          break
+        }
+      }
+
+      if (!targetOrgId || !targetItem) {
+        log.warn({ item_id }, '[webhook] item_id not found in any org — ignoring')
+        return res.sendStatus(200)
+      }
+
+      // Construct synthetic req/res and call handlePlaidSync
+      const syntheticReq = {
+        body: { access_token: targetItem.accessToken },
+        user: { orgId: targetOrgId },
+        log,
+      }
+      const syntheticRes = {
+        json: (data) => log.info('[webhook] sync result: ' + JSON.stringify(data).slice(0, 200)),
+        status: (code) => ({ json: (data) => log.warn(`[webhook] sync error ${code}: ` + JSON.stringify(data).slice(0, 200)) }),
+      }
+
+      try {
+        await handlePlaidSync(syntheticReq, syntheticRes)
+      } catch (syncErr) {
+        log.error({ err: syncErr }, '[webhook] handlePlaidSync threw unexpectedly')
+      }
+    }
+
+    res.sendStatus(200)
+  } catch (err) {
+    log.error({ err }, '[webhook] unhandled error — responding 200 anyway')
+    res.sendStatus(200)
   }
 })
 
