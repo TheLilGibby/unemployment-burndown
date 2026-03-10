@@ -14,6 +14,11 @@ export function formatDate(d) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
+export function formatShortDate(dateStr) {
+  if (!dateStr) return '—'
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export function formatMonths(months) {
   if (months == null || months <= 0) return '0 months'
   const years = Math.floor(months / 12)
