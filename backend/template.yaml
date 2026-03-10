@@ -101,6 +101,10 @@ Parameters:
     Type: String
     Description: Public URL for receiving Plaid webhooks (e.g. https://<api-id>.execute-api.<region>.amazonaws.com/Prod/plaid/webhook)
     Default: ''
+  SuperAdmins:
+    Type: String
+    Description: Comma-separated list of superadmin email addresses
+    Default: 'goragconsulting@gmail.com'
 
 Globals:
   Function:
@@ -139,6 +143,7 @@ Globals:
         SMS_ENABLED: !Ref SmsEnabled
         SNAPSHOT_RETENTION_DAYS: !Ref SnapshotRetentionDays
         RATE_LIMIT_TABLE: !Ref RateLimitTable
+        SUPER_ADMINS: !Ref SuperAdmins
 
   Api:
     Cors:
