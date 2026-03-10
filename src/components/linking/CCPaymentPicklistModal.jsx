@@ -31,6 +31,12 @@ export default function CCPaymentPicklistModal({
     if (open) { setShowCategories(true); setFilterCategory(''); setSearchTerm('') }
   }, [open])
 
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const categorySummary = useMemo(
     () => summarizePicklistByCategory(transactions.filter(t => (t.amount || 0) > 0)),
     [transactions],
