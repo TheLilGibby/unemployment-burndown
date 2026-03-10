@@ -1016,7 +1016,13 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
     <NotificationPanel />
     <ToastContainer />
     <SkeletonStyles />
-    <div className="min-h-screen theme-page" style={{ color: 'var(--text-primary)' }}>
+    <div className=”min-h-screen theme-page” style={{ color: 'var(--text-primary)' }}>
+      <a
+        href=”#main-content”
+        className=”sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-blue-600 focus:underline”
+      >
+        Skip to main content
+      </a>
       {/* Presentation overlay â€” rendered outside main layout so it fills the viewport */}
       {presentationMode && (
         <PresentationMode
@@ -1128,7 +1134,7 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
       />
 
       {!dataReady ? <BurndownPageSkeleton /> :
-      <div className={`${globalSidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} transition-[margin] duration-200`}>
+      <div id="main-content" className={`${globalSidebarCollapsed ? 'xl:ml-[3.75rem]' : 'xl:ml-[17rem]'} transition-[margin] duration-200`}>
       <Suspense fallback={<AppLoadingSkeleton />}>
       <Routes>
         <Route path="/" element={
