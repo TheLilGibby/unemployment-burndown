@@ -2,34 +2,34 @@ import { describe, it, expect } from 'vitest'
 import { formatCurrency, formatDate, formatMonths, formatDays, formatAxisValue } from './formatters'
 
 describe('formatCurrency', () => {
-  it('formats positive numbers with dollar sign and commas', () => {
-    expect(formatCurrency(1000)).toBe('$1,000')
-    expect(formatCurrency(1234567)).toBe('$1,234,567')
-    expect(formatCurrency(50)).toBe('$50')
+  it('formats positive numbers with dollar sign, commas, and 2 decimal places', () => {
+    expect(formatCurrency(1000)).toBe('$1,000.00')
+    expect(formatCurrency(1234567)).toBe('$1,234,567.00')
+    expect(formatCurrency(50)).toBe('$50.00')
   })
 
-  it('preserves decimal precision up to 2 places', () => {
+  it('preserves decimal precision to exactly 2 places', () => {
     expect(formatCurrency(1234.56)).toBe('$1,234.56')
     expect(formatCurrency(999.49)).toBe('$999.49')
-    expect(formatCurrency(100.10)).toBe('$100.1')
-    expect(formatCurrency(50.999)).toBe('$51')
+    expect(formatCurrency(100.10)).toBe('$100.10')
+    expect(formatCurrency(50.999)).toBe('$51.00')
   })
 
   it('handles zero', () => {
-    expect(formatCurrency(0)).toBe('$0')
+    expect(formatCurrency(0)).toBe('$0.00')
   })
 
   it('handles null and undefined', () => {
-    expect(formatCurrency(null)).toBe('$0')
-    expect(formatCurrency(undefined)).toBe('$0')
+    expect(formatCurrency(null)).toBe('$0.00')
+    expect(formatCurrency(undefined)).toBe('$0.00')
   })
 
   it('handles NaN', () => {
-    expect(formatCurrency(NaN)).toBe('$0')
+    expect(formatCurrency(NaN)).toBe('$0.00')
   })
 
   it('handles negative numbers', () => {
-    expect(formatCurrency(-500)).toBe('-$500')
+    expect(formatCurrency(-500)).toBe('-$500.00')
     expect(formatCurrency(-1234.56)).toBe('-$1,234.56')
   })
 })
