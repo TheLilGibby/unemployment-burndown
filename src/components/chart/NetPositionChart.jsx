@@ -146,7 +146,7 @@ function NetPositionChart({ dataPoints }) {
             fill="url(#cashGradient)"
             name="Cash / Savings"
             dot={false}
-            activeDot={{ r: 4, stroke: c.blue, strokeWidth: 2, fill: '#1e3a5f' }}
+            activeDot={{ r: 4, stroke: c.blue, strokeWidth: 2, fill: c.withAlpha(c.blue, 0.3) }}
           />
 
           {/* Debt area (shown as negative) */}
@@ -159,7 +159,7 @@ function NetPositionChart({ dataPoints }) {
               fill="url(#debtGradient)"
               name="Credit Card Debt"
               dot={false}
-              activeDot={{ r: 4, stroke: c.red, strokeWidth: 2, fill: '#5f1e1e' }}
+              activeDot={{ r: 4, stroke: c.red, strokeWidth: 2, fill: c.withAlpha(c.red, 0.3) }}
             />
           )}
 
@@ -170,7 +170,7 @@ function NetPositionChart({ dataPoints }) {
             stroke={c.emerald}
             strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 5, stroke: c.emerald, strokeWidth: 2, fill: '#064e3b' }}
+            activeDot={{ r: 5, stroke: c.emerald, strokeWidth: 2, fill: c.withAlpha(c.emerald, 0.3) }}
             name="Net Position"
           />
 
