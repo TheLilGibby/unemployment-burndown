@@ -69,7 +69,7 @@ const NAV_ITEMS = [
 ]
 
 export default function UserProfilePage({ user: userProp, updateProfile, jobs = [], onJobsChange, people = [], allTransactions = [], transactionOverrides = {}, properties = [], onPropertiesChange, exportData }) {
-  const { user: authUser, logout, deleteAccount } = useAuth()
+  const { user: authUser, logout, deleteAccount, forgotPassword } = useAuth()
   const user = userProp || authUser
   const [activeSection, setActiveSection] = useState('profile')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -79,6 +79,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
   const { theme, setTheme } = useTheme()
   const { hidden, toggleHidden } = useHiddenMode()
   const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled || false)
+  const [passwordResetSent, setPasswordResetSent] = useState(false)
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false)
   const isMuted = preferences.mutedUntil && new Date(preferences.mutedUntil) > new Date()
 
   // Profile state
@@ -390,11 +392,22 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                     <div className="text-sm text-gray-500 dark:text-gray-400">Update your account password</div>
                   </div>
                   <button
-                    onClick={() => {/* TODO: Change password flow */}}
+                    onClick={async () => {
+                      if (!user?.email || passwordResetLoading) return
+                      setPasswordResetLoading(true)
+                      const result = await forgotPassword(user.email)
+                      setPasswordResetLoading(false)
+                      if (result) setPasswordResetSent(true)
+                    }}
+                    disabled={passwordResetLoading || passwordResetSent}
                     className="px-3 py-1.5 text-sm rounded-md border font-medium transition-colors"
-                    style={{ borderColor: 'var(--border-default, #d1d5db)', color: 'var(--text-secondary)' }}
+                    style={{
+                      borderColor: 'var(--border-default, #d1d5db)',
+                      color: passwordResetSent ? 'var(--accent-emerald, #10b981)' : 'var(--text-secondary)',
+                      opacity: passwordResetLoading ? 0.6 : 1,
+                    }}
                   >
-                    Change password
+                    {passwordResetLoading ? 'Sending...' : passwordResetSent ? 'Reset email sent' : 'Reset password'}
                   </button>
                 </div>
 
