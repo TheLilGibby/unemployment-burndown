@@ -98,6 +98,7 @@ export async function handler(event) {
         mfaEnabled: user.mfaEnabled,
         orgId: user.orgId || null,
         orgRole: user.orgRole || null,
+        isSuperAdmin,
       },
     })
   } catch (error) {

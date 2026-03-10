@@ -319,8 +319,9 @@ app.post('/api/auth/verify-mfa', authMiddleware, (req, res) => {
   if (!user || !user.mfaEnabled || !user.mfaSecret) return res.status(400).json({ error: 'MFA is not enabled' })
   const isValid = authenticator.verify({ token: code, secret: user.mfaSecret })
   if (!isValid) return res.status(401).json({ error: 'Invalid MFA code' })
-  const token = signJwt(user.userId, { mfaVerified: true, orgId: user.orgId, orgRole: user.orgRole })
-  res.json({ token, user: { userId: user.userId, email: user.email, mfaEnabled: true, orgId: user.orgId, orgRole: user.orgRole } })
+  const isSuperAdmin = isSuperAdminEmail(user.email)
+  const token = signJwt(user.userId, { mfaVerified: true, orgId: user.orgId, orgRole: user.orgRole, isSuperAdmin })
+  res.json({ token, user: { userId: user.userId, email: user.email, mfaEnabled: true, orgId: user.orgId, orgRole: user.orgRole, isSuperAdmin } })
 })
 
 // POST /api/auth/setup-mfa
