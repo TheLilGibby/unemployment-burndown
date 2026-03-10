@@ -35,8 +35,9 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
     try {
       const token = await plaid.createLinkToken()
       setPlaidLinkToken(token)
-    } catch {
+    } catch (err) {
       // Error surfaced via usePlaid
+      console.warn('Failed to create Plaid link token:', err)
     }
     setPreparingPlaid(false)
   }, [plaid])
@@ -56,8 +57,9 @@ export default function AddAccountTypeModal({ open, onClose, plaid, onSync, snap
         try {
           await plaid.exchangeToken(publicToken, metadata)
           await onSync()
-        } catch {
+        } catch (err) {
           // Errors surfaced by usePlaid
+          console.warn('Failed to exchange Plaid token or sync:', err)
         }
       }}
       onExit={() => {
