@@ -224,6 +224,20 @@ function AnnotationView({ screenshotUrl, isDark, onDone, onSkip, onClose }) {
     if (textPos && textInputRef.current) textInputRef.current.focus()
   }, [textPos])
 
+  /* Keyboard shortcuts */
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); handleUndo() }
+      else if (e.key === 'Escape') { onClose() }
+      else if (e.key.toLowerCase() === 'p') { setTool('pen'); setTextPos(null) }
+      else if (e.key.toLowerCase() === 't') { setTool('text') }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleUndo, onClose, setTool])
+
   /* Map pointer coordinates to canvas space */
   const getPos = useCallback((e) => {
     const canvas = canvasRef.current
