@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { formatDate, formatMonths, formatCurrency } from '../utils/formatters'
-
-const DEBOUNCE_MS = 3000
+import { NOTIFICATION_DEBOUNCE_MS } from '../constants/financial'
 
 function evaluate(burndown, preferences, initialBalance, budgetVariance) {
   if (!preferences.enabled) return []
@@ -135,7 +134,7 @@ export function useNotifications(burndown, preferences, initialBalance, { addToa
         }
       }
       prevStateRef.current = new Set(active.map(n => n.id))
-    }, DEBOUNCE_MS)
+    }, NOTIFICATION_DEBOUNCE_MS)
 
     return () => clearTimeout(debounceRef.current)
   }, [burndown, preferences, initialBalance, dismissedIds, addToast, budgetVariance])

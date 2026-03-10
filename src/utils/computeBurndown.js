@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import { getEffectivePayment } from './ccPayment.js'
+import { WEEKS_PER_MONTH } from '../constants/financial'
 
 /**
  * Pure burndown simulation — computes a month-by-month cash runway projection.
@@ -45,7 +46,7 @@ export function computeBurndown({
   const benefitStart = rawBenefitStart.add(delayWeeks, 'week')
   const baseDuration = Math.max(0, unemployment.durationWeeks - cutWeeks)
   const benefitEnd   = benefitStart.add(baseDuration, 'week')
-  const monthlyBenefits = unemployment.weeklyAmount * (52 / 12)
+  const monthlyBenefits = unemployment.weeklyAmount * WEEKS_PER_MONTH
 
   // --- Expense split ---
   const essentialTotal = expenses

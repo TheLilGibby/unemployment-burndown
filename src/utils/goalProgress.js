@@ -1,3 +1,5 @@
+import { GOAL_ON_TRACK_TOLERANCE } from '../constants/financial'
+
 /**
  * Compute progress for a single goal based on its data source and app state.
  *
@@ -79,7 +81,7 @@ export function computeGoalProgress(goal, { savingsAccounts = [], investments = 
   // On track?
   let onTrack = remaining <= 0
   if (!onTrack && monthlyNeeded !== null && monthly > 0) {
-    onTrack = monthly >= monthlyNeeded * 0.95 // 5% tolerance
+    onTrack = monthly >= monthlyNeeded * GOAL_ON_TRACK_TOLERANCE // 5% tolerance
   }
 
   return { currentValue, progressPct, remaining, monthlyNeeded, projectedDate, onTrack }
