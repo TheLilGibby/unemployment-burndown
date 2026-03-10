@@ -141,7 +141,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+        <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
       </div>
     )
   }
@@ -174,12 +174,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                             isScrollingProgrammatically.current = false
                           }, 1000)
                         }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                          isActive
-                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                        }`}
-                        style={isActive ? { borderLeft: '2px solid var(--accent-blue, #3b82f6)' } : { borderLeft: '2px solid transparent' }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                        style={isActive
+                          ? { background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', borderLeft: '2px solid var(--accent-blue, #3b82f6)' }
+                          : { color: 'var(--text-muted)', borderLeft: '2px solid transparent' }
+                        }
                       >
                         <Icon className="w-4 h-4 flex-shrink-0" />
                         {item.label}
@@ -196,7 +195,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Profile ── */}
             <section id="section-profile">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Profile
               </h2>
 
@@ -249,8 +248,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                 <div className="flex-1 space-y-4">
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
-                    <div className="px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Email</label>
+                    <div className="px-3 py-2 rounded-md text-sm" style={{ color: 'var(--text-primary)', background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
                       {user.email}
                     </div>
                   </div>
@@ -258,8 +257,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   {/* Name */}
                   {user.name && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
-                      <div className="px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Name</label>
+                      <div className="px-3 py-2 rounded-md text-sm" style={{ color: 'var(--text-primary)', background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
                         {user.name}
                       </div>
                     </div>
@@ -268,9 +267,9 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   {/* Organization */}
                   {(org || user.organizationId) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Organization</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Organization</label>
                       <div className="flex items-center justify-between px-3 py-2 rounded-md text-sm" style={{ background: 'var(--bg-input, #f3f4f6)', border: '1px solid var(--border-subtle, #e5e7eb)' }}>
-                        <span className="text-gray-900 dark:text-white">{org?.name || user.organizationName || user.organizationId}</span>
+                        <span style={{ color: 'var(--text-primary)' }}>{org?.name || user.organizationName || user.organizationId}</span>
                         {user.orgRole && (
                           <span
                             className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
@@ -288,7 +287,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
                   {/* Outline color */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Profile color</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Profile color</label>
                     <div className="flex gap-2.5">
                       {COLOR_KEYS.map(key => {
                         const hex = PROFILE_COLORS[key]
@@ -359,15 +358,15 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Account (Security) ── */}
             <section id="section-account">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Account
               </h2>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">Password</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Update your account password</div>
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Password</div>
+                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Update your account password</div>
                   </div>
                   <button
                     onClick={async () => {
@@ -391,10 +390,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
                 <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">Two-factor authentication</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Two-factor authentication</div>
+                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
                       {user.mfaEnabled ? (
-                        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <span className="inline-flex items-center gap-1" style={{ color: 'var(--accent-emerald)' }}>
                           <Shield className="w-3 h-3" /> Enabled
                         </span>
                       ) : 'Not enabled'}
@@ -407,10 +406,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
                 <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                       <EyeOff className="w-4 h-4" /> Hidden mode
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
                       Blur financial numbers for screen sharing
                     </div>
                   </div>
@@ -427,7 +426,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                 </div>
 
                 {hidden && (
-                  <p className="text-xs text-emerald-500 dark:text-emerald-400">
+                  <p className="text-xs" style={{ color: 'var(--accent-emerald)' }}>
                     Hidden mode is active — all financial figures are blurred.
                   </p>
                 )}
@@ -436,12 +435,12 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Appearance ── */}
             <section id="section-appearance">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Appearance
               </h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Theme preference</label>
+                <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Theme preference</label>
                 <div className="flex gap-3">
                   {[
                     { value: 'light', label: 'Light', Icon: Sun },
@@ -451,11 +450,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                     <button
                       key={opt.value}
                       onClick={() => setTheme(opt.value)}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md border transition-colors ${
-                        theme === opt.value
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md border transition-colors"
+                      style={theme === opt.value
+                        ? { borderColor: 'var(--accent-blue, #3b82f6)', background: 'rgba(59,130,246,0.08)', color: 'var(--accent-blue)' }
+                        : { borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }
+                      }
                     >
                       <opt.Icon className="w-4 h-4" />
                       <span className="text-sm font-medium">{opt.label}</span>
@@ -467,15 +466,15 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
             {/* ── Notifications ── */}
             <section id="section-notifications">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+              <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                 Notifications
               </h2>
 
               <div className="space-y-5">
                 <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">Enable notifications</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Receive alerts about runway, benefits, and balance milestones</div>
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Enable notifications</div>
+                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Receive alerts about runway, benefits, and balance milestones</div>
                   </div>
                   <button
                     onClick={() => updatePreferences({ enabled: !preferences.enabled })}
@@ -493,7 +492,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   <>
                     {/* Thresholds */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Alert thresholds</h3>
+                      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Alert thresholds</h3>
                       <div className="space-y-3">
                         {[
                           { label: 'Critical runway', unit: 'months', key: 'runwayCritical', min: 1, max: 12, fallback: 3 },
@@ -502,8 +501,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                         ].map(t => (
                           <div key={t.key} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                             <div>
-                              <span className="text-sm text-gray-700 dark:text-gray-300">{t.label}</span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({t.unit})</span>
+                              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t.label}</span>
+                              <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>({t.unit})</span>
                             </div>
                             <input
                               type="number"
@@ -511,7 +510,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                               max={t.max}
                               value={preferences.thresholds[t.key]}
                               onChange={e => updateThreshold(t.key, Number(e.target.value) || t.fallback)}
-                              className="w-16 text-sm text-right px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-16 text-sm text-right px-2 py-1 rounded-md border focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              style={{ borderColor: 'var(--border-default)', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
                             />
                           </div>
                         ))}
@@ -520,11 +520,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
                     {/* Snooze */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Snooze</h3>
+                      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Snooze</h3>
                       {isMuted ? (
-                        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                          <BellOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300 flex-1">
+                        <div className="flex items-center gap-3 px-4 py-3 rounded-md border" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-hover)' }}>
+                          <BellOff className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+                          <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
                             Muted until {new Date(preferences.mutedUntil).toLocaleString()}
                           </span>
                           <button
@@ -540,7 +540,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                             <button
                               key={opt.label}
                               onClick={() => snooze(opt.ms)}
-                              className="text-sm px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              className="text-sm px-3 py-1.5 rounded-md border transition-colors"
+                              style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
                             >
                               {opt.label}
                             </button>
@@ -551,7 +552,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
 
                     {/* Push alerts */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Push alerts & spending limits</h3>
+                      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Push alerts & spending limits</h3>
                       <AlertSettings
                         preferences={preferences}
                         onPreferencesChange={onPreferencesChange}
@@ -565,7 +566,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
             {/* ── Properties ── */}
             {onPropertiesChange && (
               <section id="section-properties">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                <h2 className="text-xl font-semibold pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                   Property Locations
                 </h2>
                 <PropertyLocationSettings properties={properties} onChange={onPropertiesChange} />
@@ -575,7 +576,7 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
             {/* ── Job History ── */}
             {onJobsChange && (
               <section id="section-jobs">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                   Job History
                 </h2>
                 <JobsPanel
@@ -591,11 +592,11 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
             {/* ── Data ── */}
             {exportData && (
               <section id="section-data">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white pt-2 pb-2 mb-6" style={{ borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
+                <h2 className="text-xl font-semibold pt-2 pb-2 mb-6" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle, #d1d5db)' }}>
                   Data Management
                 </h2>
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
                     Export your financial data in various formats for offline use or analysis.
                   </p>
                   {[
@@ -610,8 +611,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   ].map(({ label, icon: Icon, onClick, disabled }) => (
                     <div key={label} className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                       <div className="flex items-center gap-2.5">
-                        <Icon className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                        <Icon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
                       </div>
                       <button
                         onClick={() => { try { onClick() } catch (e) { alert(`Export failed: ${e.message}`) } }}
@@ -626,10 +627,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   ))}
                   <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                     <div className="flex items-center gap-2.5">
-                      <Package className="w-4 h-4 text-gray-400" />
+                      <Package className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">Export All (CSV Bundle)</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Downloads all datasets as a ZIP archive</div>
+                        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Export All (CSV Bundle)</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Downloads all datasets as a ZIP archive</div>
                       </div>
                     </div>
                     <button
@@ -643,10 +644,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   </div>
                   <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
                     <div className="flex items-center gap-2.5">
-                      <FileText className="w-4 h-4 text-gray-400" />
+                      <FileText className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">Summary JSON</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Full financial snapshot as structured JSON</div>
+                        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Summary JSON</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Full financial snapshot as structured JSON</div>
                       </div>
                     </div>
                     <button
@@ -670,10 +671,10 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
                   </div>
                   <div className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-2.5">
-                      <Database className="w-4 h-4 text-gray-400" />
+                      <Database className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                       <div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">Full Data Backup</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Complete application state as JSON backup</div>
+                        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Full Data Backup</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Complete application state as JSON backup</div>
                       </div>
                     </div>
                     <button
@@ -694,7 +695,8 @@ export default function UserProfilePage({ user: userProp, updateProfile, jobs = 
               <div className="pt-4" style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)' }}>
                 <Link
                   to="/privacy"
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-sm hover:underline"
+                  style={{ color: 'var(--accent-blue)' }}
                 >
                   Privacy Policy
                 </Link>
