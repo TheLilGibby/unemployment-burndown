@@ -52,7 +52,7 @@ function AssetBreakdown({ savingsAccounts, assets, investments, creditCards }) {
       <div className="flex items-center gap-1.5 h-3 rounded-full overflow-hidden" style={{ background: 'var(--border-subtle)' }}>
         {totalPositive > 0 && items.map((item, i) => (
           <div
-            key={i}
+            key={item.label}
             style={{
               width: `${(item.amount / totalPositive) * 100}%`,
               background: item.color,
@@ -66,7 +66,7 @@ function AssetBreakdown({ savingsAccounts, assets, investments, creditCards }) {
 
       <div className="space-y-2">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center justify-between">
+          <div key={item.label} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
