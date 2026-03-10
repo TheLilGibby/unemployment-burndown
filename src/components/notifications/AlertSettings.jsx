@@ -77,7 +77,7 @@ export default function AlertSettings({ preferences, onPreferencesChange }) {
     updateCategoryAlerts([
       ...categoryAlerts,
       {
-        id: `cat_${categoryKey}_${Date.now()}`,
+        id: crypto.randomUUID(),
         categoryKey,
         categoryLabel: cat.label,
         monthlyLimit: 0,

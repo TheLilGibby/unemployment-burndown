@@ -25,6 +25,7 @@ export default function ConfirmDeleteModal({ itemName, onConfirm, onCancel }) {
         <div
           className="theme-card rounded-2xl border shadow-2xl w-full max-w-sm pointer-events-auto p-6"
           role="alertdialog"
+          aria-modal="true"
           aria-labelledby="confirm-delete-title"
           aria-describedby="confirm-delete-desc"
         >
