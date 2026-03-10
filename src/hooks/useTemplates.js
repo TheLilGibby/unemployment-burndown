@@ -15,8 +15,8 @@ function loadFromStorage() {
 function saveToStorage(templates) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
-  } catch {
-    // localStorage full or unavailable — fail silently
+  } catch (err) {
+    console.warn('Failed to save templates to localStorage:', err.message)
   }
 }
 
@@ -35,7 +35,9 @@ function persistActiveId(id) {
   try {
     if (id == null) localStorage.removeItem(ACTIVE_KEY)
     else localStorage.setItem(ACTIVE_KEY, JSON.stringify(id))
-  } catch {}
+  } catch (err) {
+    console.warn('Failed to persist active template ID:', err.message)
+  }
 }
 
 export function useTemplates() {
