@@ -77,6 +77,7 @@ export function FinancialDataProvider({ user, children }) {
   const [jobs, setJobs] = useState(DEFAULTS.jobs)
   const [jobScenarios, setJobScenarios] = useState(DEFAULTS.jobScenarios)
   const [retirement, setRetirement] = useState(DEFAULTS.retirement)
+  const [severance, setSeverance] = useState(DEFAULTS.severance)
   const [properties, setProperties] = useState(DEFAULTS.properties)
   const [homeImprovements, setHomeImprovements] = useState(DEFAULTS.homeImprovements)
   const [goals, setGoals] = useState(DEFAULTS.goals)
@@ -132,6 +133,7 @@ export function FinancialDataProvider({ user, children }) {
     creditCards:        [creditCards, setCreditCards],
     jobScenarios:       [jobScenarios, setJobScenarios],
     retirement:         [retirement, setRetirement],
+    severance:          [severance, setSeverance],
     properties:         [properties, setProperties],
     homeImprovements:   [homeImprovements, setHomeImprovements],
     goals:              [goals, setGoals],
@@ -161,6 +163,7 @@ export function FinancialDataProvider({ user, children }) {
   const onCreditCardsChange = tracked.creditCards
   const onJobScenariosChange = tracked.jobScenarios
   const onRetirementChange = tracked.retirement
+  const onSeveranceChange = tracked.severance
   const onPropertiesChange = tracked.properties
   const onHomeImprovementsChange = tracked.homeImprovements
   const onGoalsChange = tracked.goals
@@ -204,7 +207,7 @@ export function FinancialDataProvider({ user, children }) {
   // Snapshot build / apply
   // ---------------------------------------------------------------------------
   function buildSnapshot() {
-    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
+    return { furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, severance, properties, homeImprovements, goals, advertisingRevenue, transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets, plaidSnapshotMeta: (plaid?.linkedItems || []).map(i => ({ itemId: i.itemId, institutionName: i.institutionName, accountCount: i.accounts?.length || 0, lastSync: i.lastSync })) }
   }
 
   function applySnapshot(snapshot) {
@@ -229,6 +232,7 @@ export function FinancialDataProvider({ user, children }) {
     if (snapshot.creditCards) setCreditCards(snapshot.creditCards)
     if (snapshot.jobScenarios) setJobScenarios(snapshot.jobScenarios.map(migrateJobScenario))
     if (snapshot.retirement) setRetirement({ ...DEFAULTS.retirement, ...snapshot.retirement })
+    if (snapshot.severance) setSeverance({ ...DEFAULTS.severance, ...snapshot.severance })
     if (snapshot.properties) setProperties(snapshot.properties)
     if (snapshot.homeImprovements) setHomeImprovements(snapshot.homeImprovements)
     if (snapshot.goals) setGoals(snapshot.goals)
@@ -302,8 +306,9 @@ export function FinancialDataProvider({ user, children }) {
     }
   }
   const snapTrade = useSnapTrade({ onSyncComplete: handleSnapTradeSync })
-  const tierGatedPlaid = user?.tier === 'premium' ? plaid : null
-  const tierGatedSnapTrade = user?.tier === 'premium' ? snapTrade : null
+  const isSuperAdmin = user?.isSuperAdmin
+  const tierGatedPlaid = (user?.tier === 'premium' || isSuperAdmin) ? plaid : null
+  const tierGatedSnapTrade = (user?.tier === 'premium' || isSuperAdmin) ? snapTrade : null
   const { membersByUserId } = useOrgMembers(user)
 
   // ---------------------------------------------------------------------------
@@ -376,7 +381,7 @@ export function FinancialDataProvider({ user, children }) {
       dirtySections.current.clear()
     }, 3000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [furloughDate, people, savingsAccounts, unemployment, expenses, whatIf, oneTimeExpenses, oneTimePurchases, oneTimeIncome, monthlyIncome, healthInsurance, jobs, assets, investments, child1Investments, child2Investments, subscriptions, creditCards, jobScenarios, retirement, severance, properties, homeImprovements, goals, advertisingRevenue, templates, comments, transactionLinks, transactionOverrides, accountCustomizations, notificationPreferences, categoryBudgets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Template handlers
@@ -394,8 +399,8 @@ export function FinancialDataProvider({ user, children }) {
   // Plaid global sync
   // ---------------------------------------------------------------------------
   async function handleGlobalSync(itemId) {
-    if (!plaid) return
-    await plaid.syncAll(itemId)
+    if (!tierGatedPlaid) return
+    await tierGatedPlaid.syncAll(itemId)
     refreshStatementIndex()
   }
 
@@ -447,8 +452,8 @@ export function FinancialDataProvider({ user, children }) {
   // Burndown calculations
   // ---------------------------------------------------------------------------
   const baseWhatIf = { ...DEFAULTS.whatIf }
-  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance)
-  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance)
+  const base = useBurndown(totalSavings, unemployment, expensesForBurndown, baseWhatIf, oneTimeExpenses, 0, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance, null)
+  const current = useBurndown(totalSavings, unemployment, expensesForBurndown, whatIf, oneTimeExpenses, assetProceeds, allInvestments, oneTimeIncome, monthlyIncomeForBurndown, effectiveStartDate, jobs, oneTimePurchases, creditCards, healthInsurance, severance)
 
   // ---------------------------------------------------------------------------
   // Scenario computations (templates, job scenarios, historical)
@@ -511,7 +516,7 @@ export function FinancialDataProvider({ user, children }) {
     furloughDate, people, savingsAccounts, unemployment, expenses, whatIf,
     oneTimeExpenses, oneTimePurchases, assets, investments, child1Investments,
     child2Investments, subscriptions, creditCards, oneTimeIncome, monthlyIncome,
-    healthInsurance, jobs, jobScenarios, retirement, properties, homeImprovements, goals,
+    healthInsurance, jobs, jobScenarios, retirement, severance, properties, homeImprovements, goals,
     advertisingRevenue, comments, filterPersonId, notificationPreferences,
     transactionLinks, transactionOverrides, accountCustomizations, categoryBudgets,
 
@@ -525,7 +530,7 @@ export function FinancialDataProvider({ user, children }) {
     onOneTimeIncChange, onMonthlyIncChange, onJobsChange, onAssetsChange,
     onInvestmentsChange, onChild1InvestmentsChange, onChild2InvestmentsChange,
     onSubsChange, onCreditCardsChange, onJobScenariosChange, onRetirementChange,
-    onPropertiesChange, onHomeImprovementsChange, onGoalsChange,
+    onSeveranceChange, onPropertiesChange, onHomeImprovementsChange, onGoalsChange,
     onAdvertisingRevenueChange, onHealthInsuranceChange, onCategoryBudgetsChange,
 
     // Transaction link handlers

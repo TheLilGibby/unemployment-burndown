@@ -17,6 +17,7 @@ import InvestmentsPanel from '../components/finances/InvestmentsPanel'
 import SubscriptionsPanel from '../components/finances/SubscriptionsPanel'
 import CreditCardsPanel from '../components/finances/CreditCardsPanel'
 import HealthInsurancePanel from '../components/finances/HealthInsurancePanel'
+import SeverancePanel from '../components/finances/SeverancePanel'
 import WhatIfPanel from '../components/scenarios/WhatIfPanel'
 import ConnectedAccountsPanel from '../components/plaid/ConnectedAccountsPanel'
 import ConnectedBrokeragesPanel from '../components/snaptrade/ConnectedBrokeragesPanel'
@@ -74,6 +75,10 @@ export default function BurndownPage({
   // Advertising
   advertisingRevenue,
   onAdvertisingRevenueChange,
+  // Severance
+  severance,
+  onSeveranceChange,
+  baseRunwayMonths,
   // What-if extras
   furloughDate,
   derivedStartDate,
@@ -176,6 +181,15 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
+      <SectionCard id="sec-severance" title="Severance Package" className="scroll-mt-20">
+        <SeverancePanel
+          value={severance}
+          onChange={onSeveranceChange}
+          baseRunwayMonths={baseRunwayMonths}
+          withRunwayMonths={current.totalRunwayMonths}
+        />
+      </SectionCard>
+
       {viewSettings.sections.whatif && (
         <SectionCard id="sec-whatif" title="What-If Scenarios" className="scroll-mt-20">
           <WhatIfPanel
@@ -261,7 +275,7 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Connected bank accounts via Plaid -- full width */}
+      {/* Connected bank accounts via Plaid — full width */}
       {viewSettings.sections.plaidAccounts && HAS_API && plaid && (
         <SectionCard id="sec-plaid" title="Connected Bank Accounts" className="scroll-mt-20">
           <ConnectedAccountsPanel
@@ -286,7 +300,7 @@ export default function BurndownPage({
         </SectionCard>
       )}
 
-      {/* Connected brokerage accounts via SnapTrade -- full width */}
+      {/* Connected brokerage accounts via SnapTrade — full width */}
       {HAS_API && snapTrade && (
         <SectionCard id="sec-snaptrade" title="Connected Brokerages" className="scroll-mt-20">
           <ConnectedBrokeragesPanel

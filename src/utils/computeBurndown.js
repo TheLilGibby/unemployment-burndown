@@ -20,6 +20,7 @@ import { WEEKS_PER_MONTH } from '../constants/financial'
  * @param {Array}   params.jobs              Active/ended job records
  * @param {Array}   params.oneTimePurchases  One-time purchases (treated as expenses)
  * @param {Array}   params.creditCards       Credit card records
+ * @param {object|null} params.severance    Severance package details (DEFAULTS.severance shape)
  */
 export function computeBurndown({
   savings = 0,
@@ -36,14 +37,44 @@ export function computeBurndown({
   oneTimePurchases = [],
   creditCards = [],
   healthInsurance = [],
+  severance = null,
 } = {}) {
   const today = dayjs(startDate || new Date())
+
+  // --- Severance calculations ---
+  const sev = severance && severance.enabled ? severance : null
+  let severanceNetAmount = 0
+  let severanceMonthlyNet = 0
+  let severanceStart = null
+  let severanceEnd = null
+  let ptoPayout = 0
+  if (sev) {
+    const grossAmount = Number(sev.grossAmount) || 0
+    const federalTax = (Number(sev.taxWithholdingPct) || 0) / 100
+    const stateTax = (Number(sev.stateTaxPct) || 0) / 100
+    const totalTaxRate = Math.min(federalTax + stateTax, 1)
+    severanceNetAmount = grossAmount * (1 - totalTaxRate)
+    ptoPayout = Number(sev.ptoPayout) || 0
+    severanceStart = sev.startDate ? dayjs(sev.startDate) : null
+    if (sev.paymentStructure === 'salary_continuation') {
+      const months = Math.max(1, Number(sev.continuationMonths) || 1)
+      severanceMonthlyNet = severanceNetAmount / months
+      severanceEnd = sev.endDate ? dayjs(sev.endDate) : (severanceStart ? severanceStart.add(months, 'month') : null)
+    } else {
+      // lump sum: treat end as start (one-time payment)
+      severanceEnd = severanceStart
+    }
+  }
 
   // --- Benefit window ---
   const rawBenefitStart = dayjs(unemployment.startDate)
   const delayWeeks = Number(whatIf.benefitDelayWeeks) || 0
   const cutWeeks   = Number(whatIf.benefitCutWeeks)   || 0
-  const benefitStart = rawBenefitStart.add(delayWeeks, 'week')
+  // If severance delays unemployment, push benefit start to after severance end
+  const sevDelayedBenefitStart = (sev && sev.delaysUnemployment && severanceEnd)
+    ? (rawBenefitStart.isBefore(severanceEnd) ? severanceEnd : rawBenefitStart)
+    : rawBenefitStart
+  const benefitStart = sevDelayedBenefitStart.add(delayWeeks, 'week')
   const baseDuration = Math.max(0, unemployment.durationWeeks - cutWeeks)
   const benefitEnd   = benefitStart.add(baseDuration, 'week')
   const monthlyBenefits = unemployment.weeklyAmount * WEEKS_PER_MONTH
@@ -183,6 +214,27 @@ export function computeBurndown({
     const inBenefitWindow =
       currentDate.isAfter(benefitStart) && currentDate.isBefore(benefitEnd)
     let income = inBenefitWindow ? monthlyBenefits : 0
+
+    // Severance income
+    if (sev && severanceStart) {
+      const prevDate = today.add(i - 1, 'month')
+      if (sev.paymentStructure === 'lump_sum') {
+        // Lump sum: inject on the month that contains the start date
+        if (!severanceStart.isBefore(prevDate) && severanceStart.isBefore(currentDate)) {
+          income += severanceNetAmount + ptoPayout
+        }
+      } else {
+        // Salary continuation: spread evenly across the severance period
+        const inSeveranceWindow = currentDate.isAfter(severanceStart) && (severanceEnd ? !currentDate.isAfter(severanceEnd) : true)
+        if (inSeveranceWindow) {
+          income += severanceMonthlyNet
+        }
+        // PTO payout on start date (one-time, same month as first continuation payment)
+        if (ptoPayout > 0 && !severanceStart.isBefore(prevDate) && severanceStart.isBefore(currentDate)) {
+          income += ptoPayout
+        }
+      }
+    }
 
     const jobIncomeThisMonth = jobIncomeForDate(currentDate)
     income += jobIncomeThisMonth

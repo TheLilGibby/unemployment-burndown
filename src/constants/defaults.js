@@ -102,4 +102,17 @@ export const DEFAULTS = {
     withdrawalRatePct: 4,
     assignedTo: null,
   },
+  severance: {
+    enabled: false,
+    grossAmount: 0,
+    paymentStructure: 'lump_sum',
+    continuationMonths: 3,
+    taxWithholdingPct: 22,
+    stateTaxPct: 0,
+    startDate: '',
+    endDate: '',
+    includesHealthInsurance: false,
+    ptoPayout: 0,
+    delaysUnemployment: false,
+  },
 }

@@ -388,6 +388,9 @@ function AuthenticatedApp({ logout, user, updateProfile, impersonating, stopImpe
                 historicalDate={fd.historicalDate}
                 historicalBurndown={fd.historicalBurndown}
                 onHistoricalDateSelect={fd.handleHistoricalDateSelect}
+                severance={fd.severance}
+                onSeveranceChange={fd.onSeveranceChange}
+                baseRunwayMonths={fd.base.totalRunwayMonths}
               />
             </ErrorBoundary>
           </div>
